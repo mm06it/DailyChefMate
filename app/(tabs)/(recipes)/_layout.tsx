@@ -24,12 +24,6 @@ const HeaderTitle = () => (
 
 function TabsWithCollapsibleBar() {
   const { t } = useLanguage();
-  const { progress } = useCollapsibleHeader();
-
-  const tabHeight = 48;
-  const progressTabs = Math.max(0, Math.min(1, (progress - 0.33) / 0.67));
-  const opacity = 1 - progressTabs;
-  const borderWidth = opacity > 0 ? 1 : 0;
 
   return (
     <MaterialTopTabs
@@ -41,15 +35,15 @@ function TabsWithCollapsibleBar() {
           height: 4,
           borderRadius: 999,
           marginHorizontal: 18,
-          opacity,
+          opacity: 1,
         },
         tabBarStyle: {
           backgroundColor: Colors.background,
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: borderWidth,
+          borderBottomWidth: 1,
           borderBottomColor: Colors.border,
-          opacity,
+          opacity: 1,
           overflow: 'hidden' as const,
         },
         tabBarLabelStyle: {
