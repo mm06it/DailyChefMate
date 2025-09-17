@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.background,
-    elevation: 2,
+    elevation: 200,
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowColor: Colors.primary,
