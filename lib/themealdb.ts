@@ -338,66 +338,8 @@ class TheMealDBService {
   }
 
   private getRecipeImage(recipeName: string, originalImage: string, category: string): string {
-    const lowerName = recipeName.toLowerCase();
-    
-    // Define better images for specific recipes that often have wrong images
-    const recipeImageMap: { [key: string]: string } = {
-      // Tacos and Mexican food
-      'beef tacos': 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'chicken tacos': 'https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'fish tacos': 'https://images.unsplash.com/photo-1552332386-f8dd00dc2f85?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      
-      // Asian dishes
-      'pad thai': 'https://images.unsplash.com/photo-1559314809-0f31657def5e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'thai green curry': 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'chicken curry': 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'beef curry': 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      
-      // Italian dishes
-      'spaghetti carbonara': 'https://images.unsplash.com/photo-1612874742237-6526221588e3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'margherita pizza': 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'chicken parmesan': 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      
-      // Breakfast
-      'pancakes': 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'french toast': 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      
-      // Desserts
-      'chocolate cake': 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'banana bread': 'https://images.unsplash.com/photo-1586985289688-ca3cf47d3e6e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'chocolate chip cookies': 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    };
-    
-    // Check for exact matches first
-    for (const [recipeName, imageUrl] of Object.entries(recipeImageMap)) {
-      if (lowerName.includes(recipeName)) {
-        return imageUrl;
-      }
-    }
-    
-    // Category-based fallback images if original seems inappropriate
-    const categoryImageMap: { [key: string]: string } = {
-      'beef': 'https://images.unsplash.com/photo-1588347818133-38c4106ca7b4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'chicken': 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'pork': 'https://images.unsplash.com/photo-1544025162-d76694265947?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'seafood': 'https://images.unsplash.com/photo-1544943910-4c1dc44aab44?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'vegetarian': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'dessert': 'https://images.unsplash.com/photo-1551024506-0bccd828d307?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-      'breakfast': 'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    };
-    
-    // Check if the recipe name contains category keywords and use appropriate fallback
-    for (const [keyword, imageUrl] of Object.entries(categoryImageMap)) {
-      if (lowerName.includes(keyword) || category.toLowerCase().includes(keyword)) {
-        // Only use fallback if original image seems problematic (contains fruit keywords for non-fruit dishes)
-        if (this.isImageInappropriate(lowerName, originalImage)) {
-          return imageUrl;
-        }
-      }
-    }
-    
-    // Return original image if no better alternative found
-    return originalImage;
+    console.log('[TheMealDB] Variante 1 aktiv: immer Originalbild verwenden');
+    return originalImage ?? '';
   }
   
   private isImageInappropriate(recipeName: string, imageUrl: string): boolean {
