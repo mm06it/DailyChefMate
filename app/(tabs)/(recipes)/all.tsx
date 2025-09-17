@@ -309,53 +309,6 @@ export default function AllRecipesScreen() {
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.searchContainer, { opacity: searchOpacity, transform: [{ translateY: searchTranslateY }] }]} pointerEvents={searchOpacity <= 0.01 ? 'none' : 'auto'}>
-        <SearchBar 
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t('search')}
-        />
-        
-        {isSearchingOnline && searchQuery.trim() && (
-          <View style={styles.searchingIndicator}>
-            <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={styles.searchingText}>
-              {t('searching') || 'Searching online...'}
-            </Text>
-          </View>
-        )}
-      </Animated.View>
-      
-      <Animated.View style={[styles.filterContainer, { opacity: cuisineOpacity, transform: [{ translateY: cuisineTranslateY }] }]} pointerEvents={cuisineOpacity <= 0.01 ? 'none' : 'auto'}>
-        <View style={styles.filterHeader}>
-          <Filter size={16} color={Colors.textLight} />
-          <Text style={styles.filterTitle}>Küche</Text>
-        </View>
-        <FlatList
-          data={cuisineFilters}
-          renderItem={renderCuisineFilter}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryList}
-        />
-      </Animated.View>
-
-      <Animated.View style={[styles.filterContainer, { opacity: courseOpacity, transform: [{ translateY: courseTranslateY }] }]} pointerEvents={courseOpacity <= 0.01 ? 'none' : 'auto'}>
-        <View style={styles.filterHeader}>
-          <Filter size={16} color={Colors.textLight} />
-          <Text style={styles.filterTitle}>Kurs-Art</Text>
-        </View>
-        <FlatList
-          data={courseFilters}
-          renderItem={renderCourseFilter}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryList}
-        />
-      </Animated.View>
-      
       {displayedRecipes.length > 0 ? (
         <FlatList
           data={displayedRecipes}
@@ -366,6 +319,55 @@ export default function AllRecipesScreen() {
           testID="recipes-list"
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.3}
+          ListHeaderComponent={(
+            <View>
+              <Animated.View style={[styles.searchContainer, { opacity: searchOpacity, transform: [{ translateY: searchTranslateY }] }]} pointerEvents={searchOpacity <= 0.01 ? 'none' : 'auto'}>
+                <SearchBar 
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder={t('search')}
+                />
+                {isSearchingOnline && searchQuery.trim() && (
+                  <View style={styles.searchingIndicator}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text style={styles.searchingText}>
+                      {t('searching') || 'Searching online...'}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
+
+              <Animated.View style={[styles.filterContainer, { opacity: cuisineOpacity, transform: [{ translateY: cuisineTranslateY }] }]} pointerEvents={cuisineOpacity <= 0.01 ? 'none' : 'auto'}>
+                <View style={styles.filterHeader}>
+                  <Filter size={16} color={Colors.textLight} />
+                  <Text style={styles.filterTitle}>Küche</Text>
+                </View>
+                <FlatList
+                  data={cuisineFilters}
+                  renderItem={renderCuisineFilter}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryList}
+                />
+              </Animated.View>
+
+              <Animated.View style={[styles.filterContainer, { opacity: courseOpacity, transform: [{ translateY: courseTranslateY }] }]} pointerEvents={courseOpacity <= 0.01 ? 'none' : 'auto'}>
+                <View style={styles.filterHeader}>
+                  <Filter size={16} color={Colors.textLight} />
+                  <Text style={styles.filterTitle}>Kurs-Art</Text>
+                </View>
+                <FlatList
+                  data={courseFilters}
+                  renderItem={renderCourseFilter}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryList}
+                />
+              </Animated.View>
+            </View>
+          )}
           ListFooterComponent={renderFooter}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
