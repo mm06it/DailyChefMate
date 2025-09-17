@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Recipe } from "@/types/recipe";
-import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable } from "react-native";
+import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, Animated, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { Search, ChefHat, Filter } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
@@ -10,6 +10,7 @@ import { useRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
+import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
@@ -24,6 +25,18 @@ export default function AllRecipesScreen() {
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const recipes = useRecipes(searchQuery);
   const { searchRecipesOnline } = useFridgyStore();
+  const { setProgress, progress } = useCollapsibleHeader();
+
+  const clamp = useCallback((v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v)), []);
+
+  const courseOpacity = useMemo(() => 1 - clamp(progress / 0.33), [progress, clamp]);
+  const cuisineOpacity = useMemo(() => 1 - clamp((progress - 0.33) / 0.33), [progress, clamp]);
+  const searchOpacity = useMemo(() => 1 - clamp((progress - 0.66) / 0.34), [progress, clamp]);
+
+  const yMax = 24;
+  const courseTranslateY = useMemo(() => -yMax * (1 - courseOpacity), [courseOpacity]);
+  const cuisineTranslateY = useMemo(() => -yMax * (1 - cuisineOpacity), [cuisineOpacity]);
+  const searchTranslateY = useMemo(() => -yMax * (1 - searchOpacity), [searchOpacity]);
   
   const recipeCategories = useMemo(() => [
     'Beef', 'Chicken', 'Dessert', 'Lamb', 'Miscellaneous', 'Pasta', 'Pork', 
@@ -287,9 +300,16 @@ export default function AllRecipesScreen() {
     </Pressable>
   );
 
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const threshold = 220;
+    const p = Math.max(0, Math.min(1, y / threshold));
+    setProgress(p);
+  }, [setProgress]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
+      <Animated.View style={[styles.searchContainer, { opacity: searchOpacity, transform: [{ translateY: searchTranslateY }] }]} pointerEvents={searchOpacity <= 0.01 ? 'none' : 'auto'}>
         <SearchBar 
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -304,9 +324,9 @@ export default function AllRecipesScreen() {
             </Text>
           </View>
         )}
-      </View>
+      </Animated.View>
       
-      <View style={styles.filterContainer}>
+      <Animated.View style={[styles.filterContainer, { opacity: cuisineOpacity, transform: [{ translateY: cuisineTranslateY }] }]} pointerEvents={cuisineOpacity <= 0.01 ? 'none' : 'auto'}>
         <View style={styles.filterHeader}>
           <Filter size={16} color={Colors.textLight} />
           <Text style={styles.filterTitle}>Küche</Text>
@@ -319,9 +339,9 @@ export default function AllRecipesScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryList}
         />
-      </View>
+      </Animated.View>
 
-      <View style={styles.filterContainer}>
+      <Animated.View style={[styles.filterContainer, { opacity: courseOpacity, transform: [{ translateY: courseTranslateY }] }]} pointerEvents={courseOpacity <= 0.01 ? 'none' : 'auto'}>
         <View style={styles.filterHeader}>
           <Filter size={16} color={Colors.textLight} />
           <Text style={styles.filterTitle}>Kurs-Art</Text>
@@ -334,7 +354,7 @@ export default function AllRecipesScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryList}
         />
-      </View>
+      </Animated.View>
       
       {displayedRecipes.length > 0 ? (
         <FlatList
@@ -350,6 +370,8 @@ export default function AllRecipesScreen() {
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
           windowSize={10}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
         />
       ) : (
         <View style={styles.emptyContainer}>
