@@ -104,11 +104,11 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: Colors.background,
-    elevation: 200,
+    elevation: 2,
     shadowOpacity: 0.08,
     shadowRadius: 6,
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 200 },
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
