@@ -68,6 +68,48 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     loadData();
   }, []);
 
+  // One-time repair to fix any wrong images from previous heuristic and remove AI-enriched entries
+  useEffect(() => {
+    if (isLoading) return;
+    const repair = async () => {
+      try {
+        let changed = false;
+        // Remove AI recipes completely
+        setRecipes(prev => {
+          const filtered = prev.filter(r => !r.id.startsWith('ai_'));
+          if (filtered.length !== prev.length) changed = true;
+          return filtered;
+        });
+        // Refresh images for TheMealDB items from source
+        const mealdbRecipes = recipes.filter(r => r.id.startsWith('mealdb_'));
+        if (mealdbRecipes.length > 0) {
+          const updatedMap: Record<string, string> = {};
+          for (const r of mealdbRecipes) {
+            const mealId = r.id.replace('mealdb_', '');
+            try {
+              const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${encodeURIComponent(mealId)}`);
+              const data = await res.json();
+              const thumb: string | undefined = data?.meals?.[0]?.strMealThumb;
+              if (thumb && thumb !== r.image) {
+                updatedMap[r.id] = thumb;
+              }
+            } catch {}
+          }
+          if (Object.keys(updatedMap).length > 0) {
+            setRecipes(prev => prev.map(r => (updatedMap[r.id] ? { ...r, image: updatedMap[r.id] } : r)));
+            changed = true;
+          }
+        }
+        if (changed) {
+          await AsyncStorage.setItem('recipes', JSON.stringify(recipes));
+        }
+      } catch (e) {
+        console.log('Repair pass skipped', e);
+      }
+    };
+    repair();
+  }, [isLoading]);
+
   // Save data to AsyncStorage whenever it changes
   useEffect(() => {
     if (!isLoading) {
@@ -138,7 +180,7 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     try {
       console.log('Online search (web + AI) for recipes:', query);
 
-      const data = await trpcClient.recipes.search.query({ query, limit: 30 });
+      const data = await trpcClient.recipes.search.query({ query, limit: 30, ai: false });
       const merged = addUniqueRecipes(data);
 
       // Fallbacks to supplement results from TheMealDB directly if needed
