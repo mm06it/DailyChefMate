@@ -1,0 +1,216 @@
+import { router } from "expo-router";
+import { Heart } from "lucide-react-native";
+import React, { useMemo, useState } from "react";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+
+import Colors from "@/constants/colors";
+import { translateText } from "@/constants/translations";
+import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useLanguage } from "@/hooks/use-language";
+import { Recipe } from "@/types/recipe";
+
+interface RecipeCardProps {
+  recipe: Recipe;
+}
+
+export default function RecipeCard({ recipe }: RecipeCardProps) {
+  const { toggleFavorite } = useFridgyStore();
+  const { currentLanguage } = useLanguage();
+  const [imageError, setImageError] = useState<boolean>(false);
+
+  const fallbackImage = "https://images.unsplash.com/photo-1546548970-71785318a17b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
+
+  const handlePress = () => {
+    router.push(`/recipe-detail?id=${recipe.id}`);
+  };
+
+  const handleFavoritePress = () => {
+    toggleFavorite(recipe.id);
+  };
+
+  const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
+  const translatedCategory = useMemo(() => translateText(currentLanguage, recipe.category) || recipe.category, [currentLanguage, recipe.category]);
+
+  const courseLabel = useMemo(() => {
+    const lang = currentLanguage ?? 'de';
+    const labels: Record<string, { starter: string; main: string; dessert: string }> = {
+      de: { starter: 'Vorspeise', main: 'Hauptspeise', dessert: 'Nachspeise' },
+      en: { starter: 'Starter', main: 'Main', dessert: 'Dessert' },
+      fr: { starter: 'Entrée', main: 'Plat', dessert: 'Dessert' },
+      es: { starter: 'Entrada', main: 'Plato principal', dessert: 'Postre' },
+      it: { starter: 'Antipasto', main: 'Piatto principale', dessert: 'Dessert' },
+    } as const;
+    const cat = recipe.category?.toLowerCase() ?? '';
+    let key: 'starter' | 'main' | 'dessert' | null = null;
+    if (recipe.course) {
+      const c = recipe.course.toLowerCase();
+      if (['vorspeise', 'starter', 'entrée', 'entrada', 'antipasto'].includes(c)) key = 'starter';
+      if (['hauptspeise', 'main', 'plat', 'piatto principale'].includes(c)) key = 'main';
+      if (['nachspeise', 'dessert', 'postre'].includes(c)) key = 'dessert';
+    }
+    if (!key) {
+      if (cat === 'dessert') key = 'dessert';
+      else if (cat === 'starter' || cat === 'salad' || cat === 'side' || cat === 'appetizer') key = 'starter';
+      else key = 'main';
+    }
+    const bundle = labels[lang] ?? labels.de;
+    return bundle[key];
+  }, [currentLanguage, recipe.category, recipe.course]);
+
+  return (
+    <Pressable 
+      style={styles.container} 
+      onPress={handlePress}
+      testID={`recipe-card-${recipe.id}`}
+    >
+      <Image 
+        source={{ uri: imageError ? fallbackImage : recipe.image }} 
+        style={styles.image}
+        onError={() => setImageError(true)}
+      />
+      <View style={styles.infoContainer}>
+        <View style={styles.header}>
+          <View style={styles.titleWithBadge}>
+            <Text style={styles.name}>{translatedName}</Text>
+          </View>
+          <Pressable 
+            onPress={handleFavoritePress} 
+            hitSlop={10}
+            style={styles.favoriteButton}
+            testID={`recipe-card-${recipe.id}-favorite`}
+          >
+            <Heart 
+              size={22} 
+              color={recipe.isFavorite ? Colors.favorite : Colors.textLight} 
+              fill={recipe.isFavorite ? Colors.favorite : "none"} 
+            />
+          </Pressable>
+        </View>
+        <View style={styles.details}>
+          <View style={styles.ratingPill}>
+            <Text style={styles.ratingText}>★ {recipe.rating.toFixed(1)}</Text>
+          </View>
+          <View style={styles.timePill}>
+            <Text style={styles.timeText}>{recipe.cookTime}</Text>
+          </View>
+        </View>
+        <View style={styles.badgesRow}>
+          <View style={styles.categoryBadge} testID={`recipe-card-${recipe.id}-category-badge`}>
+            <Text style={styles.categoryBadgeText}>{translatedCategory}</Text>
+          </View>
+          <View style={styles.courseBadge} testID={`recipe-card-${recipe.id}-course-badge`}>
+            <Text style={styles.courseBadgeText}>{courseLabel}</Text>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  image: {
+    width: "100%",
+    height: 190,
+    resizeMode: "cover",
+  },
+  infoContainer: {
+    padding: 14,
+    gap: 6,
+  },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  titleWithBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 8,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: Colors.text,
+    flexShrink: 1,
+  },
+  categoryBadge: {
+    backgroundColor: Colors.cardSecondary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  categoryBadgeText: {
+    fontSize: 12,
+    color: Colors.textLight,
+  },
+  courseBadge: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  courseBadgeText: {
+    fontSize: 12,
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  favoriteButton: {
+    padding: 6,
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+  },
+  details: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  ratingPill: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FFE4CC',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: Colors.orange,
+    fontWeight: '700',
+  },
+  timePill: {
+    backgroundColor: '#F0F7FF',
+    borderColor: '#D8EBFF',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  timeText: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '700',
+  },
+  category: {
+    fontSize: 14,
+    color: Colors.textLight,
+  },
+});

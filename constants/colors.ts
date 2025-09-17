@@ -1,0 +1,28 @@
+const Colors = {
+  primary: "#FF6B6B",
+  primaryLight: "#FFD1DC",
+  secondary: "#6EE7E7",
+  accent: "#8FB8FF",
+  background: "#FDF7F2",
+  card: "#FFFFFF",
+  cardBackground: "#FFFFFF",
+  cardSecondary: "#FFF1F1",
+  text: "#2D3748",
+  textLight: "#8A94A6",
+  textSecondary: "#8A94A6",
+  border: "#F0E6E6",
+  error: "#E53E3E",
+  success: "#38A169",
+  favorite: "#FF6B6B",
+  rating: "#FFB86B",
+  purple: "#A78BFA",
+  orange: "#FF9F6E",
+  green: "#68D391",
+  blue: "#7CC0FF",
+  white: "#FFFFFF",
+  gradientStart: "#FFDEE2",
+  gradientEnd: "#D0F4FF",
+  tabBarTint: "#FFFFFF",
+} as const;
+
+export default Colors;
