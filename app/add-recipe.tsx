@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Plus, Minus, X as XIcon } from "lucide-react-native";
+import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
 
 import { useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
@@ -212,8 +212,8 @@ export default function AddRecipeScreen() {
             )
           ),
           headerRight: () => (
-            <Pressable testID="header-save" onPress={handleSave} style={styles.headerSave}>
-              <Text testID="header-save-text" style={styles.headerSaveText}>{t('save')}</Text>
+            <Pressable testID="header-save" onPress={handleSave} style={styles.headerSave} accessibilityLabel={t('save')}>
+              <Check size={22} color={Colors.success} />
             </Pressable>
           ),
         }}
