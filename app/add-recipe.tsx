@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Plus, Minus, Save } from "lucide-react-native";
+import { Plus, Minus, Save, X as XIcon } from "lucide-react-native";
 
 import { useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
@@ -203,6 +203,14 @@ export default function AddRecipeScreen() {
       <Stack.Screen
         options={{
           title: isEditing ? t('editRecipe') : t('createRecipe'),
+          headerTitleAlign: 'center',
+          headerLeft: () => (
+            isEditing ? null : (
+              <Pressable testID="header-cancel" onPress={() => router.back()} style={styles.headerCancel}>
+                <XIcon size={22} color={Colors.text} />
+              </Pressable>
+            )
+          ),
           headerRight: () => (
             <Pressable testID="header-save" onPress={handleSave} style={styles.headerSave}>
               <Text testID="header-save-text" style={styles.headerSaveText}>{t('save')}</Text>
@@ -533,6 +541,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
     gap: 6,
+  },
+  headerCancel: {
+    padding: 8,
+    marginRight: 4,
   },
   headerSaveText: {
     color: Colors.primary,
