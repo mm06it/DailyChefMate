@@ -53,6 +53,7 @@ export default function AddRecipeScreen() {
   });
 
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isEditing = !!editId;
 
   const isEmpty = useCallback((v: string) => (v ?? '').trim().length === 0, []);
@@ -105,7 +106,12 @@ export default function AddRecipeScreen() {
     const hasEmptyStep = formData.steps.some(step => !step.trim());
 
     if (missingBasic || hasEmptyIngredient || hasEmptyStep) {
-      Alert.alert(t('required'), t('fillAllFields'));
+      setErrorMessage(t('fillAllFields'));
+      try {
+        Alert.alert(t('required'), t('fillAllFields'));
+      } catch (e) {
+        console.log('Alert not available, falling back to inline error.');
+      }
       return;
     }
 
@@ -135,15 +141,16 @@ export default function AddRecipeScreen() {
     try {
       if (isEditing && editId) {
         updateCustomRecipe(editId, recipeData);
-        Alert.alert(t('recipeUpdated'));
+        try { Alert.alert(t('recipeUpdated')); } catch (e) { console.log('Alert not available'); }
       } else {
         addCustomRecipe(recipeData);
-        Alert.alert(t('recipeCreated'));
+        try { Alert.alert(t('recipeCreated')); } catch (e) { console.log('Alert not available'); }
       }
       router.back();
     } catch (error) {
       console.error('Error saving recipe:', error);
-      Alert.alert('Error', 'Failed to save recipe');
+      try { Alert.alert('Error', 'Failed to save recipe'); } catch (e2) { console.log('Save error'); }
+      setErrorMessage('Failed to save recipe');
     }
   };
 
@@ -221,6 +228,20 @@ export default function AddRecipeScreen() {
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.form}>
+          {errorMessage && (
+            <View testID="validation-banner" style={styles.errorBanner}>
+              <Text style={styles.errorBannerText}>{errorMessage}</Text>
+              <Pressable
+                testID="dismiss-validation"
+                onPress={() => setErrorMessage(null)}
+                style={styles.errorBannerClose}
+                accessibilityLabel={t('cancel')}
+              >
+                <XIcon size={16} color="#fff" />
+              </Pressable>
+            </View>
+          )}
+
           {/* Recipe Name */}
           <View style={styles.section}>
             <Text style={styles.label}>
@@ -740,5 +761,25 @@ const styles = StyleSheet.create({
   centerText: {
     textAlign: 'center',
     width: '100%',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+    marginRight: 8,
+  },
+  errorBannerClose: {
+    padding: 6,
   }
 });
