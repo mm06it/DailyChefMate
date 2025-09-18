@@ -226,21 +226,24 @@ export default function AddRecipeScreen() {
         }}
       />
       
+      {errorMessage && (
+        <View style={styles.fixedBannerContainer}>
+          <View testID="validation-banner" style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
+            <Pressable
+              testID="dismiss-validation"
+              onPress={() => setErrorMessage(null)}
+              style={styles.errorBannerClose}
+              accessibilityLabel={t('cancel')}
+            >
+              <XIcon size={16} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      )}
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.form}>
-          {errorMessage && (
-            <View testID="validation-banner" style={styles.errorBanner}>
-              <Text style={styles.errorBannerText}>{errorMessage}</Text>
-              <Pressable
-                testID="dismiss-validation"
-                onPress={() => setErrorMessage(null)}
-                style={styles.errorBannerClose}
-                accessibilityLabel={t('cancel')}
-              >
-                <XIcon size={16} color="#fff" />
-              </Pressable>
-            </View>
-          )}
 
           {/* Recipe Name */}
           <View style={styles.section}>
@@ -761,6 +764,10 @@ const styles = StyleSheet.create({
   centerText: {
     textAlign: 'center',
     width: '100%',
+  },
+  fixedBannerContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
   },
   errorBanner: {
     flexDirection: 'row',
