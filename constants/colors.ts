@@ -3,7 +3,7 @@ const Colors = {
   primaryLight: "#FFD1DC",
   secondary: "#6EE7E7",
   accent: "#8FB8FF",
-  background: "#FDF7F2",
+  background: "#FFFFFF",
   card: "#FFFFFF",
   cardBackground: "#FFFFFF",
   cardSecondary: "#FFF1F1",
