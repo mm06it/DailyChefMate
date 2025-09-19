@@ -7,18 +7,10 @@ import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 
-type TabBarButtonState = { selected?: boolean } | undefined;
-
-type AccountMenuProps = React.ComponentProps<typeof Pressable> & {
-  accessibilityState?: TabBarButtonState;
-};
-
-export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, style, ...pressableProps }) => {
+export const AccountMenu: React.FC = () => {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
-
-  const isSelected = accessibilityState?.selected ?? false;
 
   const handleSignOut = () => {
     Alert.alert(
@@ -43,16 +35,13 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
 
   return (
     <React.Fragment>
-      <Pressable
-        {...pressableProps}
-        style={[style, styles.accountButton]}
+      <TouchableOpacity
+        style={styles.accountButton}
         onPress={() => setIsModalVisible(true)}
         testID="account-menu-button"
       >
-        {({ pressed }) => (
-          <UserCircle size={24} color={pressed || isSelected ? Colors.primary : Colors.textLight} />)
-        }
-      </Pressable>
+        <UserCircle size={24} color={Colors.primary} />
+      </TouchableOpacity>
       <Modal
         visible={isModalVisible}
         transparent
@@ -68,7 +57,9 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
               <UserCircle size={40} color={Colors.primary} />
               <Text style={styles.userEmail}>{user?.email}</Text>
             </View>
+            
             <View style={styles.divider} />
+            
             <TouchableOpacity
               style={styles.menuOption}
               onPress={() => {
@@ -80,6 +71,7 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
               <User size={20} color={Colors.text} />
               <Text style={styles.menuOptionText}>{t('profile')}</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               style={styles.menuOption}
               onPress={() => {
@@ -91,7 +83,9 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
               <Settings size={20} color={Colors.text} />
               <Text style={styles.menuOptionText}>{t('settings')}</Text>
             </TouchableOpacity>
+            
             <View style={styles.divider} />
+            
             <TouchableOpacity
               style={[styles.menuOption, styles.signOutOption]}
               onPress={handleSignOut}
@@ -109,11 +103,8 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
 
 const styles = StyleSheet.create({
   accountButton: {
-    padding: 0,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
+    padding: 8,
+    marginRight: 8,
   },
   modalOverlay: {
     flex: 1,

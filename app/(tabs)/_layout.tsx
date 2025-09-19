@@ -36,8 +36,6 @@ export default function TabLayout() {
         tabBarInactiveTintColor: Colors.textLight,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarShowLabel: false,
-        tabBarItemStyle: styles.tabBarItem,
         headerShown: true,
         headerStyle: styles.header,
         headerBackground: () => (
@@ -81,7 +79,7 @@ export default function TabLayout() {
         options={{
           title: t('profile'),
           tabBarIcon: ({ color }) => <User size={22} color={color} />,
-          tabBarButton: (props) => <AccountMenu {...props} />,
+          tabBarButton: () => <AccountMenu />,
         }}
       />
     </Tabs>
@@ -101,18 +99,10 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingTop: 6,
     backgroundColor: Colors.tabBarTint,
-    paddingHorizontal: 0,
   },
   tabLabel: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  tabBarItem: {
-    marginHorizontal: 0,
-    paddingHorizontal: 0,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   header: {
     backgroundColor: Colors.background,
