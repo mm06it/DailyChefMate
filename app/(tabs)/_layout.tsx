@@ -36,6 +36,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: Colors.textLight,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
+        tabBarShowLabel: false,
         tabBarItemStyle: styles.tabBarItem,
         headerShown: true,
         headerStyle: styles.header,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
     paddingTop: 6,
     backgroundColor: Colors.tabBarTint,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
   },
   tabLabel: {
     fontSize: 12,
@@ -110,6 +111,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     paddingHorizontal: 0,
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     backgroundColor: Colors.background,

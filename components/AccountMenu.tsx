@@ -109,7 +109,11 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, st
 
 const styles = StyleSheet.create({
   accountButton: {
-    padding: 8,
+    padding: 0,
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
   },
   modalOverlay: {
     flex: 1,
