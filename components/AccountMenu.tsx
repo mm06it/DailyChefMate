@@ -1,6 +1,6 @@
 import { User, LogOut, Settings, UserCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, Alert, GestureResponderEvent } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
 import { router } from 'expo-router';
 
 import Colors from '@/constants/colors';
@@ -9,13 +9,11 @@ import { useLanguage } from '@/hooks/use-language';
 
 type TabBarButtonState = { selected?: boolean } | undefined;
 
-type AccountMenuProps = {
+type AccountMenuProps = React.ComponentProps<typeof Pressable> & {
   accessibilityState?: TabBarButtonState;
-  onPress?: (event: GestureResponderEvent) => void;
-  testID?: string;
 };
 
-export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState }) => {
+export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState, style, ...pressableProps }) => {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
@@ -46,13 +44,14 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState }) 
   return (
     <React.Fragment>
       <Pressable
-        style={styles.accountButton}
+        {...pressableProps}
+        style={[style, styles.accountButton]}
         onPress={() => setIsModalVisible(true)}
         testID="account-menu-button"
       >
         {({ pressed }) => (
-          <UserCircle size={24} color={pressed || isSelected ? Colors.primary : Colors.textLight} />
-        )}
+          <UserCircle size={24} color={pressed || isSelected ? Colors.primary : Colors.textLight} />)
+        }
       </Pressable>
       <Modal
         visible={isModalVisible}
@@ -111,7 +110,6 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({ accessibilityState }) 
 const styles = StyleSheet.create({
   accountButton: {
     padding: 8,
-    marginRight: 8,
   },
   modalOverlay: {
     flex: 1,
