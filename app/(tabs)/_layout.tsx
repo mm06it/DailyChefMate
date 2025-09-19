@@ -25,11 +25,6 @@ const HeaderLeft = () => (
   </View>
 );
 
-const HeaderRight = () => (
-  <View style={styles.headerSide}>
-    <AccountMenu />
-  </View>
-);
 
 export default function TabLayout() {
   const { t } = useLanguage();
@@ -54,7 +49,6 @@ export default function TabLayout() {
         headerTitle: () => <HeaderTitle />,
         headerTitleAlign: 'center',
         headerLeft: () => <HeaderLeft />,
-        headerRight: () => <HeaderRight />,
         headerTintColor: Colors.text,
       }}
     >
@@ -85,6 +79,7 @@ export default function TabLayout() {
         options={{
           title: t('profile'),
           tabBarIcon: ({ color }) => <User size={22} color={color} />,
+          tabBarButton: () => <AccountMenu />,
         }}
       />
     </Tabs>
