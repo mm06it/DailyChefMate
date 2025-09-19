@@ -4,7 +4,6 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { withLayoutContext } from 'expo-router';
 import { useLanguage } from '@/hooks/use-language';
 import { LanguageSelector } from '@/components/LanguageSelector';
-import { AccountMenu } from '@/components/AccountMenu';
 import Colors from '@/constants/colors';
 import { CollapsibleHeaderProvider, useCollapsibleHeader } from '@/hooks/use-collapsible-header';
 
@@ -76,7 +75,6 @@ export default function RecipesLayout() {
         <View style={styles.header}>
           <LanguageSelector />
           <HeaderTitle />
-          <AccountMenu />
         </View>
         <TabsWithCollapsibleBar />
       </View>
