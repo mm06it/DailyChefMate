@@ -1,6 +1,6 @@
 import { Trash } from "lucide-react-native";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
@@ -16,7 +16,7 @@ interface IngredientItemProps {
 
 export default function IngredientItem({ ingredient, showRemove = false, onToggle }: IngredientItemProps) {
   const { toggleIngredientSelection, removeIngredient } = useFridgyStore();
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
 
   const handleToggle = () => {
     if (onToggle) {
@@ -46,7 +46,21 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
   };
 
   const handleRemove = () => {
-    removeIngredient(ingredient.id);
+    const title = t('removeIngredient') || 'Remove ingredient';
+    const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
+
+    if (Platform.OS === 'web') {
+      const confirmed = typeof window !== 'undefined' && window.confirm(`${title}: ${message}?`);
+      if (confirmed) {
+        removeIngredient(ingredient.id);
+      }
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: t('cancel') || 'Cancel', style: 'cancel' },
+      { text: t('delete') || 'Delete', style: 'destructive', onPress: () => removeIngredient(ingredient.id) },
+    ]);
   };
 
   const categoryColor = getCategoryColor(ingredient.category);
