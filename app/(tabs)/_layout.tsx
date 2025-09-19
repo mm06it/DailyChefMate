@@ -79,7 +79,7 @@ export default function TabLayout() {
         options={{
           title: t('profile'),
           tabBarIcon: ({ color }) => <User size={22} color={color} />,
-          tabBarButton: () => <AccountMenu />,
+          tabBarButton: (props) => <AccountMenu {...props} />,
         }}
       />
     </Tabs>
