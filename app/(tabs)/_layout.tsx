@@ -73,13 +73,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Refrigerator size={22} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="favorites"
-        options={{
-          title: t('favorites'),
-          tabBarIcon: ({ color }) => <Star size={22} color={color} />,
-        }}
-      />
+
     </Tabs>
   );
 }
