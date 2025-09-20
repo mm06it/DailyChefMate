@@ -1,5 +1,5 @@
 import { X } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
@@ -23,6 +23,23 @@ export default function IngredientQuantityModal({
   const [selectedUnit, setSelectedUnit] = useState<'g' | 'ml' | 'Stück'>('g');
   const [selectedAmount, setSelectedAmount] = useState(1);
   const { currentLanguage } = useLanguage();
+
+  const defaultUnitFromIngredient = (ing: Ingredient | null): 'g' | 'ml' | 'Stück' => {
+    const name = (ing?.name ?? '').toLowerCase().trim();
+    if (!name) return 'g';
+    if (["milk", "milch"].includes(name)) return 'ml';
+    if (["flour", "mehl"].includes(name)) return 'g';
+    if (["eggs", "eier", "egg", "ei"].includes(name)) return 'Stück';
+    return 'g';
+  };
+
+  useEffect(() => {
+    if (ingredient) {
+      const unit = defaultUnitFromIngredient(ingredient);
+      setSelectedUnit(unit);
+      setSelectedAmount(1);
+    }
+  }, [ingredient, isVisible]);
 
   const getAmountOptions = () => {
     switch (selectedUnit) {
