@@ -22,20 +22,20 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
     console.log('IngredientItem press', { id: ingredient.id, isSelected: ingredient.isSelected });
 
     if (ingredient.isSelected) {
-      const title = t('removeIngredient') || 'Lebensmittel entfernen';
+      const title = t('unselectIngredient') || 'Auswahl aufheben';
       const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
 
       if (Platform.OS === 'web') {
         const confirmed = typeof window !== 'undefined' && window.confirm(`${title}: ${message}?`);
         if (confirmed) {
-          removeIngredient(ingredient.id);
+          toggleIngredientSelection(ingredient.id);
         }
         return;
       }
 
       Alert.alert(title, message, [
         { text: t('cancel') || 'Abbrechen', style: 'cancel' },
-        { text: t('delete') || 'Entfernen', style: 'destructive', onPress: () => removeIngredient(ingredient.id) },
+        { text: t('unselect') || 'Auswahl aufheben', style: 'default', onPress: () => toggleIngredientSelection(ingredient.id) },
       ]);
       return;
     }
