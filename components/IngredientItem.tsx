@@ -1,7 +1,6 @@
-import { Trash } from "lucide-react-native";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import React from "react";
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
@@ -16,7 +15,7 @@ interface IngredientItemProps {
 }
 
 export default function IngredientItem({ ingredient, showRemove = false, onToggle }: IngredientItemProps) {
-  const { toggleIngredientSelection, removeIngredient } = useFridgyStore();
+  const { toggleIngredientSelection } = useFridgyStore();
   const { currentLanguage, t } = useLanguage();
   const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
   const [confirmConfig, setConfirmConfig] = React.useState<{ title: string; message: string; onConfirm: () => void; confirmLabel?: string } | null>(null);
@@ -64,18 +63,6 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
     return colors[category as keyof typeof colors] || Colors.textLight;
   };
 
-  const handleRemove = () => {
-    const title = t('removeIngredient') || 'Remove ingredient';
-    const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
-
-    setConfirmConfig({
-      title,
-      message,
-      confirmLabel: t('delete') || 'Löschen',
-      onConfirm: () => removeIngredient(ingredient.id),
-    });
-    setConfirmVisible(true);
-  };
 
   const categoryColor = getCategoryColor(ingredient.category);
 
@@ -97,15 +84,6 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
           <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
           <Text style={[styles.amount, { color: categoryColor }]}>{ingredient.amount || 'N/A'}</Text>
         </View>
-        {showRemove && (
-          <Pressable 
-            style={styles.removeButton} 
-            onPress={handleRemove}
-            hitSlop={10}
-          >
-            <Trash size={16} color={Colors.error} />
-          </Pressable>
-        )}
       </Pressable>
       {confirmConfig && (
         <ConfirmDialog
@@ -174,10 +152,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  removeButton: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    padding: 4,
-  },
+
 });

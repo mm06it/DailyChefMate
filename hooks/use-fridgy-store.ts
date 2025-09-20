@@ -251,10 +251,9 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     setRefrigeratorItems(prevItems => [...prevItems, newIngredient]);
   };
 
-  const removeIngredient = (ingredientId: string) => {
-    setRefrigeratorItems(prevItems => 
-      prevItems.filter(item => item.id !== ingredientId)
-    );
+  const removeIngredient = (_ingredientId: string) => {
+    console.log('removeIngredient is disabled');
+    return;
   };
 
   const updateIngredientAmount = (ingredientId: string, amount: string) => {

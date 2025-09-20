@@ -10,6 +10,12 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "6", name: "Mozzarella", amount: "200g", category: "Dairy", isSelected: false },
   { id: "7", name: "Yogurt", amount: "500g", category: "Dairy", isSelected: false },
   { id: "8", name: "Heavy Cream", amount: "250ml", category: "Dairy", isSelected: false },
+  { id: "76", name: "Feta Cheese", amount: "150g", category: "Dairy", isSelected: false },
+  { id: "77", name: "Goat Cheese", amount: "120g", category: "Dairy", isSelected: false },
+  { id: "78", name: "Cream Cheese", amount: "200g", category: "Dairy", isSelected: false },
+  { id: "79", name: "Sour Cream", amount: "200g", category: "Dairy", isSelected: false },
+  { id: "80", name: "Skyr", amount: "400g", category: "Dairy", isSelected: false },
+  { id: "81", name: "Buttermilk", amount: "500ml", category: "Dairy", isSelected: false },
   
   // Meat / Fleisch
   { id: "9", name: "Chicken Breast", amount: "500g", category: "Meat", isSelected: false },
@@ -18,6 +24,12 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "12", name: "Chicken Thighs", amount: "600g", category: "Meat", isSelected: false },
   { id: "13", name: "Pancetta", amount: "150g", category: "Meat", isSelected: false },
   { id: "14", name: "Shrimp", amount: "300g", category: "Meat", isSelected: false },
+  { id: "82", name: "Salmon", amount: "400g", category: "Meat", isSelected: false },
+  { id: "83", name: "Tuna", amount: "2 cans", category: "Meat", isSelected: false },
+  { id: "84", name: "Pork Chops", amount: "500g", category: "Meat", isSelected: false },
+  { id: "85", name: "Sausages", amount: "4", category: "Meat", isSelected: false },
+  { id: "86", name: "Ham", amount: "200g", category: "Meat", isSelected: false },
+  { id: "87", name: "Turkey Breast", amount: "400g", category: "Meat", isSelected: false },
   
   // Vegetables / Gemüse
   { id: "15", name: "Tomatoes", amount: "4", category: "Vegetables", isSelected: false },
@@ -36,6 +48,21 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "28", name: "Spinach", amount: "200g", category: "Vegetables", isSelected: false },
   { id: "29", name: "Zucchini", amount: "2", category: "Vegetables", isSelected: false },
   { id: "30", name: "Eggplant", amount: "1", category: "Vegetables", isSelected: false },
+  { id: "88", name: "Kale", amount: "150g", category: "Vegetables", isSelected: false },
+  { id: "89", name: "Green Beans", amount: "300g", category: "Vegetables", isSelected: false },
+  { id: "90", name: "Asparagus", amount: "200g", category: "Vegetables", isSelected: false },
+  { id: "91", name: "Corn", amount: "3 ears", category: "Vegetables", isSelected: false },
+  { id: "92", name: "Sweet Potatoes", amount: "3", category: "Vegetables", isSelected: false },
+  { id: "93", name: "Leek", amount: "2", category: "Vegetables", isSelected: false },
+  { id: "94", name: "Chili Pepper", amount: "4", category: "Vegetables", isSelected: false },
+  { id: "95", name: "Ginger", amount: "100g", category: "Vegetables", isSelected: false },
+  { id: "96", name: "Green Onion", amount: "1 bunch", category: "Vegetables", isSelected: false },
+  { id: "97", name: "Brussels Sprouts", amount: "300g", category: "Vegetables", isSelected: false },
+  { id: "98", name: "Cabbage", amount: "1 head", category: "Vegetables", isSelected: false },
+  { id: "99", name: "Arugula", amount: "100g", category: "Vegetables", isSelected: false },
+  { id: "100", name: "Radish", amount: "1 bunch", category: "Vegetables", isSelected: false },
+  { id: "101", name: "Beetroot", amount: "2", category: "Vegetables", isSelected: false },
+  { id: "102", name: "Turnip", amount: "2", category: "Vegetables", isSelected: false },
   
   // Fruits / Früchte
   { id: "31", name: "Apples", amount: "4", category: "Fruits", isSelected: false },
@@ -45,7 +72,22 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "35", name: "Oranges", amount: "4", category: "Fruits", isSelected: false },
   { id: "36", name: "Strawberries", amount: "250g", category: "Fruits", isSelected: false },
   { id: "37", name: "Blueberries", amount: "200g", category: "Fruits", isSelected: false },
-  
+  { id: "103", name: "Raspberries", amount: "200g", category: "Fruits", isSelected: false },
+  { id: "104", name: "Blackberries", amount: "200g", category: "Fruits", isSelected: false },
+  { id: "105", name: "Grapes", amount: "500g", category: "Fruits", isSelected: false },
+  { id: "106", name: "Pineapple", amount: "1", category: "Fruits", isSelected: false },
+  { id: "107", name: "Mango", amount: "2", category: "Fruits", isSelected: false },
+  { id: "108", name: "Papaya", amount: "1", category: "Fruits", isSelected: false },
+  { id: "109", name: "Kiwi", amount: "5", category: "Fruits", isSelected: false },
+  { id: "110", name: "Peach", amount: "4", category: "Fruits", isSelected: false },
+  { id: "111", name: "Pear", amount: "4", category: "Fruits", isSelected: false },
+  { id: "112", name: "Plum", amount: "6", category: "Fruits", isSelected: false },
+  { id: "113", name: "Watermelon", amount: "1", category: "Fruits", isSelected: false },
+  { id: "114", name: "Cantaloupe", amount: "1", category: "Fruits", isSelected: false },
+  { id: "115", name: "Honeydew", amount: "1", category: "Fruits", isSelected: false },
+  { id: "116", name: "Avocado", amount: "3", category: "Fruits", isSelected: false },
+  { id: "117", name: "Coconut", amount: "1", category: "Fruits", isSelected: false },
+
   // Grains & Pasta / Getreide & Nudeln
   { id: "38", name: "Rice", amount: "1kg", category: "Grains", isSelected: false },
   { id: "39", name: "Basmati Rice", amount: "500g", category: "Grains", isSelected: false },
@@ -55,7 +97,14 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "43", name: "Rice Noodles", amount: "300g", category: "Pasta", isSelected: false },
   { id: "44", name: "Bread", amount: "1 loaf", category: "Grains", isSelected: false },
   { id: "45", name: "Flour", amount: "1kg", category: "Baking", isSelected: false },
-  
+  { id: "118", name: "Quinoa", amount: "500g", category: "Grains", isSelected: false },
+  { id: "119", name: "Couscous", amount: "500g", category: "Grains", isSelected: false },
+  { id: "120", name: "Oats", amount: "1kg", category: "Grains", isSelected: false },
+  { id: "121", name: "Barley", amount: "500g", category: "Grains", isSelected: false },
+  { id: "122", name: "Brown Rice", amount: "1kg", category: "Grains", isSelected: false },
+  { id: "123", name: "Udon Noodles", amount: "400g", category: "Pasta", isSelected: false },
+  { id: "124", name: "Soba Noodles", amount: "400g", category: "Pasta", isSelected: false },
+
   // Spices & Herbs / Gewürze & Kräuter
   { id: "46", name: "Salt", amount: "200g", category: "Spices", isSelected: false },
   { id: "47", name: "Black Pepper", amount: "100g", category: "Spices", isSelected: false },
@@ -67,7 +116,16 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "53", name: "Curry Powder", amount: "100g", category: "Spices", isSelected: false },
   { id: "54", name: "Ginger", amount: "100g", category: "Spices", isSelected: false },
   { id: "55", name: "Cinnamon", amount: "50g", category: "Spices", isSelected: false },
-  
+  { id: "125", name: "Turmeric", amount: "60g", category: "Spices", isSelected: false },
+  { id: "126", name: "Coriander", amount: "60g", category: "Spices", isSelected: false },
+  { id: "127", name: "Nutmeg", amount: "30g", category: "Spices", isSelected: false },
+  { id: "128", name: "Bay Leaves", amount: "10", category: "Spices", isSelected: false },
+  { id: "129", name: "Chili Powder", amount: "80g", category: "Spices", isSelected: false },
+  { id: "130", name: "Garlic Powder", amount: "80g", category: "Spices", isSelected: false },
+  { id: "131", name: "Onion Powder", amount: "80g", category: "Spices", isSelected: false },
+  { id: "132", name: "Smoked Paprika", amount: "80g", category: "Spices", isSelected: false },
+  { id: "133", name: "Italian Herbs", amount: "50g", category: "Spices", isSelected: false },
+
   // Oils & Condiments / Öle & Gewürze
   { id: "56", name: "Olive Oil", amount: "500ml", category: "Oils", isSelected: false },
   { id: "57", name: "Vegetable Oil", amount: "750ml", category: "Oils", isSelected: false },
@@ -77,7 +135,12 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "61", name: "Mustard", amount: "200ml", category: "Condiments", isSelected: false },
   { id: "62", name: "Vinegar", amount: "250ml", category: "Condiments", isSelected: false },
   { id: "63", name: "Lemon Juice", amount: "200ml", category: "Condiments", isSelected: false },
-  
+  { id: "134", name: "Balsamic Vinegar", amount: "250ml", category: "Condiments", isSelected: false },
+  { id: "135", name: "Hot Sauce", amount: "150ml", category: "Condiments", isSelected: false },
+  { id: "136", name: "Sesame Oil", amount: "150ml", category: "Oils", isSelected: false },
+  { id: "137", name: "Fish Sauce", amount: "200ml", category: "Condiments", isSelected: false },
+  { id: "138", name: "Worcestershire Sauce", amount: "150ml", category: "Condiments", isSelected: false },
+
   // Frozen & Others / Tiefkühl & Sonstiges
   { id: "64", name: "Frozen Peas", amount: "500g", category: "Frozen", isSelected: false },
   { id: "65", name: "Ice Cream", amount: "1L", category: "Frozen", isSelected: false },
@@ -91,4 +154,12 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "73", name: "Peas", amount: "300g", category: "Vegetables", isSelected: false },
   { id: "74", name: "Bean Sprouts", amount: "200g", category: "Vegetables", isSelected: false },
   { id: "75", name: "Peanuts", amount: "150g", category: "Nuts", isSelected: false },
+  { id: "139", name: "Almonds", amount: "200g", category: "Nuts", isSelected: false },
+  { id: "140", name: "Walnuts", amount: "200g", category: "Nuts", isSelected: false },
+  { id: "141", name: "Cashews", amount: "200g", category: "Nuts", isSelected: false },
+  { id: "142", name: "Chickpeas", amount: "2 cans", category: "Legumes", isSelected: false },
+  { id: "143", name: "Kidney Beans", amount: "2 cans", category: "Legumes", isSelected: false },
+  { id: "144", name: "Lentils", amount: "500g", category: "Legumes", isSelected: false },
+  { id: "145", name: "Tofu", amount: "400g", category: "Frozen", isSelected: false },
+  { id: "146", name: "Edamame", amount: "400g", category: "Frozen", isSelected: false },
 ];
