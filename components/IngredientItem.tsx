@@ -82,7 +82,6 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
             {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: categoryColor }]} />}
           </View>
           <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
-          <Text style={[styles.amount, { color: categoryColor }]}>{ingredient.amount || 'N/A'}</Text>
         </View>
       </Pressable>
       {confirmConfig && (
