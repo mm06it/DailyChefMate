@@ -1,11 +1,13 @@
 import { X } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
 import { useLanguage } from "@/hooks/use-language";
 import { Ingredient } from "@/types/recipe";
+
+type Unit = 'g' | 'ml' | 'Stück';
 
 interface IngredientQuantityModalProps {
   ingredient: Ingredient | null;
@@ -20,45 +22,57 @@ export default function IngredientQuantityModal({
   onClose, 
   onConfirm 
 }: IngredientQuantityModalProps) {
-  const [selectedUnit, setSelectedUnit] = useState<'g' | 'ml' | 'Stück'>('g');
-  const [selectedAmount, setSelectedAmount] = useState(1);
+  const [selectedUnit, setSelectedUnit] = useState<Unit>('g');
+  const [selectedAmount, setSelectedAmount] = useState<number>(1);
   const { currentLanguage } = useLanguage();
 
-  const defaultUnitFromIngredient = (ing: Ingredient | null): 'g' | 'ml' | 'Stück' => {
+  const defaultUnitFromIngredient = (ing: Ingredient | null): Unit => {
     const name = (ing?.name ?? '').toLowerCase().trim();
+    const category = (ing?.category ?? '').toLowerCase().trim();
     if (!name) return 'g';
-    if (["milk", "milch"].includes(name)) return 'ml';
-    if (["flour", "mehl"].includes(name)) return 'g';
-    if (["eggs", "eier", "egg", "ei"].includes(name)) return 'Stück';
+
+    const liquidKeywords = [
+      'milk','milch','juice','saft','oil','öl','vinegar','essig','sauce','sirup','syrup','broth','brühe','stock','cream','rahm','sahne','buttermilk','buttermilch','coconut milk','kokosmilch','soy sauce','sojasauce','lemon juice','zitronensaft','mayonnaise','ketchup','mustard','senf','extract','extrakt'
+    ];
+
+    const countableKeywords = [
+      'egg','ei','eggs','eier','piece','stück','can','dose','jar','glas','bottle','flasche','loaf','laib','steak','steaks','fillet','fillets','filet','filets','leg','legs','keule','keulen','wing','wings','drumstick','drumsticks','head','kopf','bulb','ear','ears','kolben','bunch','bund','slice','slices','scheibe','scheiben','patty','patties','sausage','sausages','wurst','würste'
+    ];
+
+    if (category === 'beverages' || category === 'oils' || category === 'condiments') return 'ml';
+    if (liquidKeywords.some(k => name.includes(k))) return 'ml';
+    if (countableKeywords.some(k => name.includes(k))) return 'Stück';
     return 'g';
   };
 
   useEffect(() => {
     if (ingredient) {
       const unit = defaultUnitFromIngredient(ingredient);
+      console.log('IngredientQuantityModal default unit decided', { ingredient: ingredient.name, category: ingredient.category, unit });
       setSelectedUnit(unit);
       setSelectedAmount(1);
     }
   }, [ingredient, isVisible]);
 
-  const getAmountOptions = () => {
+  const amountOptions = useMemo(() => {
     switch (selectedUnit) {
       case 'g':
-        return Array.from({ length: 40 }, (_, i) => (i + 1) * 50); // 50g to 2000g in 50g steps
+        return Array.from({ length: 40 }, (_, i) => (i + 1) * 50);
       case 'ml':
-        return Array.from({ length: 40 }, (_, i) => (i + 1) * 50); // 50ml to 2000ml in 50ml steps
+        return Array.from({ length: 40 }, (_, i) => (i + 1) * 50);
       case 'Stück':
-        return Array.from({ length: 20 }, (_, i) => i + 1); // 1 to 20 pieces
+        return Array.from({ length: 20 }, (_, i) => i + 1);
       default:
         return [1];
     }
-  };
+  }, [selectedUnit]);
 
-  const units = ['g', 'ml', 'Stück'] as const;
+  const units = useMemo(() => ['g', 'ml', 'Stück'] as const, []);
 
   const handleConfirm = () => {
     if (ingredient) {
       const amountString = `${selectedAmount} ${selectedUnit}`;
+      console.log('IngredientQuantityModal confirm', { ingredient: ingredient.name, amountString });
       onConfirm(ingredient, amountString);
       setSelectedAmount(1);
       setSelectedUnit('g');
@@ -88,7 +102,7 @@ export default function IngredientQuantityModal({
             <Text style={styles.title}>
               {translateText(currentLanguage, "Add Quantity") || "Menge hinzufügen"}
             </Text>
-            <Pressable onPress={handleClose} hitSlop={10}>
+            <Pressable onPress={handleClose} hitSlop={10} testID="quantity-close">
               <X size={24} color={Colors.text} />
             </Pressable>
           </View>
@@ -108,16 +122,17 @@ export default function IngredientQuantityModal({
                     key={unit}
                     style={[
                       styles.unitButton,
-                      selectedUnit === unit && styles.unitButtonSelected
+                      selectedUnit === unit ? styles.unitButtonSelected : undefined
                     ]}
                     onPress={() => {
                       setSelectedUnit(unit);
                       setSelectedAmount(1);
                     }}
+                    testID={`unit-${unit}`}
                   >
                     <Text style={[
                       styles.unitButtonText,
-                      selectedUnit === unit && styles.unitButtonTextSelected
+                      selectedUnit === unit ? styles.unitButtonTextSelected : undefined
                     ]}>
                       {unit}
                     </Text>
@@ -134,18 +149,19 @@ export default function IngredientQuantityModal({
                 style={styles.amountScrollView}
                 showsVerticalScrollIndicator={false}
               >
-                {getAmountOptions().map((amount) => (
+                {amountOptions.map((amount) => (
                   <Pressable
                     key={amount}
                     style={[
                       styles.amountButton,
-                      selectedAmount === amount && styles.amountButtonSelected
+                      selectedAmount === amount ? styles.amountButtonSelected : undefined
                     ]}
                     onPress={() => setSelectedAmount(amount)}
+                    testID={`amount-${amount}`}
                   >
                     <Text style={[
                       styles.amountButtonText,
-                      selectedAmount === amount && styles.amountButtonTextSelected
+                      selectedAmount === amount ? styles.amountButtonTextSelected : undefined
                     ]}>
                       {amount}
                     </Text>
@@ -158,6 +174,7 @@ export default function IngredientQuantityModal({
               <Pressable 
                 style={[styles.button, styles.cancelButton]}
                 onPress={handleClose}
+                testID="quantity-cancel"
               >
                 <Text style={styles.cancelButtonText}>
                   {translateText(currentLanguage, "Cancel") || "Abbrechen"}
@@ -167,6 +184,7 @@ export default function IngredientQuantityModal({
               <Pressable 
                 style={[styles.button, styles.confirmButton]}
                 onPress={handleConfirm}
+                testID="quantity-confirm"
               >
                 <Text style={styles.confirmButtonText}>
                   {translateText(currentLanguage, "Add") || "Hinzufügen"}
