@@ -1,4 +1,5 @@
 import { Trash } from "lucide-react-native";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import React from "react";
 import { Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -17,6 +18,8 @@ interface IngredientItemProps {
 export default function IngredientItem({ ingredient, showRemove = false, onToggle }: IngredientItemProps) {
   const { toggleIngredientSelection, removeIngredient } = useFridgyStore();
   const { currentLanguage, t } = useLanguage();
+  const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
+  const [confirmConfig, setConfirmConfig] = React.useState<{ title: string; message: string; onConfirm: () => void; confirmLabel?: string } | null>(null);
 
   const handleToggle = () => {
     console.log('IngredientItem press', { id: ingredient.id, isSelected: ingredient.isSelected });
@@ -25,18 +28,13 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
       const title = t('unselectIngredient') || 'Auswahl aufheben';
       const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
 
-      if (Platform.OS === 'web') {
-        const confirmed = typeof window !== 'undefined' && window.confirm(`${title}: ${message}?`);
-        if (confirmed) {
-          toggleIngredientSelection(ingredient.id);
-        }
-        return;
-      }
-
-      Alert.alert(title, message, [
-        { text: t('cancel') || 'Abbrechen', style: 'cancel' },
-        { text: t('unselect') || 'Auswahl aufheben', style: 'default', onPress: () => toggleIngredientSelection(ingredient.id) },
-      ]);
+      setConfirmConfig({
+        title,
+        message,
+        confirmLabel: t('unselect') || 'Auswahl aufheben',
+        onConfirm: () => toggleIngredientSelection(ingredient.id),
+      });
+      setConfirmVisible(true);
       return;
     }
 
@@ -70,49 +68,61 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
     const title = t('removeIngredient') || 'Remove ingredient';
     const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
 
-    if (Platform.OS === 'web') {
-      const confirmed = typeof window !== 'undefined' && window.confirm(`${title}: ${message}?`);
-      if (confirmed) {
-        removeIngredient(ingredient.id);
-      }
-      return;
-    }
-
-    Alert.alert(title, message, [
-      { text: t('cancel') || 'Cancel', style: 'cancel' },
-      { text: t('delete') || 'Delete', style: 'destructive', onPress: () => removeIngredient(ingredient.id) },
-    ]);
+    setConfirmConfig({
+      title,
+      message,
+      confirmLabel: t('delete') || 'Löschen',
+      onConfirm: () => removeIngredient(ingredient.id),
+    });
+    setConfirmVisible(true);
   };
 
   const categoryColor = getCategoryColor(ingredient.category);
 
   return (
-    <Pressable 
-      style={[
-        styles.container, 
-        ingredient.isSelected && styles.containerSelected,
-        { borderLeftColor: categoryColor }
-      ]} 
-      onPress={handleToggle}
-      testID={`ingredient-item-${ingredient.id}`}
-    >
-      <View style={styles.content}>
-        <View style={[styles.checkbox, { borderColor: categoryColor }]}>
-          {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: categoryColor }]} />}
+    <>
+      <Pressable 
+        style={[
+          styles.container, 
+          ingredient.isSelected && styles.containerSelected,
+          { borderLeftColor: categoryColor }
+        ]} 
+        onPress={handleToggle}
+        testID={`ingredient-item-${ingredient.id}`}
+      >
+        <View style={styles.content}>
+          <View style={[styles.checkbox, { borderColor: categoryColor }]}>
+            {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: categoryColor }]} />}
+          </View>
+          <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
+          <Text style={[styles.amount, { color: categoryColor }]}>{ingredient.amount || 'N/A'}</Text>
         </View>
-        <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
-        <Text style={[styles.amount, { color: categoryColor }]}>{ingredient.amount || 'N/A'}</Text>
-      </View>
-      {showRemove && (
-        <Pressable 
-          style={styles.removeButton} 
-          onPress={handleRemove}
-          hitSlop={10}
-        >
-          <Trash size={16} color={Colors.error} />
-        </Pressable>
+        {showRemove && (
+          <Pressable 
+            style={styles.removeButton} 
+            onPress={handleRemove}
+            hitSlop={10}
+          >
+            <Trash size={16} color={Colors.error} />
+          </Pressable>
+        )}
+      </Pressable>
+      {confirmConfig && (
+        <ConfirmDialog
+          visible={confirmVisible}
+          title={confirmConfig.title}
+          message={confirmConfig.message}
+          confirmLabel={confirmConfig.confirmLabel}
+          cancelLabel={t('cancel') || 'Abbrechen'}
+          onCancel={() => setConfirmVisible(false)}
+          onConfirm={() => {
+            setConfirmVisible(false);
+            confirmConfig.onConfirm();
+          }}
+          testID={`ingredient-confirm-${ingredient.id}`}
+        />
       )}
-    </Pressable>
+    </>
   );
 }
 

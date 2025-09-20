@@ -157,6 +157,8 @@ export const TRANSLATIONS = {
     
     // Ingredient Modal
     'Add Quantity': 'Menge hinzufügen',
+    unselectIngredient: 'Auswahl aufheben',
+    unselect: 'Auswahl aufheben',
     'Amount': 'Menge',
     'Cancel': 'Abbrechen',
     'Add': 'Hinzufügen',
@@ -490,6 +492,8 @@ export const TRANSLATIONS = {
     'Serve curry over rice with fresh cilantro.': 'Curry über Reis mit frischem Koriander servieren.',
   },
   en: {
+    unselectIngredient: 'Unselect ingredient',
+    unselect: 'Unselect',
     // Navigation
     recipes: 'Recipes',
     refrigerator: 'Refrigerator',
@@ -956,6 +960,8 @@ export const TRANSLATIONS = {
     'Serve immediately with extra parmesan and black pepper.': 'Serve immediately with extra parmesan and black pepper.',
   },
   fr: {
+    unselectIngredient: 'Désélectionner l\'ingrédient',
+    unselect: 'Désélectionner',
     // Navigation
     recipes: 'Recettes',
     refrigerator: 'Réfrigérateur',
@@ -1175,6 +1181,8 @@ export const TRANSLATIONS = {
     noCookedDishes: 'Aucun plat cuisiné encore',
   },
   es: {
+    unselectIngredient: 'Deseleccionar ingrediente',
+    unselect: 'Deseleccionar',
     // Navigation
     recipes: 'Recetas',
     refrigerator: 'Refrigerador',
@@ -1394,6 +1402,8 @@ export const TRANSLATIONS = {
     noCookedDishes: 'Aún no se han cocinado platos',
   },
   it: {
+    unselectIngredient: 'Deseleziona ingrediente',
+    unselect: 'Deseleziona',
     // Navigation
     recipes: 'Ricette',
     refrigerator: 'Frigorifero',
