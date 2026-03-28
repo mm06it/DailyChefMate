@@ -1,2 +1,0 @@
-# Fridgy
-Created by Rork
