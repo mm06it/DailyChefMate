@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { getTranslation } from '@/constants/translations';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import ResponsiveContainer from '@/components/ResponsiveContainer';
 import { supabase } from '@/lib/supabase';
 
 const USERNAME_CHECK_ENABLED = false as const;
@@ -231,6 +232,7 @@ export default function AuthScreen() {
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ResponsiveContainer maxWidth={480}>
           <View style={styles.header}>
             <LanguageSelector />
           </View>
@@ -336,6 +338,7 @@ export default function AuthScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+          </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

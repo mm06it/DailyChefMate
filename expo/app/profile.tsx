@@ -7,6 +7,7 @@ import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useFridgyStore } from '@/hooks/use-fridgy-store';
+import ResponsiveContainer from '@/components/ResponsiveContainer';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -79,7 +80,8 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Stack.Screen options={{ title: t('profile') }} />
-      
+      <ResponsiveContainer maxWidth={720}>
+
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
@@ -189,6 +191,7 @@ export default function ProfileScreen() {
           </View>
         )}
       </View>
+      </ResponsiveContainer>
     </ScrollView>
   );
 }

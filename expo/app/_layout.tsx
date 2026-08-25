@@ -3,12 +3,14 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { FridgyContext } from "@/hooks/use-fridgy-store";
 import { LanguageContext } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { useIsDesktop } from "@/hooks/use-responsive";
 import { trpc, trpcClient } from "@/lib/trpc";
+import DesktopSidebar from "@/components/DesktopSidebar";
 import AuthScreen from "./auth";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -18,6 +20,7 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
+  const isDesktop = useIsDesktop();
 
   if (loading) {
     return (
@@ -31,7 +34,7 @@ function RootLayoutNav() {
     return <AuthScreen />;
   }
 
-  return (
+  const stack = (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="recipe-detail" options={{ title: "Recipe" }} />
@@ -39,7 +42,29 @@ function RootLayoutNav() {
       <Stack.Screen name="auth" options={{ headerShown: false }} />
     </Stack>
   );
+
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopShell}>
+        <DesktopSidebar />
+        <View style={styles.desktopContent}>{stack}</View>
+      </View>
+    );
+  }
+
+  return stack;
 }
+
+const styles = StyleSheet.create({
+  desktopShell: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  desktopContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+});
 
 export default function RootLayout() {
   useEffect(() => {

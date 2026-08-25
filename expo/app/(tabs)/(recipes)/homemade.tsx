@@ -9,12 +9,14 @@ import { useCustomRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
+import { useGridColumns } from "@/hooks/use-responsive";
 
 export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const customRecipes = useCustomRecipes(searchQuery);
   const { deleteCustomRecipe } = useFridgyStore();
+  const columns = useGridColumns(280, { maxColumns: 4 });
 
   const handleAddRecipe = () => {
     router.push("/add-recipe");
@@ -50,7 +52,7 @@ export default function HomemadeRecipesScreen() {
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
-      <View style={styles.recipeContainer}>
+      <View style={[styles.recipeContainer, columns > 1 && styles.gridItem]}>
         <RecipeCard recipe={item} />
         <View style={styles.actionButtons}>
           <Pressable
@@ -97,9 +99,12 @@ export default function HomemadeRecipesScreen() {
       {customRecipes.length > 0 ? (
         <>
           <FlatList
+            key={columns}
             data={customRecipes}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
+            numColumns={columns}
+            columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             testID="custom-recipes-list"
@@ -159,6 +164,12 @@ const styles = StyleSheet.create({
   },
   recipeContainer: {
     marginBottom: 16,
+  },
+  gridRow: {
+    gap: 16,
+  },
+  gridItem: {
+    flex: 1,
   },
   actionButtons: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import { useGeneratedRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import themealdb from "@/lib/themealdb";
+import { useGridColumns } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
   const { t } = useLanguage();
@@ -20,6 +21,7 @@ export default function GeneratedRecipesScreen() {
   const [hasMoreRecipes, setHasMoreRecipes] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(0);
   const selectedIngredients = getSelectedIngredients();
+  const columns = useGridColumns(280, { maxColumns: 4 });
   
   // Categories to cycle through for endless recipes
   const recipeCategories = useMemo(() => [
@@ -131,7 +133,11 @@ export default function GeneratedRecipesScreen() {
     });
     return Array.from(uniqueRecipes.values());
   })();
-  const renderItem = ({ item }: { item: Recipe }) => <RecipeCard recipe={item} />;
+  const renderItem = ({ item }: { item: Recipe }) => (
+    <View style={columns > 1 ? styles.gridItem : undefined}>
+      <RecipeCard recipe={item} />
+    </View>
+  );
   
   const renderFooter = () => {
     if (!hasMoreRecipes) {
@@ -215,9 +221,12 @@ export default function GeneratedRecipesScreen() {
         </View>
       ) : allRecipes.length > 0 ? (
         <FlatList
+          key={columns}
           data={allRecipes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
+          numColumns={columns}
+          columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           testID="generated-recipes-list"
@@ -298,6 +307,12 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  gridRow: {
+    gap: 16,
+  },
+  gridItem: {
+    flex: 1,
   },
   emptyContainer: {
     flex: 1,

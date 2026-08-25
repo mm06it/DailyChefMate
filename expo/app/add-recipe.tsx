@@ -17,6 +17,7 @@ import { useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
+import ResponsiveContainer from "@/components/ResponsiveContainer";
 
 interface RecipeFormData {
   name: string;
@@ -243,6 +244,7 @@ export default function AddRecipeScreen() {
       )}
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ResponsiveContainer maxWidth={640}>
         <View style={styles.form}>
 
           {/* Recipe Name */}
@@ -544,6 +546,7 @@ export default function AddRecipeScreen() {
             <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
           </Pressable>
         </View>
+        </ResponsiveContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -11,6 +11,7 @@ import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
+import { useGridColumns } from "@/hooks/use-responsive";
 
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
@@ -26,6 +27,7 @@ export default function AllRecipesScreen() {
   const recipes = useRecipes(searchQuery);
   const { searchRecipesOnline } = useFridgyStore();
   const { setProgress, progress } = useCollapsibleHeader();
+  const columns = useGridColumns(280, { maxColumns: 4 });
 
   const clamp = useCallback((v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v)), []);
 
@@ -215,7 +217,11 @@ export default function AllRecipesScreen() {
   }, [recipes, onlineResults, filterRecipes]);
 
   const renderItem = ({ item }: { item: Recipe }) => {
-    return <RecipeCard recipe={item} />;
+    return (
+      <View style={columns > 1 ? styles.gridItem : undefined}>
+        <RecipeCard recipe={item} />
+      </View>
+    );
   };
   
   const renderFooter = () => {
@@ -311,9 +317,12 @@ export default function AllRecipesScreen() {
     <View style={styles.container}>
       {displayedRecipes.length > 0 ? (
         <FlatList
+          key={columns}
           data={displayedRecipes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
+          numColumns={columns}
+          columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           testID="recipes-list"
@@ -453,6 +462,12 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingTop: 0,
+  },
+  gridRow: {
+    gap: 16,
+  },
+  gridItem: {
+    flex: 1,
   },
   emptyContainer: {
     flex: 1,

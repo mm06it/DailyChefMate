@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
 import { useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
+import ResponsiveContainer from "@/components/ResponsiveContainer";
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,7 +58,8 @@ export default function RecipeDetailScreen() {
       showsVerticalScrollIndicator={false}
     >
       <RecipeDetailHeader recipe={recipe} />
-      
+
+      <ResponsiveContainer maxWidth={720}>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{getTranslation(currentLanguage, 'ingredients')}</Text>
         <View style={styles.ingredientsList}>
@@ -110,6 +112,7 @@ export default function RecipeDetailScreen() {
           <Text style={styles.doneButtonText}>{getTranslation(currentLanguage, 'done')}</Text>
         </TouchableOpacity>
       </View>
+      </ResponsiveContainer>
     </ScrollView>
   );
 }

@@ -13,6 +13,7 @@ import { Stack } from 'expo-router';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import ResponsiveContainer from '@/components/ResponsiveContainer';
 import Colors from '@/constants/colors';
 
 export default function SettingsScreen() {
@@ -51,6 +52,7 @@ export default function SettingsScreen() {
         }} 
       />
       <ScrollView contentContainerStyle={styles.content}>
+        <ResponsiveContainer maxWidth={640}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('account')}</Text>
           
@@ -99,6 +101,7 @@ export default function SettingsScreen() {
           <LogOut size={20} color="#ef4444" />
           <Text style={styles.signOutText}>{t('signOut')}</Text>
         </TouchableOpacity>
+        </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );

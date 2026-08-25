@@ -8,6 +8,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { AccountMenu } from "@/components/AccountMenu";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
+import { useIsDesktop } from "@/hooks/use-responsive";
 
 const HeaderTitle = () => (
   <View style={styles.headerContainer}>
@@ -28,15 +29,16 @@ const HeaderLeft = () => (
 
 export default function TabLayout() {
   const { t } = useLanguage();
-  
+  const isDesktop = useIsDesktop();
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textLight,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: isDesktop ? styles.tabBarHidden : styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        headerShown: true,
+        headerShown: !isDesktop,
         headerStyle: styles.header,
         headerBackground: () => (
           <LinearGradient
@@ -87,6 +89,9 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabBarHidden: {
+    display: 'none',
+  },
   tabBar: {
     elevation: 10,
     shadowOpacity: 0.1,

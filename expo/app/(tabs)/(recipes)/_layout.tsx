@@ -6,6 +6,7 @@ import { useLanguage } from '@/hooks/use-language';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import Colors from '@/constants/colors';
 import { CollapsibleHeaderProvider, useCollapsibleHeader } from '@/hooks/use-collapsible-header';
+import { useIsDesktop } from '@/hooks/use-responsive';
 
 const { Navigator } = createMaterialTopTabNavigator();
 
@@ -69,13 +70,17 @@ function TabsWithCollapsibleBar() {
 }
 
 export default function RecipesLayout() {
+  const isDesktop = useIsDesktop();
+
   return (
     <CollapsibleHeaderProvider>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <LanguageSelector />
-          <HeaderTitle />
-        </View>
+        {!isDesktop && (
+          <View style={styles.header}>
+            <LanguageSelector />
+            <HeaderTitle />
+          </View>
+        )}
         <TabsWithCollapsibleBar />
       </View>
     </CollapsibleHeaderProvider>
