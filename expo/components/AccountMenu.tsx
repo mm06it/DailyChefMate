@@ -103,8 +103,9 @@ export const AccountMenu: React.FC = () => {
 
 const styles = StyleSheet.create({
   accountButton: {
-    padding: 8,
-    marginRight: 8,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,
