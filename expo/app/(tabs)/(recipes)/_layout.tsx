@@ -4,6 +4,7 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { withLayoutContext } from 'expo-router';
 import { useLanguage } from '@/hooks/use-language';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import ProfileMenuButton from '@/components/ProfileMenuButton';
 import Colors from '@/constants/colors';
 import { CollapsibleHeaderProvider, useCollapsibleHeader } from '@/hooks/use-collapsible-header';
 import { useIsDesktop } from '@/hooks/use-responsive';
@@ -77,8 +78,13 @@ export default function RecipesLayout() {
       <View style={styles.container}>
         {!isDesktop && (
           <View style={styles.header}>
-            <LanguageSelector />
+            <View style={styles.headerSide}>
+              <LanguageSelector />
+            </View>
             <HeaderTitle />
+            <View style={styles.headerSide}>
+              <ProfileMenuButton />
+            </View>
           </View>
         )}
         <TabsWithCollapsibleBar />
@@ -108,6 +114,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
+  },
+  headerSide: {
+    minWidth: 40,
+    alignItems: 'center',
   },
   logo: {
     width: 32,

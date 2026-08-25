@@ -1,11 +1,11 @@
 import { Tabs } from "expo-router";
-import { BookOpen, Refrigerator, Star, User } from "lucide-react-native";
+import { BookOpen, Refrigerator, Star } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, View, Text, Image } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { LanguageSelector } from "@/components/LanguageSelector";
-import { AccountMenu } from "@/components/AccountMenu";
+import ProfileMenuButton from "@/components/ProfileMenuButton";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
 import { useIsDesktop } from "@/hooks/use-responsive";
@@ -23,6 +23,12 @@ const HeaderTitle = () => (
 const HeaderLeft = () => (
   <View style={styles.headerSide}>
     <LanguageSelector />
+  </View>
+);
+
+const HeaderRight = () => (
+  <View style={styles.headerSide}>
+    <ProfileMenuButton />
   </View>
 );
 
@@ -51,6 +57,7 @@ export default function TabLayout() {
         headerTitle: () => <HeaderTitle />,
         headerTitleAlign: 'center',
         headerLeft: () => <HeaderLeft />,
+        headerRight: () => <HeaderRight />,
         headerTintColor: Colors.text,
       }}
     >
@@ -85,9 +92,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: t('profile'),
-          tabBarIcon: ({ color }) => <User size={22} color={color} />,
-          tabBarButton: () => <AccountMenu />,
+          href: null,
         }}
       />
     </Tabs>
