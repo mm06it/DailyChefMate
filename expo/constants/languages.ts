@@ -8,21 +8,6 @@ export const LANGUAGES = {
     code: 'en',
     name: 'English',
     flag: '🇺🇸'
-  },
-  fr: {
-    code: 'fr',
-    name: 'Français',
-    flag: '🇫🇷'
-  },
-  es: {
-    code: 'es',
-    name: 'Español',
-    flag: '🇪🇸'
-  },
-  it: {
-    code: 'it',
-    name: 'Italiano',
-    flag: '🇮🇹'
   }
 } as const;
 

@@ -20,7 +20,7 @@ export const [LanguageContext, useLanguage] = createContextHook(() => {
     try {
       const stored = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
       console.log('Loaded language from storage:', stored);
-      if (stored && stored in { de: true, en: true, fr: true, es: true, it: true }) {
+      if (stored && stored in { de: true, en: true }) {
         setCurrentLanguage(stored as LanguageCode);
       } else {
         console.log('Using default language:', DEFAULT_LANGUAGE);

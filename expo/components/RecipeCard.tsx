@@ -36,9 +36,6 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
     const labels: Record<string, { starter: string; main: string; dessert: string }> = {
       de: { starter: 'Vorspeise', main: 'Hauptspeise', dessert: 'Nachspeise' },
       en: { starter: 'Starter', main: 'Main', dessert: 'Dessert' },
-      fr: { starter: 'Entrée', main: 'Plat', dessert: 'Dessert' },
-      es: { starter: 'Entrada', main: 'Plato principal', dessert: 'Postre' },
-      it: { starter: 'Antipasto', main: 'Piatto principale', dessert: 'Dessert' },
     } as const;
     const cat = recipe.category?.toLowerCase() ?? '';
     let key: 'starter' | 'main' | 'dessert' | null = null;
