@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Fridgy",
-    "slug": "fridgy-e2fggfz",
+    "slug": "fridgy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "fridgy",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.rork.fridgy-e2fggfz",
+      "bundleIdentifier": "com.fridgy.app",
       "usesAppleSignIn": true
     },
     "android": {
@@ -23,7 +23,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "app.rork.fridgy-e2fggfz"
+      "package": "com.fridgy.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -32,7 +32,7 @@
       [
         "expo-router",
         {
-          "origin": "https://rork.com/"
+          "origin": "https://fridgy-psi.vercel.app/"
         }
       ],
       "expo-apple-authentication"

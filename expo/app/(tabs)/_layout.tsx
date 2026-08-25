@@ -12,7 +12,7 @@ import { useLanguage } from "@/hooks/use-language";
 const HeaderTitle = () => (
   <View style={styles.headerContainer}>
     <Image 
-      source={{ uri: 'https://r2-pub.rork.com/attachments/mfxb024l2x0j1masip1hg' }}
+      source={require('@/assets/images/logo.png')}
       style={styles.logo}
     />
     <Text style={styles.fridgyTitle}>Fridgy</Text>

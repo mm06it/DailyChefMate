@@ -9,8 +9,8 @@ export const trpc = createTRPCReact<AppRouter>();
 
 const getBaseUrl = () => {
   try {
-    if (process.env.EXPO_PUBLIC_RORK_API_BASE_URL) {
-      return process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+    if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+      return process.env.EXPO_PUBLIC_API_BASE_URL;
     }
 
     if (typeof window !== "undefined" && typeof window.location !== "undefined") {
@@ -30,7 +30,7 @@ const getBaseUrl = () => {
   }
 
   const fallback = Platform.OS === "web" ? "http://localhost:3000" : "http://localhost:3000";
-  console.warn("[trpc] Falling back to", fallback, "— set EXPO_PUBLIC_RORK_API_BASE_URL to avoid this.");
+  console.warn("[trpc] Falling back to", fallback, "— set EXPO_PUBLIC_API_BASE_URL to avoid this.");
   return fallback;
 };
 

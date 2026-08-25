@@ -237,7 +237,7 @@ export default function AuthScreen() {
 
           <View style={styles.logoContainer}>
             <Image
-              source={{ uri: 'https://r2-pub.rork.com/attachments/mfxb024l2x0j1masip1hg' }}
+              source={require('@/assets/images/logo.png')}
               style={styles.logo}
             />
             <Text style={styles.title}>{getTranslation(language, 'welcome')}</Text>

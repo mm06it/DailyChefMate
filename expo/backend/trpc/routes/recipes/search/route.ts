@@ -4,23 +4,39 @@ import { z } from "zod";
 import themealdb from "@/lib/themealdb";
 import type { Recipe } from "@/types/recipe";
 
+const AI_API_KEY = process.env.AI_API_KEY;
+const AI_API_URL = process.env.AI_API_URL ?? "https://api.openai.com/v1/chat/completions";
+const AI_MODEL = process.env.AI_MODEL ?? "gpt-4o-mini";
+
 async function enrichWithAI(query: string, base: Recipe[]): Promise<Recipe[]> {
+  if (!AI_API_KEY) {
+    return base;
+  }
+
   try {
-    const res = await fetch("https://toolkit.rork.com/text/llm/", {
+    const res = await fetch(AI_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${AI_API_KEY}`,
+      },
       body: JSON.stringify({
+        model: AI_MODEL,
+        response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: "You are a recipe finder. Return 5 diverse, high-quality recipes as JSON array with fields: name, category (cuisine), course (starter|main|dessert when obvious), ingredients (array of {name, amount}), steps (array of strings), cookTime, image (unsplash or site image). Keep safe, common household ingredients; no allergens warnings." },
-          { role: "user", content: `Find recipes for: ${query}. Output JSON only.` },
+          { role: "system", content: "You are a recipe finder. Return a JSON object with a \"recipes\" array of 5 diverse, high-quality recipes with fields: name, category (cuisine), course (starter|main|dessert when obvious), ingredients (array of {name, amount}), steps (array of strings), cookTime, image (unsplash or site image). Keep safe, common household ingredients; no allergens warnings." },
+          { role: "user", content: `Find recipes for: ${query}.` },
         ],
       }),
     });
-    const data = (await res.json()) as { completion?: string };
-    const text = data?.completion ?? "";
+    if (!res.ok) return base;
+
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const text = data?.choices?.[0]?.message?.content ?? "";
     let parsed: unknown = [];
     try {
-      parsed = JSON.parse(text);
+      const obj = JSON.parse(text);
+      parsed = Array.isArray(obj) ? obj : obj?.recipes;
     } catch {}
 
     if (!Array.isArray(parsed)) return base;
@@ -53,18 +69,6 @@ async function enrichWithAI(query: string, base: Recipe[]): Promise<Recipe[]> {
   }
 }
 
-async function searchWebMeta(query: string): Promise<Recipe[]> {
-  try {
-    const ddg = await fetch(
-      `https://duckduckgo.com/?q=${encodeURIComponent(query + " recipe site:allrecipes.com OR site:bbcgoodfood.com OR site:nytimes.com OR site:epicurious.com")}`
-    );
-    if (!ddg.ok) return [];
-    return [];
-  } catch {
-    return [];
-  }
-}
-
 export default publicProcedure
   .input(
     z.object({
@@ -77,9 +81,8 @@ export default publicProcedure
     const { query, limit = 30, ai = true } = input;
 
     const mealdb = await themealdb.searchMealsByName(query);
-    const web = await searchWebMeta(query);
 
-    let merged: Recipe[] = [...mealdb, ...web];
+    let merged: Recipe[] = [...mealdb];
 
     if (ai) {
       merged = await enrichWithAI(query, merged);
