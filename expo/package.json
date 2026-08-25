@@ -8,7 +8,6 @@
     "start-web-dev": "DEBUG=expo* expo start --web --tunnel"
   },
   "dependencies": {
-    "@ai-sdk/react": "^2.0.87",
     "@expo/vector-icons": "^15.0.3",
     "@hono/trpc-server": "^0.4.0",
     "@nkzw/create-context-hook": "^1.1.0",
