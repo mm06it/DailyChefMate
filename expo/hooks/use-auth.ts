@@ -11,12 +11,29 @@ if (Platform.OS === 'web') {
   WebBrowser.maybeCompleteAuthSession();
 }
 
+// TEMP: skips the login screen for local development. Set back to false to re-enable auth.
+const DEV_SKIP_AUTH = true;
+
+const MOCK_USER = {
+  id: 'dev-mock-user',
+  aud: 'authenticated',
+  role: 'authenticated',
+  email: 'dev@local.test',
+  app_metadata: {},
+  user_metadata: {},
+  created_at: new Date().toISOString(),
+} as User;
+
 export const [AuthProvider, useAuth] = createContextHook(() => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(DEV_SKIP_AUTH ? MOCK_USER : null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!DEV_SKIP_AUTH);
 
   useEffect(() => {
+    if (DEV_SKIP_AUTH) {
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       console.log('Initial session check:', { session: !!session, error });
