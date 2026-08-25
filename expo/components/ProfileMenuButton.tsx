@@ -67,14 +67,14 @@ export default function ProfileMenuButton() {
               <ProfileContent />
 
               <View style={styles.footer}>
-                <TouchableOpacity style={styles.footerRow} onPress={handleSignOut} testID="profile-sheet-sign-out">
-                  <LogOut size={20} color={Colors.error} />
-                  <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity style={styles.footerRow} onPress={handleSettings} testID="profile-sheet-settings">
                   <Settings size={20} color={Colors.text} />
                   <Text style={styles.footerText}>{t('settings')}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.footerRow} onPress={handleSignOut} testID="profile-sheet-sign-out">
+                  <LogOut size={20} color={Colors.error} />
+                  <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
