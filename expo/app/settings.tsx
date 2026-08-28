@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     color: Colors.error,
   },
   feedbackSuccess: {
-    color: Colors.primary,
+    color: Colors.success,
   },
   signOutButton: {
     flexDirection: 'row',
