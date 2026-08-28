@@ -64,7 +64,7 @@ export default function ProfileMenuButton() {
             </View>
 
             <ScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
-              <ProfileContent />
+              <ProfileContent onBeforeNavigate={() => setIsVisible(false)} />
 
               <View style={styles.footer}>
                 <TouchableOpacity style={styles.footerRow} onPress={handleSettings} testID="profile-sheet-settings">

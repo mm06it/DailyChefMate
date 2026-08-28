@@ -1,5 +1,6 @@
+import { router } from 'expo-router';
 import React, { useMemo } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { UserCircle, Heart, ChefHat, Eye, TrendingUp, Trophy } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -12,9 +13,29 @@ interface StatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
+  onPress?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle }) => {
+const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle, onPress }) => {
+  if (onPress) {
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.statCard, pressed && styles.statCardPressed]}
+        onPress={onPress}
+        testID={`stat-card-${title}`}
+      >
+        <View style={styles.statIcon}>
+          {icon}
+        </View>
+        <View style={styles.statContent}>
+          <Text style={styles.statValue}>{value}</Text>
+          <Text style={styles.statTitle}>{title}</Text>
+          {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
+        </View>
+      </Pressable>
+    );
+  }
+
   return (
     <View style={styles.statCard}>
       <View style={styles.statIcon}>
@@ -43,7 +64,13 @@ const InfoRow: React.FC<InfoRowProps> = ({ label, value }) => {
   );
 };
 
-export default function ProfileContent() {
+interface ProfileContentProps {
+  // Called right before navigating away (e.g. to close a modal/sheet this
+  // is rendered inside of). No-op by default for the full-page profile.
+  onBeforeNavigate?: () => void;
+}
+
+export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { getTopCookedRecipes } = useFridgyStore();
@@ -91,6 +118,10 @@ export default function ProfileContent() {
             icon={<Heart size={24} color={Colors.primary} />}
             title={t('favoriteRecipes')}
             value={profileStats.favoriteCount}
+            onPress={() => {
+              onBeforeNavigate?.();
+              router.push('/(tabs)/favorites');
+            }}
           />
           <StatCard
             icon={<Eye size={24} color={Colors.primary} />}
@@ -260,6 +291,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+  },
+  statCardPressed: {
+    opacity: 0.7,
   },
   statIcon: {
     marginRight: 12,
