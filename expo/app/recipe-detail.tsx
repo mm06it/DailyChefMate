@@ -49,7 +49,7 @@ export default function RecipeDetailScreen() {
 
   const handleMarkAsCooked = () => {
     markRecipeAsCooked(recipe.id);
-    router.push('/(tabs)/');
+    router.push('/(tabs)/(recipes)/all');
   };
 
   return (
