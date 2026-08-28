@@ -20,7 +20,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
   const { addIngredient } = useFridgyStore();
 
   const handleSubmit = () => {
-    if (name.trim() && amount.trim() && category) {
+    if (name.trim() && category) {
       addIngredient({
         name: name.trim(),
         amount: amount.trim(),
@@ -78,7 +78,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Amount</Text>
+              <Text style={styles.label}>Amount (optional)</Text>
               <TextInput
                 style={styles.input}
                 value={amount}
@@ -114,13 +114,13 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
               )}
             </View>
 
-            <Pressable 
+            <Pressable
               style={[
                 styles.addButton,
-                (!name.trim() || !amount.trim() || !category) && styles.addButtonDisabled
+                (!name.trim() || !category) && styles.addButtonDisabled
               ]}
               onPress={handleSubmit}
-              disabled={!name.trim() || !amount.trim() || !category}
+              disabled={!name.trim() || !category}
             >
               <Plus size={20} color="#FFF" />
               <Text style={styles.addButtonText}>Add Ingredient</Text>

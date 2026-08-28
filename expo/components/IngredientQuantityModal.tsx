@@ -45,8 +45,24 @@ export default function IngredientQuantityModal({
     return 'g';
   };
 
+  const parseExistingAmount = (amount: string | undefined): { unit: Unit; amount: number } | null => {
+    if (!amount) return null;
+    const match = amount.trim().match(/^(\d+(?:\.\d+)?)\s*(g|ml|Stück)$/i);
+    if (!match) return null;
+    const parsedAmount = Number(match[1]);
+    const parsedUnit = (['g', 'ml', 'Stück'] as const).find(u => u.toLowerCase() === match[2].toLowerCase());
+    if (!parsedUnit || !Number.isFinite(parsedAmount)) return null;
+    return { unit: parsedUnit, amount: parsedAmount };
+  };
+
   useEffect(() => {
     if (ingredient) {
+      const existing = parseExistingAmount(ingredient.amount);
+      if (existing) {
+        setSelectedUnit(existing.unit);
+        setSelectedAmount(existing.amount);
+        return;
+      }
       const unit = defaultUnitFromIngredient(ingredient);
       console.log('IngredientQuantityModal default unit decided', { ingredient: ingredient.name, category: ingredient.category, unit });
       setSelectedUnit(unit);

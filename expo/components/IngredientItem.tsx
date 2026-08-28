@@ -11,10 +11,11 @@ import { Ingredient } from "@/types/recipe";
 interface IngredientItemProps {
   ingredient: Ingredient;
   showRemove?: boolean;
-  onToggle?: () => void;
+  onSelect?: () => void;
+  onEditQuantity?: () => void;
 }
 
-export default function IngredientItem({ ingredient, showRemove = false, onToggle }: IngredientItemProps) {
+export default function IngredientItem({ ingredient, showRemove = false, onSelect, onEditQuantity }: IngredientItemProps) {
   const { toggleIngredientSelection } = useFridgyStore();
   const { currentLanguage, t } = useLanguage();
   const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
@@ -37,11 +38,19 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
       return;
     }
 
-    if (onToggle) {
-      onToggle();
+    // Selecting an ingredient never requires an amount up front — it's added
+    // immediately with the amount left empty/hidden. A quantity can still be
+    // set afterwards via the amount pill below.
+    if (onSelect) {
+      onSelect();
     } else {
       toggleIngredientSelection(ingredient.id);
     }
+  };
+
+  const handleEditQuantity = (e: { stopPropagation?: () => void }) => {
+    e.stopPropagation?.();
+    onEditQuantity?.();
   };
 
   const getCategoryColor = (category: string) => {
@@ -82,6 +91,18 @@ export default function IngredientItem({ ingredient, showRemove = false, onToggl
             {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: categoryColor }]} />}
           </View>
           <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
+          {ingredient.isSelected && (
+            <Pressable
+              style={[styles.amountBadge, ingredient.amount ? { borderColor: categoryColor } : undefined]}
+              onPress={handleEditQuantity}
+              hitSlop={6}
+              testID={`ingredient-item-${ingredient.id}-amount`}
+            >
+              <Text style={[styles.amountBadgeText, ingredient.amount && { color: categoryColor }]} numberOfLines={1}>
+                {ingredient.amount ? ingredient.amount : (t('setAmount') || '+ Menge')}
+              </Text>
+            </Pressable>
+          )}
         </View>
       </Pressable>
       {confirmConfig && (
@@ -146,10 +167,19 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     lineHeight: 16,
   },
-  amount: {
+  amountBadge: {
+    marginTop: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  amountBadgeText: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: Colors.textLight,
     textAlign: 'center',
   },
-
 });

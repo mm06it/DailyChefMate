@@ -76,7 +76,21 @@ export default function RefrigeratorScreen() {
     return [...filteredLocalIngredients, ...uniqueOnlineResults];
   }, [filteredLocalIngredients, onlineResults, searchQuery, refrigeratorItems]);
 
-  const handleIngredientSelect = (ingredient: Ingredient) => {
+  // Selecting an ingredient adds/marks it immediately, with no amount set —
+  // the quantity is optional and only asked for if the user explicitly taps
+  // the amount pill on an already-selected item.
+  const handleImmediateAdd = (ingredient: Ingredient) => {
+    const newIngredient: Ingredient = {
+      ...ingredient,
+      amount: '',
+      isSelected: true,
+      isOnlineResult: false,
+      id: `ingredient-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    };
+    addIngredient(newIngredient);
+  };
+
+  const handleOpenQuantityModal = (ingredient: Ingredient) => {
     setSelectedIngredient(ingredient);
     setShowQuantityModal(true);
   };
@@ -103,7 +117,8 @@ export default function RefrigeratorScreen() {
       <View style={styles.ingredientContainer}>
         <IngredientItem
           ingredient={item}
-          onToggle={() => handleIngredientSelect(item)}
+          onSelect={item.isOnlineResult ? () => handleImmediateAdd(item) : undefined}
+          onEditQuantity={() => handleOpenQuantityModal(item)}
         />
         {item.isOnlineResult && (
           <View style={styles.onlineIndicator}>

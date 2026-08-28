@@ -59,6 +59,7 @@ export const TRANSLATIONS = {
     
     // Common
     search: 'Suchen...',
+    setAmount: '+ Menge',
     back: 'Zurück',
     save: 'Speichern',
     min: 'Min',
@@ -551,6 +552,7 @@ export const TRANSLATIONS = {
     
     // Common
     search: 'Search...',
+    setAmount: '+ Amount',
     back: 'Back',
     save: 'Save',
     min: 'min',
