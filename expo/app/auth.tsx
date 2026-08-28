@@ -144,8 +144,8 @@ export default function AuthScreen() {
       return;
     }
 
-    if (password.length < 6) {
-      setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort zu kurz');
+    if (password.length < 8) {
+      setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
       return;
     }
 
@@ -163,8 +163,11 @@ export default function AuthScreen() {
         console.log('Sign up result:', { data: !!data, error });
         if (error) {
           const msg = (error as any)?.message ?? '';
-          if (typeof msg === 'string' && msg.toLowerCase().includes('already registered')) {
+          const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
+          if (lowerMsg.includes('already exists')) {
             setEmailError('E-Mail-Adresse ist bereits vergeben');
+          } else if (lowerMsg.includes('invalid password')) {
+            setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
           } else {
             Alert.alert('Fehler', msg || 'Registrierung fehlgeschlagen');
           }
@@ -177,7 +180,13 @@ export default function AuthScreen() {
         const { data, error } = await signIn(email, password);
         console.log('Sign in result:', { data: !!data, error });
         if (error) {
-          Alert.alert('Fehler', (error as any)?.message ?? 'Anmeldung fehlgeschlagen');
+          const msg = (error as any)?.message ?? '';
+          const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
+          if (lowerMsg.includes('invalidaccountid') || lowerMsg.includes('invalid password')) {
+            Alert.alert('Fehler', 'E-Mail oder Passwort ist falsch');
+          } else {
+            Alert.alert('Fehler', msg || 'Anmeldung fehlgeschlagen');
+          }
         }
       }
     } catch (err) {
