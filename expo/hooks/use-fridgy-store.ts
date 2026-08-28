@@ -1,7 +1,9 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import createContextHook from "@nkzw/create-context-hook";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useEffect, useMemo, useState } from "react";
 
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { recipes as initialRecipes } from "@/mocks/recipes";
 import { refrigeratorItems as initialRefrigeratorItems } from "@/mocks/refrigerator";
 import { Recipe, Ingredient } from "@/types/recipe";
@@ -9,192 +11,189 @@ import themealdb from "@/lib/themealdb";
 import { trpcClient } from "@/lib/trpc";
 
 export const [FridgyContext, useFridgyStore] = createContextHook(() => {
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [customRecipes, setCustomRecipes] = useState<Recipe[]>([]);
-  const [refrigeratorItems, setRefrigeratorItems] = useState<Ingredient[]>([]);
-  const [cookedRecipes, setCookedRecipes] = useState<{ [recipeId: string]: number }>({});
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  // Transient browse/search cache (mock catalog + TheMealDB/AI results).
+  // This is *not* persisted anywhere — only whether one of these recipes is
+  // favorited is real, durable data, tracked in Convex (favoriteRecipes).
+  const [recipes, setRecipes] = useState<Recipe[]>(() =>
+    initialRecipes.map((recipe) => ({ ...recipe, isFavorite: false }))
+  );
 
-  // Load data from AsyncStorage on mount
+  const convexRefrigeratorItems = useQuery(api.refrigerator.list);
+  const convexCustomRecipes = useQuery(api.customRecipes.list);
+  const convexFavorites = useQuery(api.favorites.list);
+  const convexCooked = useQuery(api.cooked.list);
+
+  const dataStillLoading =
+    convexRefrigeratorItems === undefined ||
+    convexCustomRecipes === undefined ||
+    convexFavorites === undefined ||
+    convexCooked === undefined;
+
+  const seedRefrigerator = useMutation(api.refrigerator.seedIfEmpty);
+  const selectItemMutation = useMutation(api.refrigerator.selectItem);
+  const toggleSelectionMutation = useMutation(api.refrigerator.toggleSelection);
+  const updateAmountMutation = useMutation(api.refrigerator.updateAmount);
+  const addItemMutation = useMutation(api.refrigerator.addItem);
+
+  const addCustomRecipeMutation = useMutation(api.customRecipes.add);
+  const updateCustomRecipeMutation = useMutation(api.customRecipes.update);
+  const removeCustomRecipeMutation = useMutation(api.customRecipes.remove);
+  const toggleCustomFavoriteMutation = useMutation(api.customRecipes.toggleFavorite);
+
+  const addFavoriteMutation = useMutation(api.favorites.add);
+  const removeFavoriteMutation = useMutation(api.favorites.remove);
+
+  const markCookedMutation = useMutation(api.cooked.markCooked);
+
+  // Seed a brand-new account's fridge once, the first time we see it's empty.
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const storedRecipes = await AsyncStorage.getItem("recipes");
-        const storedCustomRecipes = await AsyncStorage.getItem("customRecipes");
-        const storedRefrigeratorItems = await AsyncStorage.getItem("refrigeratorItems");
-        const storedCookedRecipes = await AsyncStorage.getItem("cookedRecipes");
-        
-        if (storedRecipes) {
-          setRecipes(JSON.parse(storedRecipes));
-        } else {
-          // For new users, ensure no recipes are favorited by default
-          const recipesWithoutFavorites = initialRecipes.map(recipe => ({
-            ...recipe,
-            isFavorite: false
-          }));
-          setRecipes(recipesWithoutFavorites);
-        }
-        
-        if (storedCustomRecipes) {
-          setCustomRecipes(JSON.parse(storedCustomRecipes));
-        }
-        
-        if (storedRefrigeratorItems) {
-          setRefrigeratorItems(JSON.parse(storedRefrigeratorItems));
-        } else {
-          setRefrigeratorItems(initialRefrigeratorItems);
-        }
-        
-        if (storedCookedRecipes) {
-          setCookedRecipes(JSON.parse(storedCookedRecipes));
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        // For new users, ensure no recipes are favorited by default
-        const recipesWithoutFavorites = initialRecipes.map(recipe => ({
-          ...recipe,
-          isFavorite: false
-        }));
-        setRecipes(recipesWithoutFavorites);
-        setCustomRecipes([]);
-        setRefrigeratorItems(initialRefrigeratorItems);
-        setCookedRecipes({});
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // One-time repair to fix any wrong images from previous heuristic and remove AI-enriched entries
-  useEffect(() => {
-    if (isLoading) return;
-    const repair = async () => {
-      try {
-        let changed = false;
-        // Remove AI recipes completely
-        setRecipes(prev => {
-          const filtered = prev.filter(r => !r.id.startsWith('ai_'));
-          if (filtered.length !== prev.length) changed = true;
-          return filtered;
-        });
-        // Refresh images for TheMealDB items from source
-        const mealdbRecipes = recipes.filter(r => r.id.startsWith('mealdb_'));
-        if (mealdbRecipes.length > 0) {
-          const updatedMap: Record<string, string> = {};
-          for (const r of mealdbRecipes) {
-            const mealId = r.id.replace('mealdb_', '');
-            try {
-              const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${encodeURIComponent(mealId)}`);
-              const data = await res.json();
-              const thumb: string | undefined = data?.meals?.[0]?.strMealThumb;
-              if (thumb && thumb !== r.image) {
-                updatedMap[r.id] = thumb;
-              }
-            } catch {}
-          }
-          if (Object.keys(updatedMap).length > 0) {
-            setRecipes(prev => prev.map(r => (updatedMap[r.id] ? { ...r, image: updatedMap[r.id] } : r)));
-            changed = true;
-          }
-        }
-        if (changed) {
-          await AsyncStorage.setItem('recipes', JSON.stringify(recipes));
-        }
-      } catch (e) {
-        console.log('Repair pass skipped', e);
-      }
-    };
-    repair();
-  }, [isLoading]);
-
-  // Save data to AsyncStorage whenever it changes
-  useEffect(() => {
-    if (!isLoading) {
-      AsyncStorage.setItem("recipes", JSON.stringify(recipes));
-      AsyncStorage.setItem("customRecipes", JSON.stringify(customRecipes));
-      AsyncStorage.setItem("refrigeratorItems", JSON.stringify(refrigeratorItems));
-      AsyncStorage.setItem("cookedRecipes", JSON.stringify(cookedRecipes));
+    if (convexRefrigeratorItems !== undefined && convexRefrigeratorItems.length === 0) {
+      seedRefrigerator({
+        items: initialRefrigeratorItems.map(({ name, amount, category }) => ({ name, amount, category })),
+      }).catch((e) => console.error("Failed to seed refrigerator", e));
     }
-  }, [recipes, customRecipes, refrigeratorItems, cookedRecipes, isLoading]);
+    // Only re-check right when the query transitions from loading to loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convexRefrigeratorItems === undefined]);
+
+  const refrigeratorItems: Ingredient[] = useMemo(() => {
+    return (convexRefrigeratorItems ?? []).map((item) => ({
+      id: item._id,
+      name: item.name,
+      amount: item.amount,
+      category: item.category,
+      isSelected: item.isSelected,
+    }));
+  }, [convexRefrigeratorItems]);
+
+  const customRecipes: Recipe[] = useMemo(() => {
+    return (convexCustomRecipes ?? []).map((r) => ({
+      id: r._id,
+      name: r.name,
+      image: r.image,
+      rating: r.rating,
+      cookTime: r.cookTime,
+      servings: r.servings,
+      category: r.category,
+      course: r.course,
+      ingredients: r.ingredients,
+      steps: r.steps,
+      isFavorite: r.isFavorite,
+      prepTime: r.prepTime,
+      ovenHeat: r.ovenHeat,
+      ovenTime: r.ovenTime,
+      totalTime: r.totalTime,
+    }));
+  }, [convexCustomRecipes]);
+
+  const favoriteExternalRecipes: Recipe[] = useMemo(() => {
+    return (convexFavorites ?? []).map((r) => ({ ...r, isFavorite: true }));
+  }, [convexFavorites]);
+
+  const favoriteExternalIds = useMemo(
+    () => new Set((convexFavorites ?? []).map((r) => r.id)),
+    [convexFavorites]
+  );
+
+  const cookedRecipes: { [recipeId: string]: number } = useMemo(() => {
+    const map: { [recipeId: string]: number } = {};
+    for (const row of convexCooked ?? []) {
+      map[row.recipeId] = row.count;
+    }
+    return map;
+  }, [convexCooked]);
+
+  // Merge the live favorite flag from Convex into the local browse cache.
+  const displayedRecipes: Recipe[] = useMemo(() => {
+    return recipes.map((r) => ({ ...r, isFavorite: favoriteExternalIds.has(r.id) }));
+  }, [recipes, favoriteExternalIds]);
 
   // Recipe functions
   const toggleFavorite = (recipeId: string) => {
-    // Check if it's a custom recipe first
-    const isCustomRecipe = customRecipes.some(recipe => recipe.id === recipeId);
-    
-    if (isCustomRecipe) {
-      setCustomRecipes(prevRecipes => 
-        prevRecipes.map(recipe => 
-          recipe.id === recipeId 
-            ? { ...recipe, isFavorite: !recipe.isFavorite } 
-            : recipe
-        )
+    const customRecipe = customRecipes.find((recipe) => recipe.id === recipeId);
+    if (customRecipe) {
+      toggleCustomFavoriteMutation({ id: recipeId as Id<"customRecipes"> }).catch((e) =>
+        console.error("toggleFavorite (custom) failed", e)
       );
-    } else {
-      setRecipes(prevRecipes => 
-        prevRecipes.map(recipe => 
-          recipe.id === recipeId 
-            ? { ...recipe, isFavorite: !recipe.isFavorite } 
-            : recipe
-        )
-      );
+      return;
+    }
+
+    if (favoriteExternalIds.has(recipeId)) {
+      removeFavoriteMutation({ recipeId }).catch((e) => console.error("removeFavorite failed", e));
+      return;
+    }
+
+    const recipe = displayedRecipes.find((r) => r.id === recipeId);
+    if (recipe) {
+      const { isFavorite: _unused, ...recipeSnapshot } = recipe;
+      addFavoriteMutation({ recipe: recipeSnapshot }).catch((e) => console.error("addFavorite failed", e));
     }
   };
 
   const getFavoriteRecipes = () => {
-    const favoriteRegularRecipes = recipes.filter(recipe => recipe.isFavorite);
-    const favoriteCustomRecipes = customRecipes.filter(recipe => recipe.isFavorite);
-    return [...favoriteRegularRecipes, ...favoriteCustomRecipes];
+    return [...favoriteExternalRecipes, ...customRecipes.filter((recipe) => recipe.isFavorite)];
   };
 
   const searchRecipes = (query: string) => {
-    if (!query.trim()) return recipes;
+    if (!query.trim()) return displayedRecipes;
     const lowerCaseQuery = query.toLowerCase();
-    return recipes.filter(recipe => 
-      recipe.name.toLowerCase().includes(lowerCaseQuery) ||
-      recipe.category.toLowerCase().includes(lowerCaseQuery) ||
-      recipe.ingredients.some(ingredient => 
-        ingredient.name.toLowerCase().includes(lowerCaseQuery)
-      )
+    return displayedRecipes.filter(
+      (recipe) =>
+        recipe.name.toLowerCase().includes(lowerCaseQuery) ||
+        recipe.category.toLowerCase().includes(lowerCaseQuery) ||
+        recipe.ingredients.some((ingredient) => ingredient.name.toLowerCase().includes(lowerCaseQuery))
     );
   };
-  
+
   const searchCustomRecipes = (query: string) => {
     if (!query.trim()) return customRecipes;
     const lowerCaseQuery = query.toLowerCase();
-    return customRecipes.filter(recipe => 
-      recipe.name.toLowerCase().includes(lowerCaseQuery) ||
-      recipe.category.toLowerCase().includes(lowerCaseQuery) ||
-      recipe.ingredients.some(ingredient => 
-        ingredient.name.toLowerCase().includes(lowerCaseQuery)
-      )
+    return customRecipes.filter(
+      (recipe) =>
+        recipe.name.toLowerCase().includes(lowerCaseQuery) ||
+        recipe.category.toLowerCase().includes(lowerCaseQuery) ||
+        recipe.ingredients.some((ingredient) => ingredient.name.toLowerCase().includes(lowerCaseQuery))
     );
+  };
+
+  const addUniqueRecipes = (newRecipes: Recipe[]): Recipe[] => {
+    setRecipes((prevRecipes) => {
+      const existingIds = new Set(prevRecipes.map((r) => r.id));
+      const existingNames = new Set(prevRecipes.map((r) => r.name.toLowerCase()));
+
+      const uniqueNewRecipes = newRecipes.filter(
+        (recipe) => !existingIds.has(recipe.id) && !existingNames.has(recipe.name.toLowerCase())
+      );
+
+      if (uniqueNewRecipes.length > 0) {
+        return [...prevRecipes, ...uniqueNewRecipes];
+      }
+
+      return prevRecipes;
+    });
+
+    return newRecipes;
   };
 
   const searchRecipesOnline = async (query: string): Promise<Recipe[]> => {
     if (!query.trim()) return [];
 
     try {
-      console.log('Online search (web + AI) for recipes:', query);
+      console.log("Online search (web + AI) for recipes:", query);
 
       const data = await trpcClient.recipes.search.query({ query, limit: 30, ai: false });
       const merged = addUniqueRecipes(data);
 
-      // Fallbacks to supplement results from TheMealDB directly if needed
       if (merged.length < 5) {
-        console.log('Few results from unified search, enriching with TheMealDB');
+        console.log("Few results from unified search, enriching with TheMealDB");
         const extra = await themealdb.searchMealsByName(query);
         return addUniqueRecipes(extra);
       }
 
       return merged;
     } catch (error) {
-      console.error('Error searching recipes online (unified):', error);
+      console.error("Error searching recipes online (unified):", error);
       try {
-        // Graceful degradation to TheMealDB only
         const fallback = await themealdb.searchMealsByName(query);
         if (fallback.length === 0) {
           const byCat = await themealdb.getMealsByCategory(query);
@@ -204,41 +203,16 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
         }
         return addUniqueRecipes(fallback);
       } catch (inner) {
-        console.error('Fallback TheMealDB search failed:', inner);
+        console.error("Fallback TheMealDB search failed:", inner);
         return [];
       }
     }
   };
-  
-  const addUniqueRecipes = (newRecipes: Recipe[]): Recipe[] => {
-    // Add to existing recipes to avoid duplicates
-    setRecipes(prevRecipes => {
-      const existingIds = new Set(prevRecipes.map(r => r.id));
-      const existingNames = new Set(prevRecipes.map(r => r.name.toLowerCase()));
-      
-      const uniqueNewRecipes = newRecipes.filter(
-        recipe => !existingIds.has(recipe.id) && !existingNames.has(recipe.name.toLowerCase())
-      );
-      
-      if (uniqueNewRecipes.length > 0) {
-        console.log(`Adding ${uniqueNewRecipes.length} new recipes from TheMealDB`);
-        return [...prevRecipes, ...uniqueNewRecipes];
-      }
-      
-      return prevRecipes;
-    });
-    
-    return newRecipes;
-  };
 
   // Refrigerator functions
   const toggleIngredientSelection = (ingredientId: string) => {
-    setRefrigeratorItems(prevItems =>
-      prevItems.map(item =>
-        item.id === ingredientId
-          ? { ...item, isSelected: !item.isSelected }
-          : item
-      )
+    toggleSelectionMutation({ id: ingredientId as Id<"refrigeratorItems"> }).catch((e) =>
+      console.error("toggleIngredientSelection failed", e)
     );
   };
 
@@ -246,180 +220,166 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
   // regardless of any preset catalog amount — quantity is opt-in via the
   // amount pill / IngredientQuantityModal.
   const selectIngredient = (ingredientId: string) => {
-    setRefrigeratorItems(prevItems =>
-      prevItems.map(item =>
-        item.id === ingredientId
-          ? { ...item, isSelected: true, amount: '' }
-          : item
-      )
+    selectItemMutation({ id: ingredientId as Id<"refrigeratorItems"> }).catch((e) =>
+      console.error("selectIngredient failed", e)
     );
   };
 
   const addIngredient = (ingredient: Ingredient | Omit<Ingredient, "id" | "isSelected">) => {
-    const newIngredient: Ingredient = {
-      ...ingredient,
-      id: 'id' in ingredient ? ingredient.id : Date.now().toString(),
-      isSelected: 'isSelected' in ingredient ? ingredient.isSelected : false
-    };
-    setRefrigeratorItems(prevItems => [...prevItems, newIngredient]);
+    addItemMutation({
+      name: ingredient.name,
+      amount: ingredient.amount,
+      category: ingredient.category,
+      isSelected: "isSelected" in ingredient ? ingredient.isSelected : false,
+    }).catch((e) => console.error("addIngredient failed", e));
   };
 
   const removeIngredient = (_ingredientId: string) => {
-    console.log('removeIngredient is disabled');
+    console.log("removeIngredient is disabled");
     return;
   };
 
   const updateIngredientAmount = (ingredientId: string, amount: string) => {
-    setRefrigeratorItems(prevItems => 
-      prevItems.map(item => 
-        item.id === ingredientId 
-          ? { ...item, amount, isSelected: true } 
-          : item
-      )
+    updateAmountMutation({ id: ingredientId as Id<"refrigeratorItems">, amount }).catch((e) =>
+      console.error("updateIngredientAmount failed", e)
     );
   };
 
   const getSelectedIngredients = () => {
-    return refrigeratorItems.filter(item => item.isSelected);
+    return refrigeratorItems.filter((item) => item.isSelected);
   };
 
   const searchRefrigeratorItems = (query: string) => {
     if (!query.trim()) return refrigeratorItems;
     const lowerCaseQuery = query.toLowerCase();
-    return refrigeratorItems.filter(item => 
-      item.name.toLowerCase().includes(lowerCaseQuery) ||
-      item.category.toLowerCase().includes(lowerCaseQuery)
+    return refrigeratorItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(lowerCaseQuery) || item.category.toLowerCase().includes(lowerCaseQuery)
     );
   };
 
   // Recipe generator function
   const generateRecipes = () => {
     const selectedIngredients = getSelectedIngredients();
-    const selectedIngredientNames = selectedIngredients.map(item => item.name.toLowerCase());
-    
-    const matchingRegularRecipes = recipes.filter(recipe => {
-      // Count how many of the recipe's ingredients are in the selected ingredients
-      const matchingIngredients = recipe.ingredients.filter(ingredient => 
+    const selectedIngredientNames = selectedIngredients.map((item) => item.name.toLowerCase());
+
+    const matchesRecipe = (recipe: Recipe) => {
+      const matchingIngredients = recipe.ingredients.filter((ingredient) =>
         selectedIngredientNames.includes(ingredient.name.toLowerCase())
       );
-      
-      // Return recipes that have at least 2 matching ingredients or 30% of their ingredients
       const minMatches = Math.min(2, Math.ceil(recipe.ingredients.length * 0.3));
       return matchingIngredients.length >= minMatches;
-    });
-    
-    const matchingCustomRecipes = customRecipes.filter(recipe => {
-      // Count how many of the recipe's ingredients are in the selected ingredients
-      const matchingIngredients = recipe.ingredients.filter(ingredient => 
-        selectedIngredientNames.includes(ingredient.name.toLowerCase())
-      );
-      
-      // Return recipes that have at least 2 matching ingredients or 30% of their ingredients
-      const minMatches = Math.min(2, Math.ceil(recipe.ingredients.length * 0.3));
-      return matchingIngredients.length >= minMatches;
-    });
-    
-    return [...matchingRegularRecipes, ...matchingCustomRecipes];
+    };
+
+    return [...displayedRecipes.filter(matchesRecipe), ...customRecipes.filter(matchesRecipe)];
   };
-  
+
   const generateRecipesFromIngredients = async (): Promise<Recipe[]> => {
     const selectedIngredients = getSelectedIngredients();
-    
+
     if (selectedIngredients.length === 0) {
       return [];
     }
-    
+
     try {
-      console.log('Generating recipes from selected ingredients:', selectedIngredients.map(i => i.name));
-      
-      // Search for recipes using the most common ingredient
+      console.log(
+        "Generating recipes from selected ingredients:",
+        selectedIngredients.map((i) => i.name)
+      );
+
       const mainIngredient = selectedIngredients[0].name;
       const onlineRecipes = await themealdb.getMealsByIngredient(mainIngredient);
-      
-      // Filter recipes that match multiple selected ingredients
-      const matchingRecipes = onlineRecipes.filter(recipe => {
-        const recipeIngredientNames = recipe.ingredients.map(ing => ing.name.toLowerCase());
-        const selectedNames = selectedIngredients.map(ing => ing.name.toLowerCase());
-        
-        const matches = selectedNames.filter(name => 
-          recipeIngredientNames.some(recipeIng => 
-            recipeIng.includes(name) || name.includes(recipeIng)
-          )
+
+      const matchingRecipes = onlineRecipes.filter((recipe) => {
+        const recipeIngredientNames = recipe.ingredients.map((ing) => ing.name.toLowerCase());
+        const selectedNames = selectedIngredients.map((ing) => ing.name.toLowerCase());
+
+        const matches = selectedNames.filter((name) =>
+          recipeIngredientNames.some((recipeIng) => recipeIng.includes(name) || name.includes(recipeIng))
         );
-        
+
         return matches.length >= Math.min(2, selectedIngredients.length);
       });
-      
+
       return addUniqueRecipes(matchingRecipes);
     } catch (error) {
-      console.error('Error generating recipes from ingredients:', error);
+      console.error("Error generating recipes from ingredients:", error);
       return [];
     }
   };
-  
+
   // Cooked recipes functions
   const markRecipeAsCooked = (recipeId: string) => {
-    setCookedRecipes(prev => ({
-      ...prev,
-      [recipeId]: (prev[recipeId] || 0) + 1
-    }));
+    markCookedMutation({ recipeId }).catch((e) => console.error("markRecipeAsCooked failed", e));
   };
-  
+
   const getTopCookedRecipes = (limit: number = 3): Array<{ recipe: Recipe; count: number }> => {
     const cookedEntries = Object.entries(cookedRecipes)
       .map(([recipeId, count]) => {
-        const recipe = recipes.find(r => r.id === recipeId) || customRecipes.find(r => r.id === recipeId);
+        const recipe = displayedRecipes.find((r) => r.id === recipeId) || customRecipes.find((r) => r.id === recipeId);
         return recipe ? { recipe, count } : null;
       })
       .filter((entry): entry is { recipe: Recipe; count: number } => entry !== null)
       .sort((a, b) => b.count - a.count)
       .slice(0, limit);
-    
+
     return cookedEntries;
   };
-  
+
   // Custom recipe functions
-  const addCustomRecipe = (recipe: Omit<Recipe, 'id'>) => {
-    const newRecipe: Recipe = {
-      ...recipe,
-      id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    };
-    setCustomRecipes(prevRecipes => [...prevRecipes, newRecipe]);
-    return newRecipe;
+  const addCustomRecipe = (recipe: Omit<Recipe, "id">) => {
+    addCustomRecipeMutation({
+      name: recipe.name,
+      image: recipe.image,
+      rating: recipe.rating,
+      cookTime: recipe.cookTime,
+      servings: recipe.servings,
+      category: recipe.category,
+      course: recipe.course,
+      ingredients: recipe.ingredients,
+      steps: recipe.steps,
+      prepTime: recipe.prepTime,
+      ovenHeat: recipe.ovenHeat,
+      ovenTime: recipe.ovenTime,
+      totalTime: recipe.totalTime,
+    }).catch((e) => console.error("addCustomRecipe failed", e));
   };
-  
-  const updateCustomRecipe = (recipeId: string, updatedRecipe: Omit<Recipe, 'id'>) => {
-    setCustomRecipes(prevRecipes => 
-      prevRecipes.map(recipe => 
-        recipe.id === recipeId 
-          ? { ...updatedRecipe, id: recipeId }
-          : recipe
-      )
-    );
+
+  const updateCustomRecipe = (recipeId: string, updatedRecipe: Omit<Recipe, "id">) => {
+    updateCustomRecipeMutation({
+      id: recipeId as Id<"customRecipes">,
+      name: updatedRecipe.name,
+      image: updatedRecipe.image,
+      rating: updatedRecipe.rating,
+      cookTime: updatedRecipe.cookTime,
+      servings: updatedRecipe.servings,
+      category: updatedRecipe.category,
+      course: updatedRecipe.course,
+      ingredients: updatedRecipe.ingredients,
+      steps: updatedRecipe.steps,
+      prepTime: updatedRecipe.prepTime,
+      ovenHeat: updatedRecipe.ovenHeat,
+      ovenTime: updatedRecipe.ovenTime,
+      totalTime: updatedRecipe.totalTime,
+    }).catch((e) => console.error("updateCustomRecipe failed", e));
   };
-  
+
   const deleteCustomRecipe = (recipeId: string) => {
-    setCustomRecipes(prevRecipes => 
-      prevRecipes.filter(recipe => recipe.id !== recipeId)
+    removeCustomRecipeMutation({ id: recipeId as Id<"customRecipes"> }).catch((e) =>
+      console.error("deleteCustomRecipe failed", e)
     );
-    // Also remove from cooked recipes if it exists
-    setCookedRecipes(prev => {
-      const updated = { ...prev };
-      delete updated[recipeId];
-      return updated;
-    });
   };
-  
+
   const getCustomRecipe = (recipeId: string): Recipe | undefined => {
-    return customRecipes.find(recipe => recipe.id === recipeId);
+    return customRecipes.find((recipe) => recipe.id === recipeId);
   };
 
   return {
-    recipes,
+    recipes: displayedRecipes,
     customRecipes,
     refrigeratorItems,
     cookedRecipes,
-    isLoading,
+    isLoading: dataStillLoading,
     favorites: getFavoriteRecipes(),
     toggleFavorite,
     getFavoriteRecipes,
@@ -463,9 +423,9 @@ export function useFavoriteRecipes() {
 export function useRefrigeratorItems(searchQuery: string = "", categoryFilter: string = "") {
   const { refrigeratorItems, searchRefrigeratorItems } = useFridgyStore();
   const filteredBySearch = searchQuery ? searchRefrigeratorItems(searchQuery) : refrigeratorItems;
-  
-  return categoryFilter 
-    ? filteredBySearch.filter(item => item.category === categoryFilter)
+
+  return categoryFilter
+    ? filteredBySearch.filter((item) => item.category === categoryFilter)
     : filteredBySearch;
 }
 

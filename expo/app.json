@@ -15,8 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fridgy.app",
-      "usesAppleSignIn": true
+      "bundleIdentifier": "com.fridgy.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,8 +33,7 @@
         {
           "origin": "https://fridgy-psi.vercel.app/"
         }
-      ],
-      "expo-apple-authentication"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

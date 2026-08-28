@@ -18,7 +18,6 @@ import { useLanguage } from '@/hooks/use-language';
 import { getTranslation } from '@/constants/translations';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
-import { supabase } from '@/lib/supabase';
 
 const USERNAME_CHECK_ENABLED = false as const;
 
@@ -48,30 +47,11 @@ export default function AuthScreen() {
 
   const normalizedUsername = useMemo(() => username.trim().toLowerCase(), [username]);
 
-  const checkUsername = useCallback(async (name: string) => {
-    if (!USERNAME_CHECK_ENABLED) {
-      return;
-    }
-    const uname = name.trim().toLowerCase();
-    if (!uname) {
-      setUsernameAvailable(null);
-      return;
-    }
-    try {
-      setCheckingUsername(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', uname)
-        .maybeSingle();
-      if (error) {
-        setUsernameAvailable(null);
-        return;
-      }
-      setUsernameAvailable(!data);
-    } finally {
-      setCheckingUsername(false);
-    }
+  // Username-availability checking is disabled for now (USERNAME_CHECK_ENABLED)
+  // — Convex doesn't have a profiles table to check against yet. Re-enable by
+  // adding a `usernameTaken` query in convex/users.ts and calling it here.
+  const checkUsername = useCallback(async (_name: string) => {
+    return;
   }, []);
 
   useEffect(() => {

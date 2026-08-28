@@ -1,15 +1,18 @@
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { FridgyContext } from "@/hooks/use-fridgy-store";
 import { LanguageContext } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { convex } from "@/lib/convex";
+import { secureStorage } from "@/lib/auth-storage";
 import DesktopSidebar from "@/components/DesktopSidebar";
 import AuthScreen from "./auth";
 
@@ -72,18 +75,20 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageContext>
-          <AuthProvider>
-            <FridgyContext>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <RootLayoutNav />
-              </GestureHandlerRootView>
-            </FridgyContext>
-          </AuthProvider>
-        </LanguageContext>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>
+          <LanguageContext>
+            <AuthProvider>
+              <FridgyContext>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <RootLayoutNav />
+                </GestureHandlerRootView>
+              </FridgyContext>
+            </AuthProvider>
+          </LanguageContext>
+        </QueryClientProvider>
+      </trpc.Provider>
+    </ConvexAuthProvider>
   );
 }
