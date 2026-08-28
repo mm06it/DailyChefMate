@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BookOpen, Refrigerator, Star } from "lucide-react-native";
+import { BookOpen, Refrigerator, Settings, Star } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, View, Text, Image } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
@@ -87,6 +87,13 @@ export default function TabLayout() {
         options={{
           title: t('favorites'),
           tabBarIcon: ({ color }) => <Star size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: t('settings'),
+          tabBarIcon: ({ color }) => <Settings size={22} color={color} />,
         }}
       />
       <Tabs.Screen

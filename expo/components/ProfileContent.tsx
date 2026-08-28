@@ -108,7 +108,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
         <View style={styles.avatarContainer}>
           <UserCircle size={80} color={Colors.primary} />
         </View>
-        <Text style={styles.userName}>{user.email}</Text>
+        <Text style={styles.userName}>{user.username || user.email}</Text>
         <Text style={styles.userSubtitle}>{t('memberSince')} {profileStats.memberSince}</Text>
       </View>
 

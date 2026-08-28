@@ -1,5 +1,4 @@
-import { router } from 'expo-router';
-import { LogOut, Settings, UserCircle, X } from 'lucide-react-native';
+import { LogOut, UserCircle, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -29,11 +28,6 @@ export default function ProfileMenuButton() {
         },
       ]
     );
-  };
-
-  const handleSettings = () => {
-    setIsVisible(false);
-    router.push('/settings');
   };
 
   return (
@@ -67,11 +61,6 @@ export default function ProfileMenuButton() {
               <ProfileContent onBeforeNavigate={() => setIsVisible(false)} />
 
               <View style={styles.footer}>
-                <TouchableOpacity style={styles.footerRow} onPress={handleSettings} testID="profile-sheet-settings">
-                  <Settings size={20} color={Colors.text} />
-                  <Text style={styles.footerText}>{t('settings')}</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity style={styles.footerRow} onPress={handleSignOut} testID="profile-sheet-sign-out">
                   <LogOut size={20} color={Colors.error} />
                   <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>

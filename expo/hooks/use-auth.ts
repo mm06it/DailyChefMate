@@ -11,6 +11,7 @@ const DEV_SKIP_AUTH = false;
 interface AuthUser {
   id: string;
   email: string;
+  username: string;
   created_at: string;
   user_metadata: { provider?: string };
 }
@@ -18,6 +19,7 @@ interface AuthUser {
 const MOCK_USER: AuthUser = {
   id: 'dev-mock-user',
   email: 'dev@local.test',
+  username: 'dev',
   created_at: new Date().toISOString(),
   user_metadata: {},
 };
@@ -35,6 +37,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     return {
       id: me._id,
       email: me.email ?? '',
+      username: me.username ?? '',
       created_at: new Date(me._creationTime).toISOString(),
       user_metadata: {},
     };

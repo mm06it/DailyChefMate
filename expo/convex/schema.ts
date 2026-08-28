@@ -30,7 +30,9 @@ export default defineSchema({
   ...authTables,
 
   // Same as authTables.users, plus `username` (set at sign-up, see
-  // convex/auth.ts's Password profile()). Keep the same indexes.
+  // convex/auth.ts's Password profile(); editable later via
+  // convex/users.ts's updateUsername). Keep the same indexes; `username`
+  // is indexed so uniqueness checks stay a point lookup.
   users: defineTable({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -42,7 +44,8 @@ export default defineSchema({
     username: v.optional(v.string()),
   })
     .index("email", ["email"])
-    .index("phone", ["phone"]),
+    .index("phone", ["phone"])
+    .index("username", ["username"]),
 
   // Per-user fridge inventory. Mirrors types/recipe.ts's Ingredient shape,
   // with Convex's document _id standing in for Ingredient.id.

@@ -136,7 +136,11 @@ export const TRANSLATIONS = {
     language: 'Sprache',
     about: 'Über',
     version: 'Version',
-    
+    usernameUpdated: 'Benutzername aktualisiert',
+    usernameTaken: 'Dieser Benutzername ist bereits vergeben',
+    usernameInvalid: 'Benutzername: 3–20 Zeichen, nur Kleinbuchstaben, Zahlen, - oder _',
+    usernameUpdateFailed: 'Benutzername konnte nicht aktualisiert werden',
+
     // Profile
     profileInfo: 'Profil-Informationen',
     memberSince: 'Mitglied seit',
@@ -631,7 +635,11 @@ export const TRANSLATIONS = {
     language: 'Language',
     about: 'About',
     version: 'Version',
-    
+    usernameUpdated: 'Username updated',
+    usernameTaken: 'That username is already taken',
+    usernameInvalid: 'Username: 3–20 characters, lowercase letters, numbers, - or _',
+    usernameUpdateFailed: 'Could not update username',
+
     // Profile
     profileInfo: 'Profile Information',
     memberSince: 'Member since',

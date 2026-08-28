@@ -88,7 +88,7 @@ export default function DesktopSidebar() {
           onPress={() => router.push('/profile')}
         >
           <UserCircle size={20} color={pathname.includes('/profile') ? Colors.primary : Colors.textLight} />
-          <Text style={styles.userEmail} numberOfLines={1}>{user?.email ?? t('profile')}</Text>
+          <Text style={styles.userName} numberOfLines={1}>{user?.username || user?.email || t('profile')}</Text>
         </Pressable>
 
         <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     gap: 4,
   },
-  userEmail: {
+  userName: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
