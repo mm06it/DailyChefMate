@@ -151,6 +151,8 @@ export const TRANSLATIONS = {
     personalStats: 'Persönliche Statistiken',
     done: 'Fertig gekocht',
     tapToComplete: 'Tippe zum Abhaken',
+    startCooking: 'Kochen starten',
+    servingsAdjustHint: 'Mengen passen sich an die Portionsanzahl an',
 
     topCookedDishes: 'Deine Lieblingsgerichte',
     cookedTimes: 'mal gekocht',
@@ -644,6 +646,8 @@ export const TRANSLATIONS = {
     personalStats: 'Personal Statistics',
     done: 'Done Cooking',
     tapToComplete: 'Tap to complete',
+    startCooking: 'Start Cooking',
+    servingsAdjustHint: 'Amounts adjust to the number of servings',
     topCookedDishes: 'Your Favorite Dishes',
     cookedTimes: 'times cooked',
     noCookedDishes: 'No dishes cooked yet',
