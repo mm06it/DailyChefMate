@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import { api } from '@/convex/_generated/api';
 // rejected before the round trip.
 const USERNAME_PATTERN = /^[a-z0-9_-]{3,20}$/;
 
+type Feedback = { type: 'error' | 'success'; text: string } | null;
+
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
@@ -34,6 +36,14 @@ export default function SettingsScreen() {
   const [editing, setEditing] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, []);
 
   const handleSignOut = () => {
     Alert.alert(
@@ -57,39 +67,54 @@ export default function SettingsScreen() {
 
   const startEditing = useCallback(() => {
     setDraft(currentUsername);
+    setFeedback(null);
     setEditing(true);
   }, [currentUsername]);
 
   const cancelEditing = useCallback(() => {
     setEditing(false);
     setDraft('');
+    setFeedback(null);
   }, []);
 
   const saveUsername = useCallback(async () => {
     const next = draft.trim().toLowerCase();
+
+    if (next.length === 0) {
+      setFeedback({ type: 'error', text: t('usernameInvalid') });
+      return;
+    }
     if (next === currentUsername) {
       cancelEditing();
       return;
     }
     if (!USERNAME_PATTERN.test(next)) {
-      Alert.alert(t('usernameInvalid'));
+      setFeedback({ type: 'error', text: t('usernameInvalid') });
       return;
     }
+
     setSaving(true);
+    setFeedback(null);
     try {
       await updateUsername({ username: next });
       setEditing(false);
       setDraft('');
-      Alert.alert(t('usernameUpdated'));
+      setFeedback({ type: 'success', text: t('usernameUpdated') });
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
-      const message = e instanceof Error ? e.message : '';
+      const message = e instanceof Error ? e.message : String(e);
+      let text: string;
       if (message.includes('USERNAME_TAKEN')) {
-        Alert.alert(t('usernameTaken'));
+        text = t('usernameTaken');
       } else if (message.includes('INVALID_USERNAME')) {
-        Alert.alert(t('usernameInvalid'));
+        text = t('usernameInvalid');
       } else {
-        Alert.alert(t('usernameUpdateFailed'));
+        // Surface the raw reason so an unexpected failure is at least visible.
+        text = `${t('usernameUpdateFailed')} (${message})`;
+        console.error('updateUsername failed', e);
       }
+      setFeedback({ type: 'error', text });
     } finally {
       setSaving(false);
     }
@@ -109,7 +134,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('account')}</Text>
 
-          <View style={[styles.settingItem, editing && styles.settingItemColumn]}>
+          <View style={[styles.settingItem, styles.settingItemColumn]}>
             <View style={styles.settingRow}>
               <View style={styles.settingLeft}>
                 <User size={20} color={Colors.textLight} />
@@ -125,6 +150,8 @@ export default function SettingsScreen() {
                   autoComplete="username"
                   maxLength={20}
                   editable={!saving}
+                  onSubmitEditing={saveUsername}
+                  returnKeyType="done"
                   placeholder="username"
                   placeholderTextColor={Colors.textLight}
                   testID="settings-username-input"
@@ -164,6 +191,18 @@ export default function SettingsScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+            )}
+
+            {feedback && (
+              <Text
+                style={[
+                  styles.feedbackText,
+                  feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess,
+                ]}
+                testID="settings-username-feedback"
+              >
+                {feedback.text}
+              </Text>
             )}
           </View>
 
@@ -306,6 +345,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  feedbackText: {
+    fontSize: 13,
+    marginTop: 10,
+  },
+  feedbackError: {
+    color: Colors.error,
+  },
+  feedbackSuccess: {
+    color: Colors.primary,
   },
   signOutButton: {
     flexDirection: 'row',
