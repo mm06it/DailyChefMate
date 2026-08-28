@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react';
 import { api } from '@/convex/_generated/api';
 
 // TEMP: skips the login screen for local development. Set back to false to re-enable auth.
-const DEV_SKIP_AUTH = true;
+const DEV_SKIP_AUTH = false;
 
 interface AuthUser {
   id: string;

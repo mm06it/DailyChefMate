@@ -26,8 +26,23 @@ const recipeFields = {
 };
 
 export default defineSchema({
-  // Provided by @convex-dev/auth — users, sessions, auth accounts, etc.
+  // Provided by @convex-dev/auth — sessions, auth accounts, etc.
   ...authTables,
+
+  // Same as authTables.users, plus `username` (set at sign-up, see
+  // convex/auth.ts's Password profile()). Keep the same indexes.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+    username: v.optional(v.string()),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
 
   // Per-user fridge inventory. Mirrors types/recipe.ts's Ingredient shape,
   // with Convex's document _id standing in for Ingredient.id.
