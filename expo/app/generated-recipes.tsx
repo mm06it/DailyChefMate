@@ -9,7 +9,7 @@ import Colors from "@/constants/colors";
 import { useGeneratedRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import themealdb from "@/lib/themealdb";
-import { useGridColumns } from "@/hooks/use-responsive";
+import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
   const { t } = useLanguage();
@@ -21,7 +21,7 @@ export default function GeneratedRecipesScreen() {
   const [hasMoreRecipes, setHasMoreRecipes] = useState<boolean>(true);
   const [currentPage, setCurrentPage] = useState<number>(0);
   const selectedIngredients = getSelectedIngredients();
-  const columns = useGridColumns(280, { maxColumns: 4 });
+  const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   
   // Categories to cycle through for endless recipes
   const recipeCategories = useMemo(() => [
@@ -134,7 +134,7 @@ export default function GeneratedRecipesScreen() {
     return Array.from(uniqueRecipes.values());
   })();
   const renderItem = ({ item }: { item: Recipe }) => (
-    <View style={columns > 1 ? styles.gridItem : undefined}>
+    <View style={columns > 1 ? { width: itemWidth } : undefined}>
       <RecipeCard recipe={item} />
     </View>
   );
@@ -310,9 +310,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 16,
-  },
-  gridItem: {
-    flex: 1,
   },
   emptyContainer: {
     flex: 1,

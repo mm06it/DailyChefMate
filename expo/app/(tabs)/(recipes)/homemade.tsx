@@ -9,14 +9,14 @@ import { useCustomRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
-import { useGridColumns } from "@/hooks/use-responsive";
+import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const customRecipes = useCustomRecipes(searchQuery);
   const { deleteCustomRecipe } = useFridgyStore();
-  const columns = useGridColumns(280, { maxColumns: 4 });
+  const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
   const handleAddRecipe = () => {
     router.push("/add-recipe");
@@ -52,7 +52,7 @@ export default function HomemadeRecipesScreen() {
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
-      <View style={[styles.recipeContainer, columns > 1 && styles.gridItem]}>
+      <View style={[styles.recipeContainer, columns > 1 && { width: itemWidth }]}>
         <RecipeCard recipe={item} />
         <View style={styles.actionButtons}>
           <Pressable
@@ -167,9 +167,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 16,
-  },
-  gridItem: {
-    flex: 1,
   },
   actionButtons: {
     flexDirection: 'row',

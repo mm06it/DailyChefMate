@@ -15,11 +15,11 @@ import { useLanguage } from "@/hooks/use-language";
 import { translateText } from "@/constants/translations";
 import { Ingredient } from "@/types/recipe";
 import { searchIngredientsOnline } from "@/lib/ingredient-search";
-import { useGridColumns } from "@/hooks/use-responsive";
+import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function RefrigeratorScreen() {
   const { t, language } = useLanguage();
-  const columns = useGridColumns(110, { horizontalPadding: 32, gap: 8, maxColumns: 10 });
+  const { columns, itemWidth } = useGridLayout(110, { horizontalPadding: 32, gap: 8, maxColumns: 10 });
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
@@ -114,7 +114,7 @@ export default function RefrigeratorScreen() {
 
   const renderIngredient = ({ item }: { item: Ingredient }) => {
     return (
-      <View style={styles.ingredientContainer}>
+      <View style={[styles.ingredientContainer, columns > 1 && { width: itemWidth }]}>
         <IngredientItem
           ingredient={item}
           onSelect={item.isOnlineResult ? () => handleImmediateAdd(item) : undefined}
@@ -211,7 +211,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ingredientContainer: {
-    flex: 1,
     marginVertical: 6,
     position: 'relative',
   },

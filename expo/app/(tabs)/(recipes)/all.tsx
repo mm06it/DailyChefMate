@@ -11,7 +11,7 @@ import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
-import { useGridColumns } from "@/hooks/use-responsive";
+import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
@@ -27,7 +27,7 @@ export default function AllRecipesScreen() {
   const recipes = useRecipes(searchQuery);
   const { searchRecipesOnline } = useFridgyStore();
   const { setProgress, progress } = useCollapsibleHeader();
-  const columns = useGridColumns(280, { maxColumns: 4 });
+  const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
   const clamp = useCallback((v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v)), []);
 
@@ -218,7 +218,7 @@ export default function AllRecipesScreen() {
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
-      <View style={columns > 1 ? styles.gridItem : undefined}>
+      <View style={columns > 1 ? { width: itemWidth } : undefined}>
         <RecipeCard recipe={item} />
       </View>
     );
@@ -465,9 +465,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 16,
-  },
-  gridItem: {
-    flex: 1,
   },
   emptyContainer: {
     flex: 1,

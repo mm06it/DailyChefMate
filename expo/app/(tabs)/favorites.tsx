@@ -5,16 +5,16 @@ import { FlatList, StyleSheet, Text, View } from "react-native";
 import RecipeCard from "@/components/RecipeCard";
 import { useFavoriteRecipes } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
-import { useGridColumns } from "@/hooks/use-responsive";
+import { useGridLayout } from "@/hooks/use-responsive";
 import { Recipe } from "@/types/recipe";
 
 export default function FavoritesScreen() {
   const { t } = useLanguage();
   const favoriteRecipes = useFavoriteRecipes();
-  const columns = useGridColumns(280, { maxColumns: 4 });
+  const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
   const renderItem = ({ item }: { item: Recipe }) => (
-    <View style={columns > 1 ? styles.gridItem : undefined}>
+    <View style={columns > 1 ? { width: itemWidth } : undefined}>
       <RecipeCard recipe={item} />
     </View>
   );
@@ -63,9 +63,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 16,
-  },
-  gridItem: {
-    flex: 1,
   },
   emptyContainer: {
     flex: 1,
