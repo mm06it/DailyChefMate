@@ -1,6 +1,6 @@
 import createContextHook from "@nkzw/create-context-hook";
-import { useMutation, useQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -18,6 +18,7 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     initialRecipes.map((recipe) => ({ ...recipe, isFavorite: false }))
   );
 
+  const { isAuthenticated } = useConvexAuth();
   const convexRefrigeratorItems = useQuery(api.refrigerator.list);
   const convexCustomRecipes = useQuery(api.customRecipes.list);
   const convexFavorites = useQuery(api.favorites.list);
@@ -45,16 +46,26 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
 
   const markCookedMutation = useMutation(api.cooked.markCooked);
 
-  // Seed a brand-new account's fridge once, the first time we see it's empty.
+  // Seed a brand-new account's fridge once, right after we can see (while
+  // actually authenticated) that it's empty. Gated on isAuthenticated rather
+  // than just the query's loading state, since the query resolves to an
+  // empty array for signed-out users too (not "undefined") — seeding off of
+  // that alone would fire before sign-up/sign-in ever completes.
+  const hasSeededRef = useRef(false);
   useEffect(() => {
-    if (convexRefrigeratorItems !== undefined && convexRefrigeratorItems.length === 0) {
-      seedRefrigerator({
-        items: initialRefrigeratorItems.map(({ name, amount, category }) => ({ name, amount, category })),
-      }).catch((e) => console.error("Failed to seed refrigerator", e));
-    }
-    // Only re-check right when the query transitions from loading to loaded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [convexRefrigeratorItems === undefined]);
+    if (!isAuthenticated) return;
+    if (convexRefrigeratorItems === undefined) return;
+    if (convexRefrigeratorItems.length > 0) return;
+    if (hasSeededRef.current) return;
+
+    hasSeededRef.current = true;
+    seedRefrigerator({
+      items: initialRefrigeratorItems.map(({ name, amount, category }) => ({ name, amount, category })),
+    }).catch((e) => {
+      console.error("Failed to seed refrigerator", e);
+      hasSeededRef.current = false;
+    });
+  }, [isAuthenticated, convexRefrigeratorItems, seedRefrigerator]);
 
   const refrigeratorItems: Ingredient[] = useMemo(() => {
     return (convexRefrigeratorItems ?? []).map((item) => ({
