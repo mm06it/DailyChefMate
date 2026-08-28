@@ -79,4 +79,13 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_recipe", ["userId", "recipeId"]),
+
+  // Profile-stat counters that aren't already derivable from another table
+  // (favorites/cooked totals are). Starts empty for a brand-new account, so
+  // every stat genuinely reads 0 until the matching action happens.
+  userStats: defineTable({
+    userId: v.id("users"),
+    viewedRecipeIds: v.array(v.string()),
+    generatedCount: v.number(),
+  }).index("by_user", ["userId"]),
 });

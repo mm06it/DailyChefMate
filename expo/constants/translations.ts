@@ -140,7 +140,7 @@ export const TRANSLATIONS = {
     // Profile
     profileInfo: 'Profil-Informationen',
     memberSince: 'Mitglied seit',
-    totalRecipes: 'Gesamt Rezepte',
+    totalRecipes: 'Gekochte Rezepte',
     favoriteRecipes: 'Lieblings-Rezepte',
     generatedRecipes: 'Generierte Rezepte',
     accountDetails: 'Konto-Details',
@@ -635,7 +635,7 @@ export const TRANSLATIONS = {
     // Profile
     profileInfo: 'Profile Information',
     memberSince: 'Member since',
-    totalRecipes: 'Total Recipes',
+    totalRecipes: 'Recipes Cooked',
     favoriteRecipes: 'Favorite Recipes',
     generatedRecipes: 'Generated Recipes',
     accountDetails: 'Account Details',

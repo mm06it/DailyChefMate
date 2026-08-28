@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, Pressable } from "react-native";
 import { Check, Minus, Plus, ChefHat } from "lucide-react-native";
 
@@ -17,10 +17,18 @@ const MAX_SERVINGS = 20;
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recipes, markRecipeAsCooked } = useFridgyStore();
+  const { recipes, markRecipeAsCooked, recordRecipeView } = useFridgyStore();
   const { currentLanguage } = useLanguage();
 
   const recipe = recipes.find(r => r.id === id);
+
+  useEffect(() => {
+    if (recipe) {
+      recordRecipeView(recipe.id);
+    }
+    // Only re-fire when the viewed recipe actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipe?.id]);
   const [completedSteps, setCompletedSteps] = useState<boolean[]>(
     recipe ? new Array(recipe.steps.length).fill(false) : []
   );

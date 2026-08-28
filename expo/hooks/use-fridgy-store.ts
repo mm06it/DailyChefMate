@@ -23,12 +23,14 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
   const convexCustomRecipes = useQuery(api.customRecipes.list);
   const convexFavorites = useQuery(api.favorites.list);
   const convexCooked = useQuery(api.cooked.list);
+  const convexUserStats = useQuery(api.userStats.get);
 
   const dataStillLoading =
     convexRefrigeratorItems === undefined ||
     convexCustomRecipes === undefined ||
     convexFavorites === undefined ||
-    convexCooked === undefined;
+    convexCooked === undefined ||
+    convexUserStats === undefined;
 
   const seedRefrigerator = useMutation(api.refrigerator.seedIfEmpty);
   const selectItemMutation = useMutation(api.refrigerator.selectItem);
@@ -45,6 +47,9 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
   const removeFavoriteMutation = useMutation(api.favorites.remove);
 
   const markCookedMutation = useMutation(api.cooked.markCooked);
+
+  const recordViewMutation = useMutation(api.userStats.recordView);
+  const recordGeneratedMutation = useMutation(api.userStats.recordGenerated);
 
   // Seed a brand-new account's fridge once, right after we can see (while
   // actually authenticated) that it's empty. Gated on isAuthenticated rather
@@ -113,6 +118,13 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     }
     return map;
   }, [convexCooked]);
+
+  const viewedRecipesCount = convexUserStats?.viewedRecipeIds.length ?? 0;
+  const generatedRecipesCount = convexUserStats?.generatedCount ?? 0;
+
+  const recordRecipeView = (recipeId: string) => {
+    recordViewMutation({ recipeId }).catch((e) => console.error("recordRecipeView failed", e));
+  };
 
   // Merge the live favorite flag from Convex into the local browse cache.
   const displayedRecipes: Recipe[] = useMemo(() => {
@@ -312,6 +324,17 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
         return matches.length >= Math.min(2, selectedIngredients.length);
       });
 
+      const existingIds = new Set(recipes.map((r) => r.id));
+      const existingNames = new Set(recipes.map((r) => r.name.toLowerCase()));
+      const newCount = matchingRecipes.filter(
+        (r) => !existingIds.has(r.id) && !existingNames.has(r.name.toLowerCase())
+      ).length;
+      if (newCount > 0) {
+        recordGeneratedMutation({ count: newCount }).catch((e) =>
+          console.error("recordGenerated failed", e)
+        );
+      }
+
       return addUniqueRecipes(matchingRecipes);
     } catch (error) {
       console.error("Error generating recipes from ingredients:", error);
@@ -392,6 +415,9 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     cookedRecipes,
     isLoading: dataStillLoading,
     favorites: getFavoriteRecipes(),
+    viewedRecipesCount,
+    generatedRecipesCount,
+    recordRecipeView,
     toggleFavorite,
     getFavoriteRecipes,
     searchRecipes,

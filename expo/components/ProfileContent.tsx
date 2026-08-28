@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { UserCircle, Heart, ChefHat, Eye, TrendingUp, Trophy } from 'lucide-react-native';
+import { UserCircle, Heart, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -73,23 +73,25 @@ interface ProfileContentProps {
 export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { getTopCookedRecipes } = useFridgyStore();
+  const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount } = useFridgyStore();
 
   const profileStats = useMemo(() => {
     const joinDate = user?.created_at ? new Date(user.created_at) : new Date();
     const memberSince = joinDate.toLocaleDateString();
     const lastActive = new Date().toLocaleDateString();
     const topCookedRecipes = getTopCookedRecipes(3);
+    const cookedTotal = Object.values(cookedRecipes).reduce((sum, count) => sum + count, 0);
 
     return {
       memberSince,
       lastActive,
-      favoriteCount: Math.floor(Math.random() * 12) + 3, // Mock data
-      recipesViewed: Math.floor(Math.random() * 50) + 20, // Mock data
-      recipesGenerated: Math.floor(Math.random() * 15) + 5, // Mock data
+      favoriteCount: favorites.length,
+      recipesViewed: viewedRecipesCount,
+      recipesGenerated: generatedRecipesCount,
+      cookedTotal,
       topCookedRecipes,
     };
-  }, [user, getTopCookedRecipes]);
+  }, [user, getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount]);
 
   if (!user) {
     return (
@@ -134,9 +136,9 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             value={profileStats.recipesGenerated}
           />
           <StatCard
-            icon={<TrendingUp size={24} color={Colors.primary} />}
+            icon={<Flame size={24} color={Colors.primary} />}
             title={t('totalRecipes')}
-            value={profileStats.favoriteCount + profileStats.recipesGenerated}
+            value={profileStats.cookedTotal}
           />
         </View>
       </View>

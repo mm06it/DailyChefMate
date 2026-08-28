@@ -14,6 +14,7 @@ import type * as customRecipes from "../customRecipes.js";
 import type * as favorites from "../favorites.js";
 import type * as http from "../http.js";
 import type * as refrigerator from "../refrigerator.js";
+import type * as userStats from "../userStats.js";
 import type * as users from "../users.js";
 
 import type {
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   favorites: typeof favorites;
   http: typeof http;
   refrigerator: typeof refrigerator;
+  userStats: typeof userStats;
   users: typeof users;
 }>;
 
