@@ -16,7 +16,7 @@ interface IngredientItemProps {
 }
 
 export default function IngredientItem({ ingredient, showRemove = false, onSelect, onEditQuantity }: IngredientItemProps) {
-  const { toggleIngredientSelection } = useFridgyStore();
+  const { toggleIngredientSelection, selectIngredient } = useFridgyStore();
   const { currentLanguage, t } = useLanguage();
   const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
   const [confirmConfig, setConfirmConfig] = React.useState<{ title: string; message: string; onConfirm: () => void; confirmLabel?: string } | null>(null);
@@ -39,12 +39,13 @@ export default function IngredientItem({ ingredient, showRemove = false, onSelec
     }
 
     // Selecting an ingredient never requires an amount up front — it's added
-    // immediately with the amount left empty/hidden. A quantity can still be
-    // set afterwards via the amount pill below.
+    // immediately with the amount left empty/hidden (even if it had a preset
+    // catalog amount). A quantity can still be set afterwards via the amount
+    // pill below.
     if (onSelect) {
       onSelect();
     } else {
-      toggleIngredientSelection(ingredient.id);
+      selectIngredient(ingredient.id);
     }
   };
 

@@ -233,10 +233,23 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
 
   // Refrigerator functions
   const toggleIngredientSelection = (ingredientId: string) => {
-    setRefrigeratorItems(prevItems => 
-      prevItems.map(item => 
-        item.id === ingredientId 
-          ? { ...item, isSelected: !item.isSelected } 
+    setRefrigeratorItems(prevItems =>
+      prevItems.map(item =>
+        item.id === ingredientId
+          ? { ...item, isSelected: !item.isSelected }
+          : item
+      )
+    );
+  };
+
+  // Selecting an ingredient always starts with the amount hidden/empty,
+  // regardless of any preset catalog amount — quantity is opt-in via the
+  // amount pill / IngredientQuantityModal.
+  const selectIngredient = (ingredientId: string) => {
+    setRefrigeratorItems(prevItems =>
+      prevItems.map(item =>
+        item.id === ingredientId
+          ? { ...item, isSelected: true, amount: '' }
           : item
       )
     );
@@ -415,6 +428,7 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
     searchRecipesOnline,
     generateRecipesFromIngredients,
     toggleIngredientSelection,
+    selectIngredient,
     addIngredient,
     removeIngredient,
     getSelectedIngredients,
