@@ -8,9 +8,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
       profile(params) {
+        const username = (params.username as string | undefined) || undefined;
         return {
           email: params.email as string,
-          username: (params.username as string | undefined) || undefined,
+          ...(username ? { username } : {}),
         };
       },
     }),

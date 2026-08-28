@@ -12,7 +12,7 @@ interface AuthUser {
   id: string;
   email: string;
   created_at: string;
-  user_metadata: Record<string, unknown>;
+  user_metadata: { provider?: string };
 }
 
 const MOCK_USER: AuthUser = {
@@ -44,7 +44,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = useCallback(async (email: string, password: string, username?: string): Promise<AuthResult> => {
     try {
-      await convexSignIn('password', { email, password, username, flow: 'signUp' });
+      await convexSignIn('password', { email, password, flow: 'signUp', ...(username ? { username } : {}) });
       return { data: {}, error: null };
     } catch (e) {
       return { data: null, error: { message: e instanceof Error ? e.message : 'Registrierung fehlgeschlagen' } };

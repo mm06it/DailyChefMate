@@ -8,6 +8,7 @@
     "start-web-dev": "DEBUG=expo* expo start --web --tunnel"
   },
   "dependencies": {
+    "@auth/core": "^0.37.0",
     "@convex-dev/auth": "^0.0.90",
     "@expo/vector-icons": "^15.0.3",
     "@hono/trpc-server": "^0.4.0",
@@ -37,7 +38,7 @@
     "expo-linking": "~8.0.8",
     "expo-location": "~19.0.7",
     "expo-router": "~6.0.14",
-    "expo-secure-store": "~14.0.7",
+    "expo-secure-store": "~15.0.8",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
     "expo-symbols": "~1.0.7",
