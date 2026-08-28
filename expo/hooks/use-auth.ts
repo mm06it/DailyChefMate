@@ -24,7 +24,13 @@ const MOCK_USER: AuthUser = {
   user_metadata: {},
 };
 
-type AuthResult = { data: unknown; error: { message: string } | null };
+type AuthResult = {
+  data: unknown;
+  error: { message: string } | null;
+  // true when the credentials were accepted but no session was issued yet
+  // because an email verification code was sent and is awaited.
+  pendingVerification?: boolean;
+};
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -47,8 +53,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = useCallback(async (email: string, password: string, username?: string): Promise<AuthResult> => {
     try {
-      await convexSignIn('password', { email, password, flow: 'signUp', ...(username ? { username } : {}) });
-      return { data: {}, error: null };
+      const { signingIn } = await convexSignIn('password', {
+        email,
+        password,
+        flow: 'signUp',
+        ...(username ? { username } : {}),
+      });
+      return { data: {}, error: null, pendingVerification: !signingIn };
     } catch (e) {
       return { data: null, error: { message: e instanceof Error ? e.message : 'Registrierung fehlgeschlagen' } };
     }
@@ -56,10 +67,32 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signIn = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     try {
+      const { signingIn } = await convexSignIn('password', { email, password, flow: 'signIn' });
+      return { data: {}, error: null, pendingVerification: !signingIn };
+    } catch (e) {
+      return { data: null, error: { message: e instanceof Error ? e.message : 'Anmeldung fehlgeschlagen' } };
+    }
+  }, [convexSignIn]);
+
+  // Submit the 6-digit code from the verification email. On success Convex
+  // Auth issues a session and `isAuthenticated` flips to true.
+  const verifyEmail = useCallback(async (email: string, code: string): Promise<AuthResult> => {
+    try {
+      await convexSignIn('password', { email, code, flow: 'email-verification' });
+      return { data: {}, error: null };
+    } catch (e) {
+      return { data: null, error: { message: e instanceof Error ? e.message : 'Der Code ist ungültig oder abgelaufen.' } };
+    }
+  }, [convexSignIn]);
+
+  // Re-send the code. For an unverified account, a normal password sign-in
+  // re-triggers the verify provider instead of issuing a session.
+  const resendVerificationCode = useCallback(async (email: string, password: string): Promise<AuthResult> => {
+    try {
       await convexSignIn('password', { email, password, flow: 'signIn' });
       return { data: {}, error: null };
     } catch (e) {
-      return { data: null, error: { message: e instanceof Error ? e.message : 'Anmeldung fehlgeschlagen' } };
+      return { data: null, error: { message: e instanceof Error ? e.message : 'Der Code konnte nicht erneut gesendet werden.' } };
     }
   }, [convexSignIn]);
 
@@ -83,8 +116,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     loading: DEV_SKIP_AUTH ? false : realLoading,
     signUp,
     signIn,
+    verifyEmail,
+    resendVerificationCode,
     signInWithGoogle,
     signInWithApple,
     signOut,
-  }), [realUser, realLoading, signUp, signIn, signInWithGoogle, signInWithApple, signOut]);
+  }), [realUser, realLoading, signUp, signIn, verifyEmail, resendVerificationCode, signInWithGoogle, signInWithApple, signOut]);
 });

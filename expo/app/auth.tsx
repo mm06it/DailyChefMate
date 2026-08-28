@@ -37,7 +37,13 @@ export default function AuthScreen() {
   const [successMessage, setSuccessMessage] = useState<string>('');
   const successAnim = useRef(new Animated.Value(0)).current;
 
-  const { signIn, signUp } = useAuth();
+  // When set, the email-verification step is shown instead of the form.
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [code, setCode] = useState<string>('');
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState<boolean>(false);
+
+  const { signIn, signUp, verifyEmail, resendVerificationCode } = useAuth();
   const { language } = useLanguage();
 
   const validateEmail = (val: string) => {
@@ -159,8 +165,8 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         console.log('Attempting sign up with:', email);
-        const { data, error } = await signUp(email, password, normalizedUsername);
-        console.log('Sign up result:', { data: !!data, error });
+        const { data, error, pendingVerification } = await signUp(email, password, normalizedUsername);
+        console.log('Sign up result:', { data: !!data, error, pendingVerification });
         if (error) {
           const msg = (error as any)?.message ?? '';
           const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
@@ -171,14 +177,18 @@ export default function AuthScreen() {
           } else {
             Alert.alert('Fehler', msg || 'Registrierung fehlgeschlagen');
           }
+        } else if (pendingVerification) {
+          setCode('');
+          setCodeError(null);
+          setVerificationEmail(email.trim());
         } else {
           triggerSuccessToast('Erfolgreich registriert! Du kannst dich jetzt anmelden.');
           setIsSignUp(false);
         }
       } else {
         console.log('Attempting sign in with:', email);
-        const { data, error } = await signIn(email, password);
-        console.log('Sign in result:', { data: !!data, error });
+        const { data, error, pendingVerification } = await signIn(email, password);
+        console.log('Sign in result:', { data: !!data, error, pendingVerification });
         if (error) {
           const msg = (error as any)?.message ?? '';
           const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
@@ -187,6 +197,11 @@ export default function AuthScreen() {
           } else {
             Alert.alert('Fehler', msg || 'Anmeldung fehlgeschlagen');
           }
+        } else if (pendingVerification) {
+          // Account exists but its email was never verified.
+          setCode('');
+          setCodeError(null);
+          setVerificationEmail(email.trim());
         }
       }
     } catch (err) {
@@ -195,6 +210,46 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationEmail) return;
+    const trimmed = code.trim();
+    if (trimmed.length !== 6) {
+      setCodeError(getTranslation(language, 'codeInvalid') ?? 'Der Code ist ungültig oder abgelaufen');
+      return;
+    }
+    setVerifying(true);
+    setCodeError(null);
+    try {
+      const { error } = await verifyEmail(verificationEmail, trimmed);
+      if (error) {
+        setCodeError((error as any)?.message || (getTranslation(language, 'codeInvalid') ?? 'Der Code ist ungültig oder abgelaufen'));
+      }
+      // On success `isAuthenticated` flips and this screen unmounts.
+    } catch (err) {
+      console.error('Verify code error:', err);
+      setCodeError(getTranslation(language, 'codeInvalid') ?? 'Der Code ist ungültig oder abgelaufen');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!verificationEmail) return;
+    setCodeError(null);
+    const { error } = await resendVerificationCode(verificationEmail, password);
+    if (error) {
+      setCodeError((error as any)?.message || 'Der Code konnte nicht erneut gesendet werden.');
+    } else {
+      triggerSuccessToast(getTranslation(language, 'codeResent') ?? 'Neuer Code wurde gesendet');
+    }
+  };
+
+  const handleBackFromVerify = () => {
+    setVerificationEmail(null);
+    setCode('');
+    setCodeError(null);
   };
 
   const translateY = successAnim.interpolate({
@@ -231,9 +286,58 @@ export default function AuthScreen() {
               source={require('@/assets/images/logo.png')}
               style={styles.logo}
             />
-            <Text style={styles.title}>{getTranslation(language, 'welcome')}</Text>
+            <Text style={styles.title}>
+              {verificationEmail
+                ? getTranslation(language, 'verifyEmailTitle')
+                : getTranslation(language, 'welcome')}
+            </Text>
           </View>
 
+          {verificationEmail ? (
+            <View style={styles.formContainer}>
+              <Text style={styles.verifySubtitle}>
+                {getTranslation(language, 'verifyEmailSubtitle')}
+              </Text>
+              <Text style={styles.verifyEmail}>{verificationEmail}</Text>
+
+              <TextInput
+                style={[styles.input, styles.codeInput]}
+                placeholder={getTranslation(language, 'enterCode')}
+                value={code}
+                onChangeText={(t) => {
+                  setCode(t.replace(/[^0-9]/g, '').slice(0, 6));
+                  setCodeError(null);
+                }}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                maxLength={6}
+                editable={!verifying}
+                onSubmitEditing={handleVerifyCode}
+                returnKeyType="done"
+                testID="auth-code-input"
+              />
+              {!!codeError && (
+                <Text style={[styles.hint, styles.usernameBad]} testID="auth-code-error">{codeError}</Text>
+              )}
+
+              <TouchableOpacity
+                style={[styles.primaryButton, verifying && styles.disabledButton]}
+                onPress={handleVerifyCode}
+                disabled={verifying}
+                testID="auth-verify-button"
+              >
+                <Text style={styles.primaryButtonText}>{getTranslation(language, 'confirmCode')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.switchButton} onPress={handleResendCode} testID="auth-resend-code">
+                <Text style={styles.switchButtonText}>{getTranslation(language, 'resendCode')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.switchButton} onPress={handleBackFromVerify} testID="auth-verify-back">
+                <Text style={styles.switchButtonText}>{getTranslation(language, 'backToLogin')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={styles.formContainer}>
             {isSignUp && (
               <>
@@ -327,6 +431,7 @@ export default function AuthScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+          )}
           </ResponsiveContainer>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -419,6 +524,25 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 12,
     color: '#64748b',
+  },
+  verifySubtitle: {
+    fontSize: 15,
+    color: '#475569',
+    textAlign: 'center',
+  },
+  verifyEmail: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2d3748',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  codeInput: {
+    fontSize: 24,
+    letterSpacing: 8,
+    textAlign: 'center',
+    fontWeight: '600',
   },
   usernameOk: {
     color: '#16a34a',
