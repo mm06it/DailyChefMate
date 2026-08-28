@@ -1,0 +1,32 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("cookedRecipes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+  },
+});
+
+export const markCooked = mutation({
+  args: { recipeId: v.string() },
+  handler: async (ctx, { recipeId }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const existing = await ctx.db
+      .query("cookedRecipes")
+      .withIndex("by_user_and_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipeId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { count: existing.count + 1 });
+    } else {
+      await ctx.db.insert("cookedRecipes", { userId, recipeId, count: 1 });
+    }
+  },
+});
