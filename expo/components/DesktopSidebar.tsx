@@ -1,11 +1,12 @@
 import { router, usePathname } from 'expo-router';
 import { BookOpen, LogOut, Refrigerator, Settings, Star, UserCircle } from 'lucide-react-native';
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View, Alert } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { confirmAsync } from '@/lib/confirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
 interface NavItem {
@@ -45,15 +46,9 @@ export default function DesktopSidebar() {
     },
   ];
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('signOut'),
-      t('signOutConfirmation'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        { text: t('signOut'), style: 'destructive', onPress: () => signOut() },
-      ]
-    );
+  const handleSignOut = async () => {
+    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
+    if (confirmed) await signOut();
   };
 
   return (

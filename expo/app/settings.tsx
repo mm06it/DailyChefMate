@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { Stack } from 'expo-router';
 import { useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { confirmAsync } from '@/lib/confirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 import Colors from '@/constants/colors';
@@ -45,24 +45,9 @@ export default function SettingsScreen() {
     };
   }, []);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('signOut'),
-      t('signOutConfirmation'),
-      [
-        {
-          text: t('cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('signOut'),
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-          },
-        },
-      ]
-    );
+  const handleSignOut = async () => {
+    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
+    if (confirmed) await signOut();
   };
 
   const startEditing = useCallback(() => {

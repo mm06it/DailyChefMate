@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FlatList, StyleSheet, Text, View, Pressable, Alert } from "react-native";
+import { FlatList, StyleSheet, Text, View, Pressable } from "react-native";
 import { Plus, ChefHat, Edit, Trash2 } from "lucide-react-native";
 import { router } from "expo-router";
 
@@ -7,6 +7,7 @@ import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
 import { useCustomRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
 import { useLanguage } from "@/hooks/use-language";
+import { confirmAsync } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import { useGridLayout } from "@/hooks/use-responsive";
@@ -29,25 +30,11 @@ export default function HomemadeRecipesScreen() {
     });
   };
 
-  const handleDeleteRecipe = (recipe: Recipe) => {
-    Alert.alert(
-      t('deleteRecipe'),
-      t('confirmDelete'),
-      [
-        {
-          text: t('cancel'),
-          style: 'cancel',
-        },
-        {
-          text: t('delete'),
-          style: 'destructive',
-          onPress: () => {
-            deleteCustomRecipe(recipe.id);
-            Alert.alert(t('recipeDeleted'));
-          },
-        },
-      ]
-    );
+  const handleDeleteRecipe = async (recipe: Recipe) => {
+    const confirmed = await confirmAsync(t('deleteRecipe'), t('confirmDelete'), t('delete'), t('cancel'));
+    if (confirmed) {
+      deleteCustomRecipe(recipe.id);
+    }
   };
 
   const renderItem = ({ item }: { item: Recipe }) => {

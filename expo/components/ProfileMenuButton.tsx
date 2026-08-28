@@ -1,10 +1,11 @@
 import { LogOut, UserCircle, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { confirmAsync } from '@/lib/confirm';
 import ProfileContent from '@/components/ProfileContent';
 
 export default function ProfileMenuButton() {
@@ -12,22 +13,11 @@ export default function ProfileMenuButton() {
   const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
-  const handleSignOut = () => {
-    Alert.alert(
-      t('signOut'),
-      t('signOutConfirmation'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: t('signOut'),
-          style: 'destructive',
-          onPress: () => {
-            setIsVisible(false);
-            signOut();
-          },
-        },
-      ]
-    );
+  const handleSignOut = async () => {
+    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
+    if (!confirmed) return;
+    setIsVisible(false);
+    await signOut();
   };
 
   return (
