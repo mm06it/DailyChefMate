@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { UserCircle, Heart, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
+import { UserCircle, Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
@@ -117,7 +117,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
         <Text style={styles.sectionTitle}>{t('personalStats')}</Text>
         <View style={styles.statsGrid}>
           <StatCard
-            icon={<Heart size={24} color={Colors.primary} />}
+            icon={<Star size={24} color={Colors.primary} />}
             title={t('favoriteRecipes')}
             value={profileStats.favoriteCount}
             onPress={() => {

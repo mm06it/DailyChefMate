@@ -1,4 +1,4 @@
-import { Heart, Clock, Users } from "lucide-react-native";
+import { Star, Clock, Users } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -63,10 +63,10 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
           style={styles.favoriteButton}
           testID={`recipe-detail-${recipe.id}-favorite`}
         >
-          <Heart
+          <Star
             size={24}
-            color={recipe.isFavorite ? Colors.favorite : Colors.text}
-            fill={recipe.isFavorite ? Colors.favorite : "none"}
+            color={recipe.isFavorite ? Colors.primary : Colors.text}
+            fill={recipe.isFavorite ? Colors.primary : "none"}
           />
         </Pressable>
       </View>

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Heart } from "lucide-react-native";
+import { Star } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -94,10 +94,10 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             style={styles.favoriteButton}
             testID={`recipe-card-${recipe.id}-favorite`}
           >
-            <Heart 
-              size={22} 
-              color={recipe.isFavorite ? Colors.favorite : Colors.textLight} 
-              fill={recipe.isFavorite ? Colors.favorite : "none"} 
+            <Star
+              size={22}
+              color={recipe.isFavorite ? Colors.primary : Colors.textLight}
+              fill={recipe.isFavorite ? Colors.primary : "none"}
             />
           </Pressable>
         </View>
