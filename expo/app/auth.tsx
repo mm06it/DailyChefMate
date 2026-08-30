@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConvex } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useIsDesktop } from '@/hooks/use-responsive';
 import { getTranslation } from '@/constants/translations';
 import { api } from '@/convex/_generated/api';
 import { LanguageSelector } from '@/components/LanguageSelector';
@@ -48,6 +49,7 @@ export default function AuthScreen() {
 
   const { signIn, signUp, verifyEmail, resendVerificationCode } = useAuth();
   const { language } = useLanguage();
+  const isDesktop = useIsDesktop();
   const convex = useConvex();
 
   const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
@@ -312,7 +314,7 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={[styles.scrollContent, isDesktop ? styles.scrollContentDesktop : styles.scrollContentMobile]}>
           <ResponsiveContainer maxWidth={480}>
           <View style={styles.header}>
             <LanguageSelector />
@@ -505,12 +507,21 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+  },
+  scrollContentMobile: {
+    paddingTop: 20,
+    paddingBottom: 20,
+  },
+  scrollContentDesktop: {
     justifyContent: 'center',
-    padding: 20,
+    paddingTop: 40,
+    paddingBottom: 180,
   },
   header: {
     position: 'absolute',
-    top: 20,
+    top: 6,
     right: 20,
     zIndex: 1,
   },
