@@ -192,10 +192,18 @@ export default function AuthScreen() {
         if (error) {
           const msg = (error as any)?.message ?? '';
           const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
-          if (lowerMsg.includes('invalidaccountid') || lowerMsg.includes('invalid password')) {
-            alertMessage('Fehler', 'E-Mail oder Passwort ist falsch');
-          } else {
+          // A genuine backend/config problem still surfaces raw; everything
+          // else on a sign-in failure is, in practice, wrong credentials —
+          // and on prod Convex redacts the real reason to "Server Error"
+          // anyway, so that's the sensible default.
+          const looksLikeConfigError =
+            lowerMsg.includes('environment variable') ||
+            lowerMsg.includes('not configured') ||
+            lowerMsg.includes('resend');
+          if (looksLikeConfigError) {
             alertMessage('Fehler', msg || 'Anmeldung fehlgeschlagen');
+          } else {
+            setEmailError('E-Mail oder Passwort ist falsch');
           }
         } else if (pendingVerification) {
           // Account exists but its email was never verified.
