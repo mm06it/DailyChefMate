@@ -1,9 +1,10 @@
 import { useFocusEffect } from "expo-router";
 import { Plus, X } from "lucide-react-native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Pressable, StyleSheet, View, FlatList, Text } from "react-native";
+import { Animated, Pressable, StyleSheet, View, FlatList, Text } from "react-native";
 
 import CollapsingTabHeader, {
+  headerTranslateY,
   onHeaderScroll,
   resetHeader,
   useHeaderContentPadding,
@@ -139,7 +140,7 @@ export default function RefrigeratorScreen() {
     );
   };
 
-  const listHeader = (
+  const toolbars = (
     <>
       <View style={styles.toolbar}>
         <SearchBar
@@ -167,26 +168,44 @@ export default function RefrigeratorScreen() {
     </>
   );
 
+  const list = (
+    <FlatList
+      key={columns}
+      data={allIngredients}
+      renderItem={renderIngredient}
+      keyExtractor={(item) => item.id}
+      numColumns={columns}
+      columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
+      contentContainerStyle={styles.listContent}
+      style={styles.list}
+      showsVerticalScrollIndicator={false}
+      onScroll={isDesktop ? undefined : onHeaderScroll}
+      scrollEventThrottle={16}
+    />
+  );
+
   return (
     <View style={styles.container}>
       {!isDesktop && <CollapsingTabHeader />}
 
-      <FlatList
-        key={columns}
-        data={allIngredients}
-        renderItem={renderIngredient}
-        keyExtractor={(item) => item.id}
-        numColumns={columns}
-        columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-        ListHeaderComponent={listHeader}
-        contentContainerStyle={[
-          styles.listContent,
-          !isDesktop && { paddingTop: topPad },
-        ]}
-        showsVerticalScrollIndicator={false}
-        onScroll={isDesktop ? undefined : onHeaderScroll}
-        scrollEventThrottle={16}
-      />
+      {isDesktop ? (
+        <>
+          {toolbars}
+          {list}
+        </>
+      ) : (
+        // The header hides on scroll; the toolbars ride up with it so the
+        // search / generate / clear controls stay pinned to the top.
+        <Animated.View
+          style={[
+            styles.body,
+            { paddingTop: topPad, marginBottom: -topPad, transform: [{ translateY: headerTranslateY }] },
+          ]}
+        >
+          {toolbars}
+          {list}
+        </Animated.View>
+      )}
 
       <AddIngredientForm 
         isVisible={showAddForm} 
@@ -211,6 +230,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+  body: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,8 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-    marginHorizontal: -16,
-    marginBottom: 4,
   },
   addButton: {
     backgroundColor: Colors.primary,
@@ -237,6 +260,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 12,
+    marginHorizontal: 16,
     marginVertical: 16,
   },
   generateButton: {

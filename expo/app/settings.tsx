@@ -17,7 +17,6 @@ import { useLanguage } from '@/hooks/use-language';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import { confirmAsync } from '@/lib/confirm';
 import CollapsingTabHeader, {
-  onHeaderScroll,
   resetHeader,
   useHeaderContentPadding,
 } from '@/components/CollapsingTabHeader';
@@ -137,11 +136,10 @@ export default function SettingsScreen() {
           headerTintColor: Colors.text,
         }}
       />
+      {/* Settings keeps the header pinned — no hide-on-scroll here. */}
       {!isDesktop && <CollapsingTabHeader />}
       <ScrollView
         contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}
-        onScroll={isDesktop ? undefined : onHeaderScroll}
-        scrollEventThrottle={16}
       >
         <ResponsiveContainer maxWidth={640}>
         <View style={styles.section}>
