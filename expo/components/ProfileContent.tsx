@@ -134,6 +134,10 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             icon={<ChefHat size={24} color={Colors.primary} />}
             title={t('recipesGenerated')}
             value={profileStats.createdRecipes}
+            onPress={() => {
+              onBeforeNavigate?.();
+              router.push('/(tabs)/(recipes)/homemade');
+            }}
           />
           <StatCard
             icon={<Flame size={24} color={Colors.primary} />}
