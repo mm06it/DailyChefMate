@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { FlatList, StyleSheet, Text, View, Pressable } from "react-native";
 import { Plus, ChefHat, Edit, Trash2 } from "lucide-react-native";
 import { router } from "expo-router";
+import { useScrollToTop } from "@react-navigation/native";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
@@ -20,6 +21,10 @@ export default function HomemadeRecipesScreen() {
   const customRecipes = useCustomRecipes(searchQuery);
   const { deleteCustomRecipe } = useDailyChefMateStore();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
+  const listRef = useRef<FlatList<Recipe>>(null);
+
+  // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
+  useScrollToTop(listRef);
 
   const handleAddRecipe = () => {
     router.push("/add-recipe");
@@ -96,6 +101,7 @@ export default function HomemadeRecipesScreen() {
       {customRecipes.length > 0 ? (
         <>
           <FlatList
+            ref={listRef}
             key={columns}
             data={customRecipes}
             renderItem={renderItem}

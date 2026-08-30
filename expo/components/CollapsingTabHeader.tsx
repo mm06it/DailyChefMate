@@ -111,11 +111,19 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
             <LanguageSelector />
           )}
         </View>
-        <Image
-          source={require('@/assets/images/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Pressable
+          onPress={() => router.push('/(tabs)/(recipes)/all')}
+          hitSlop={12}
+          testID="header-logo"
+          accessibilityRole="button"
+          accessibilityLabel="DailyChefMate"
+        >
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Pressable>
         <View style={styles.side}>
           <ProfileMenuButton />
         </View>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Recipe } from "@/types/recipe";
 import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { ChefHat } from "lucide-react-native";
+import { useScrollToTop } from "@react-navigation/native";
 
 import RecipeCard from "@/components/RecipeCard";
 import { onHeaderScroll } from "@/components/CollapsingTabHeader";
@@ -26,6 +27,10 @@ export default function AllRecipesScreen() {
   const [currentPage, setCurrentPage] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const didInitialLoad = useRef(false);
+  const listRef = useRef<FlatList<Recipe>>(null);
+
+  // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
+  useScrollToTop(listRef);
   const { selectedCuisine, selectedCourse } = useRecipeFilters();
   const recipes = useRecipes("");
   const { setProgress } = useCollapsibleHeader();
@@ -190,6 +195,7 @@ export default function AllRecipesScreen() {
         </View>
       ) : displayedRecipes.length > 0 ? (
         <FlatList
+          ref={listRef}
           key={columns}
           data={displayedRecipes}
           renderItem={renderItem}
