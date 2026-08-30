@@ -51,12 +51,26 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
 
   return (
     <View style={styles.container}>
-      <Image 
-        source={{ uri: imageError ? fallbackImage : recipe.image }} 
-        style={styles.image}
-        onError={() => setImageError(true)}
-      />
-      
+      <View style={styles.imageWrap}>
+        <Image
+          source={{ uri: imageError ? fallbackImage : recipe.image }}
+          style={styles.image}
+          onError={() => setImageError(true)}
+        />
+        <Pressable
+          onPress={handleFavoritePress}
+          hitSlop={10}
+          style={styles.favoriteButton}
+          testID={`recipe-detail-${recipe.id}-favorite`}
+        >
+          <Heart
+            size={24}
+            color={recipe.isFavorite ? Colors.favorite : Colors.text}
+            fill={recipe.isFavorite ? Colors.favorite : "none"}
+          />
+        </Pressable>
+      </View>
+
       <View style={styles.content}>
         <View style={styles.titleRow}>
           <View style={styles.titleWithBadge}>
@@ -70,19 +84,8 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
               </View>
             </View>
           </View>
-          <Pressable 
-            onPress={handleFavoritePress} 
-            hitSlop={10}
-            style={styles.favoriteButton}
-          >
-            <Heart 
-              size={24} 
-              color={recipe.isFavorite ? Colors.favorite : Colors.textLight} 
-              fill={recipe.isFavorite ? Colors.favorite : "none"} 
-            />
-          </Pressable>
         </View>
-        
+
         <View style={styles.metaRow}>
           <View style={styles.ratingContainer}>
             <Text style={styles.rating}>★ {recipe.rating.toFixed(1)}</Text>
@@ -108,6 +111,9 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: Colors.background,
+  },
+  imageWrap: {
+    position: "relative",
   },
   image: {
     width: "100%",
@@ -161,7 +167,20 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   favoriteButton: {
-    padding: 4,
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   metaRow: {
     flexDirection: "row",
