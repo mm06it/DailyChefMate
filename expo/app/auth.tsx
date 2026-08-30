@@ -388,6 +388,8 @@ export default function AuthScreen() {
                   }}
                   autoCapitalize="none"
                   autoComplete="username"
+                  returnKeyType="go"
+                  onSubmitEditing={handleEmailAuth}
                   testID="auth-username-input"
                 />
                 {/* Username availability UI hidden intentionally as checks are disabled */}
@@ -406,6 +408,8 @@ export default function AuthScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              returnKeyType="go"
+              onSubmitEditing={handleEmailAuth}
               testID="auth-email-input"
             />
             {!!emailError && (
@@ -423,6 +427,8 @@ export default function AuthScreen() {
               }}
               secureTextEntry
               autoComplete="password"
+              returnKeyType="go"
+              onSubmitEditing={handleEmailAuth}
               testID="auth-password-input"
             />
             {!!passwordError && (
@@ -441,6 +447,8 @@ export default function AuthScreen() {
                   }}
                   secureTextEntry
                   autoComplete="password"
+                  returnKeyType="go"
+                  onSubmitEditing={handleEmailAuth}
                   testID="auth-confirm-password-input"
                 />
                 {!!confirmPasswordError && (
