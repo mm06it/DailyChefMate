@@ -1,26 +1,63 @@
-import { Filter } from 'lucide-react-native';
+import { ChevronDown, Search, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import SearchBar from '@/components/SearchBar';
 import Colors from '@/constants/colors';
-import {
-  CUISINE_FILTERS,
-  COURSE_FILTERS,
-  type CuisineFilter,
-  type CourseFilter,
-} from '@/constants/recipe-filters';
+import { CUISINE_FILTERS, COURSE_FILTERS } from '@/constants/recipe-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
 import { useLanguage } from '@/hooks/use-language';
 import { useRecipeFilters } from '@/hooks/use-recipe-filters';
 
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
 
-// Search field (both Rezepte sub-tabs) + cuisine / course chips ("Alle
-// Rezepte" only). Rendered as part of the tab bar — OUTSIDE
-// react-native-tab-view's swipeable pager — so a horizontal swipe on the
-// chips scrolls them instead of flipping tabs. Collapses away as the list
-// is scrolled, mirroring the header.
+type Option = { id: string; name: string };
+
+function FilterMenu({
+  visible,
+  title,
+  options,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  options: Option[];
+  selected: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.menuBackdrop} onPress={onClose}>
+        <Pressable style={styles.menuCard} onPress={(e) => e.stopPropagation()}>
+          <Text style={styles.menuTitle}>{title}</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {options.map((opt) => {
+              const active = opt.id === selected;
+              return (
+                <Pressable
+                  key={opt.id}
+                  style={[styles.menuOption, active && styles.menuOptionActive]}
+                  onPress={() => onSelect(opt.id)}
+                  testID={`filter-option-${opt.id}`}
+                >
+                  <Text style={[styles.menuOptionText, active && styles.menuOptionTextActive]}>
+                    {opt.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// One row for the Rezepte tab: search icon + "Küche" / "Kurs-Art" dropdowns.
+// Rendered as part of the tab bar (OUTSIDE the swipeable pager) and collapses
+// away as the list scrolls. The chips only show on "Alle Rezepte".
 export default function RecipeFilterBar({ showFilters }: { showFilters: boolean }) {
   const { progress } = useCollapsibleHeader();
   const { t: translate } = useLanguage();
@@ -33,88 +70,134 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
     setSelectedCourse,
   } = useRecipeFilters();
   const [contentHeight, setContentHeight] = useState<number | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [menu, setMenu] = useState<null | 'cuisine' | 'course'>(null);
 
   const t = clamp(progress);
   const collapsed = t > 0.98;
 
-  const renderCuisine = ({ item }: { item: CuisineFilter }) => {
-    const active = selectedCuisine === item.id;
-    return (
-      <Pressable
-        style={[styles.chip, active && styles.chipActive]}
-        onPress={() => setSelectedCuisine(item.id)}
-        testID={`filter-cuisine-${item.id}`}
-      >
-        <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
-      </Pressable>
-    );
-  };
+  const cuisineLabel =
+    selectedCuisine === 'all'
+      ? 'Küche'
+      : CUISINE_FILTERS.find((c) => c.id === selectedCuisine)?.name ?? 'Küche';
+  const courseLabel =
+    selectedCourse === 'all'
+      ? 'Kurs-Art'
+      : COURSE_FILTERS.find((c) => c.id === selectedCourse)?.name ?? 'Kurs-Art';
 
-  const renderCourse = ({ item }: { item: CourseFilter }) => {
-    const active = selectedCourse === item.id;
-    return (
-      <Pressable
-        style={[styles.chip, active && styles.chipActive]}
-        onPress={() => setSelectedCourse(item.id)}
-        testID={`filter-course-${item.id}`}
-      >
-        <Text style={[styles.chipText, active && styles.chipTextActive]}>{item.name}</Text>
-      </Pressable>
-    );
-  };
+  // "Alle Rezepte": icon that expands into the field. Other tab: field always.
+  const fieldMode = searchOpen || !showFilters;
 
   return (
-    <View
-      style={[
-        styles.clip,
-        contentHeight != null && { height: contentHeight * (1 - t), opacity: 1 - t },
-      ]}
-      pointerEvents={collapsed ? 'none' : 'auto'}
-    >
-      <View onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}>
-        <View style={styles.searchRow}>
-          <SearchBar
-            value={search}
-            onChangeText={setSearch}
-            placeholder={translate('search')}
-          />
+    <>
+      <View
+        style={[
+          styles.clip,
+          contentHeight != null && { height: contentHeight * (1 - t), opacity: 1 - t },
+        ]}
+        pointerEvents={collapsed ? 'none' : 'auto'}
+      >
+        <View
+          style={styles.row}
+          onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}
+        >
+          {fieldMode ? (
+            <>
+              <Search size={18} color={Colors.textLight} style={styles.searchIcon} />
+              <TextInput
+                style={styles.input}
+                value={search}
+                onChangeText={setSearch}
+                placeholder={translate('search')}
+                placeholderTextColor={Colors.textLight}
+                autoFocus={searchOpen}
+                returnKeyType="search"
+              />
+              {(showFilters || !!search) && (
+                <Pressable
+                  onPress={() => {
+                    setSearch('');
+                    setSearchOpen(false);
+                  }}
+                  hitSlop={10}
+                  testID="filter-search-close"
+                >
+                  <X size={18} color={Colors.textLight} />
+                </Pressable>
+              )}
+            </>
+          ) : (
+            <>
+              <Pressable
+                style={styles.searchIconBtn}
+                onPress={() => setSearchOpen(true)}
+                hitSlop={8}
+                testID="filter-search-open"
+                accessibilityRole="button"
+                accessibilityLabel={translate('search')}
+              >
+                <Search size={20} color={Colors.text} />
+              </Pressable>
+              <Pressable
+                style={[styles.pill, selectedCuisine !== 'all' && styles.pillActive]}
+                onPress={() => setMenu('cuisine')}
+                testID="filter-cuisine-button"
+              >
+                <Text
+                  style={[styles.pillText, selectedCuisine !== 'all' && styles.pillTextActive]}
+                  numberOfLines={1}
+                >
+                  {cuisineLabel}
+                </Text>
+                <ChevronDown
+                  size={15}
+                  color={selectedCuisine !== 'all' ? Colors.white : Colors.textLight}
+                />
+              </Pressable>
+              <Pressable
+                style={[styles.pill, selectedCourse !== 'all' && styles.pillActive]}
+                onPress={() => setMenu('course')}
+                testID="filter-course-button"
+              >
+                <Text
+                  style={[styles.pillText, selectedCourse !== 'all' && styles.pillTextActive]}
+                  numberOfLines={1}
+                >
+                  {courseLabel}
+                </Text>
+                <ChevronDown
+                  size={15}
+                  color={selectedCourse !== 'all' ? Colors.white : Colors.textLight}
+                />
+              </Pressable>
+            </>
+          )}
         </View>
-
-        {showFilters && (
-          <>
-            <View style={styles.row}>
-              <View style={styles.rowHeader}>
-                <Filter size={16} color={Colors.textLight} />
-                <Text style={styles.rowTitle}>Küche</Text>
-              </View>
-              <FlatList
-                data={CUISINE_FILTERS}
-                renderItem={renderCuisine}
-                keyExtractor={(i) => i.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.list}
-              />
-            </View>
-
-            <View style={styles.row}>
-              <View style={styles.rowHeader}>
-                <Filter size={16} color={Colors.textLight} />
-                <Text style={styles.rowTitle}>Kurs-Art</Text>
-              </View>
-              <FlatList
-                data={COURSE_FILTERS}
-                renderItem={renderCourse}
-                keyExtractor={(i) => i.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.list}
-              />
-            </View>
-          </>
-        )}
       </View>
-    </View>
+
+      <FilterMenu
+        visible={menu === 'cuisine'}
+        title="Küche"
+        options={CUISINE_FILTERS}
+        selected={selectedCuisine}
+        onSelect={(id) => {
+          setSelectedCuisine(id);
+          setMenu(null);
+        }}
+        onClose={() => setMenu(null)}
+      />
+      <FilterMenu
+        visible={menu === 'course'}
+        title="Kurs-Art"
+        options={COURSE_FILTERS}
+        selected={selectedCourse}
+        onSelect={(id) => {
+          setSelectedCourse(id);
+          setMenu(null);
+        }}
+        onClose={() => setMenu(null)}
+      />
+    </>
   );
 }
 
@@ -125,48 +208,88 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  searchRow: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-  },
   row: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-  },
-  rowHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
-  },
-  rowTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textLight,
-  },
-  list: {
-    gap: 8,
-    paddingBottom: 12,
-  },
-  chip: {
     paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  searchIcon: {
+    marginRight: 2,
+  },
+  searchIconBtn: {
+    paddingVertical: 6,
+    paddingRight: 4,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+    paddingVertical: 6,
+  },
+  pill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
+    backgroundColor: Colors.card,
   },
-  chipActive: {
+  pillActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  chipText: {
+  pillText: {
+    flexShrink: 1,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: Colors.text,
   },
-  chipTextActive: {
+  pillTextActive: {
     color: Colors.white,
+  },
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  menuCard: {
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '70%',
+    backgroundColor: Colors.background,
+    borderRadius: 16,
+    padding: 12,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  menuOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  menuOptionActive: {
+    backgroundColor: Colors.primary,
+  },
+  menuOptionText: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  menuOptionTextActive: {
+    color: Colors.white,
+    fontWeight: '700',
   },
 });
