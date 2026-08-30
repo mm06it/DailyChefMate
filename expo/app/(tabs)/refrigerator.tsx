@@ -19,14 +19,29 @@ import Colors from "@/constants/colors";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { translateText } from "@/constants/translations";
-import { categories as categoryMeta } from "@/mocks/categories";
 import { Ingredient } from "@/types/recipe";
 import { searchIngredientsOnline } from "@/lib/ingredient-search";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
-// Order the category sections follow; anything unlisted (e.g. online-only
-// categories like "Seafood") is appended after these, in first-seen order.
-const CATEGORY_ORDER = categoryMeta.map((c) => c.name);
+// Section order, roughly by how often a home cook reaches for the category.
+// Anything unlisted (e.g. online-only categories like "Seafood") is appended
+// after these, in first-seen order.
+const CATEGORY_ORDER = [
+  "Vegetables",
+  "Dairy",
+  "Meat",
+  "Fruits",
+  "Grains",
+  "Pasta",
+  "Spices",
+  "Condiments",
+  "Oils",
+  "Baking",
+  "Legumes",
+  "Nuts",
+  "Frozen",
+  "Beverages",
+];
 
 type ListRow =
   | { type: "header"; key: string; category: string }
