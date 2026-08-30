@@ -183,38 +183,47 @@ class TheMealDBService {
     }
   }
 
+  // filter.php only returns id/name/thumb (+ area), always in the same order.
+  // Shuffle, take a handful, then hydrate each with lookup.php for full detail.
+  private async filterAndHydrate(param: 'c' | 'a' | 'i', value: string, take: number): Promise<Recipe[]> {
+    const response = await fetch(`${this.baseUrl}/filter.php?${param}=${encodeURIComponent(value)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const data: MealDBResponse = await response.json();
+    if (!data.meals) {
+      return [];
+    }
+    const detailedMeals = await Promise.all(
+      this.shuffle(data.meals).slice(0, take).map(async (meal) => {
+        try {
+          const detailResponse = await fetch(`${this.baseUrl}/lookup.php?i=${meal.idMeal}`);
+          const detailData: MealDBResponse = await detailResponse.json();
+          return detailData.meals?.[0] || meal;
+        } catch {
+          return meal;
+        }
+      })
+    );
+    return detailedMeals.map((meal) => this.convertMealToRecipe(meal));
+  }
+
   async getMealsByCategory(category: string): Promise<Recipe[]> {
     try {
       console.log('Searching TheMealDB by category:', category);
-      const response = await fetch(`${this.baseUrl}/filter.php?c=${encodeURIComponent(category)}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: MealDBResponse = await response.json();
-      
-      if (!data.meals) {
-        return [];
-      }
-      
-      // Get detailed info for a random handful (filter endpoint only returns
-      // basic info, and returns the same fixed order every time).
-      const detailedMeals = await Promise.all(
-        this.shuffle(data.meals).slice(0, 10).map(async (meal) => {
-          try {
-            const detailResponse = await fetch(`${this.baseUrl}/lookup.php?i=${meal.idMeal}`);
-            const detailData: MealDBResponse = await detailResponse.json();
-            return detailData.meals?.[0] || meal;
-          } catch {
-            return meal;
-          }
-        })
-      );
-      
-      return detailedMeals.map(meal => this.convertMealToRecipe(meal));
+      return await this.filterAndHydrate('c', category, 10);
     } catch (error) {
       console.error('Error searching by category:', error);
+      return [];
+    }
+  }
+
+  async getMealsByArea(area: string): Promise<Recipe[]> {
+    try {
+      console.log('Searching TheMealDB by area:', area);
+      return await this.filterAndHydrate('a', area, 10);
+    } catch (error) {
+      console.error('Error searching by area:', error);
       return [];
     }
   }
@@ -222,32 +231,7 @@ class TheMealDBService {
   async getMealsByIngredient(ingredient: string): Promise<Recipe[]> {
     try {
       console.log('Searching TheMealDB by ingredient:', ingredient);
-      const response = await fetch(`${this.baseUrl}/filter.php?i=${encodeURIComponent(ingredient)}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: MealDBResponse = await response.json();
-      
-      if (!data.meals) {
-        return [];
-      }
-      
-      // Get detailed info for a random 8 (filter endpoint returns a fixed order)
-      const detailedMeals = await Promise.all(
-        this.shuffle(data.meals).slice(0, 8).map(async (meal) => {
-          try {
-            const detailResponse = await fetch(`${this.baseUrl}/lookup.php?i=${meal.idMeal}`);
-            const detailData: MealDBResponse = await detailResponse.json();
-            return detailData.meals?.[0] || meal;
-          } catch {
-            return meal;
-          }
-        })
-      );
-      
-      return detailedMeals.map(meal => this.convertMealToRecipe(meal));
+      return await this.filterAndHydrate('i', ingredient, 8);
     } catch (error) {
       console.error('Error searching by ingredient:', error);
       return [];
@@ -275,6 +259,7 @@ class TheMealDBService {
       cookTime,
       servings: 4, // Default servings
       category: meal.strCategory,
+      area: meal.strArea || undefined,
       ingredients,
       steps,
       isFavorite: false,

@@ -15,18 +15,40 @@ import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import { useGridLayout } from "@/hooks/use-responsive";
 
+// TheMealDB "areas" (cuisines). Tokens in CUISINE_FILTERS that aren't in here
+// (e.g. "Vegetarian", "Seafood", "Breakfast") are TheMealDB *categories*.
+const MEALDB_AREAS = new Set([
+  'Italian', 'Thai', 'Chinese', 'Japanese', 'Korean', 'Indian', 'Mexican',
+  'Greek', 'American', 'British', 'French', 'Spanish', 'Turkish', 'Vietnamese',
+  'Moroccan',
+]);
+const MAIN_CATEGORIES = ['Beef', 'Chicken', 'Pork', 'Lamb', 'Pasta', 'Seafood', 'Goat', 'Miscellaneous'];
+const BROWSE_CATEGORIES = [
+  'Beef', 'Chicken', 'Dessert', 'Lamb', 'Miscellaneous', 'Pasta', 'Pork',
+  'Seafood', 'Side', 'Starter', 'Vegan', 'Vegetarian', 'Breakfast', 'Goat',
+];
+
+function shuffleInPlace<T>(a: T[]): T[] {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // This tab is browse-only — the search field was removed. Recipes are
-// API-driven (TheMealDB, loaded on mount and paged on scroll); the bundled
-// mock set is only a fallback when the API returns nothing. The cuisine /
-// course chips in the tab bar narrow the list.
+// API-driven (TheMealDB); what gets fetched depends on the cuisine / course
+// chips, and the whole feed is shuffled. The bundled mock set is only a
+// fallback when the API returns nothing.
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
   const [onlineResults, setOnlineResults] = useState<Recipe[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreRecipes, setHasMoreRecipes] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
-  const didInitialLoad = useRef(false);
   const emptyStreak = useRef(0);
+  const reqId = useRef(0);
+  const loadedKey = useRef<string | null>(null);
   const listRef = useRef<FlatList<Recipe>>(null);
 
   // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
@@ -37,66 +59,6 @@ export default function AllRecipesScreen() {
   const { setProgress } = useCollapsibleHeader();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
-  const recipeCategories = useMemo(() => [
-    'Beef', 'Chicken', 'Dessert', 'Lamb', 'Miscellaneous', 'Pasta', 'Pork',
-    'Seafood', 'Side', 'Starter', 'Vegan', 'Vegetarian', 'Breakfast', 'Goat'
-  ], []);
-
-  const loadMoreRecipes = useCallback(async () => {
-    if (isLoadingMore || !hasMoreRecipes) return;
-
-    setIsLoadingMore(true);
-    try {
-      // Two *randomly chosen* categories per pull, unioned and shuffled, so
-      // the feed is genuinely mixed — not "all beef, then all chicken" — and
-      // not the same set on every visit.
-      const cats = [...recipeCategories].sort(() => Math.random() - 0.5).slice(0, 2);
-      const batches = await Promise.all(
-        cats.map((c) => themealdb.getMealsByCategory(c).catch(() => [] as Recipe[]))
-      );
-      let fetched = batches.flat();
-
-      if (fetched.length === 0) {
-        fetched = await themealdb.getRandomMeals(8).catch(() => [] as Recipe[]);
-      }
-
-      // Shuffle the whole batch before it enters the list.
-      for (let i = fetched.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [fetched[i], fetched[j]] = [fetched[j], fetched[i]];
-      }
-
-      const seen = new Set(onlineResults.map((r) => r.id));
-      const unique = fetched.filter((r) => !seen.has(r.id));
-
-      if (unique.length > 0) {
-        // Put them in the shared cache so tapping a card / favouriting works
-        // (recipe-detail resolves recipes by id from the store).
-        cacheRecipes(fetched);
-        setOnlineResults((prev) => {
-          const prevIds = new Set(prev.map((r) => r.id));
-          return [...prev, ...fetched.filter((r) => !prevIds.has(r.id))];
-        });
-        emptyStreak.current = 0;
-      } else {
-        // Nothing new after a couple of tries → we've likely seen the catalog.
-        emptyStreak.current += 1;
-        if (emptyStreak.current >= 3) setHasMoreRecipes(false);
-      }
-    } catch (error) {
-      console.error('Error loading more recipes:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [isLoadingMore, hasMoreRecipes, recipeCategories, onlineResults, cacheRecipes]);
-
-  // Pull the first page from the API as soon as the tab mounts.
-  useEffect(() => {
-    if (didInitialLoad.current) return;
-    didInitialLoad.current = true;
-    loadMoreRecipes().finally(() => setInitialLoading(false));
-  }, [loadMoreRecipes]);
-
   const getRecipeCourse = useCallback((recipe: Recipe): 'starter' | 'main' | 'dessert' => {
     const course = recipe.course?.toLowerCase() ?? '';
     const cat = recipe.category?.toLowerCase() ?? '';
@@ -105,12 +67,95 @@ export default function AllRecipesScreen() {
     return 'main';
   }, []);
 
+  // Which TheMealDB endpoints to pull from for the current filter combo.
+  const buildSources = useCallback((): Array<() => Promise<Recipe[]>> => {
+    if (selectedCuisine !== 'all') {
+      const cfg = CUISINE_FILTERS.find(c => c.id === selectedCuisine);
+      const src = (cfg?.match ?? []).map(tok =>
+        MEALDB_AREAS.has(tok)
+          ? () => themealdb.getMealsByArea(tok)
+          : () => themealdb.getMealsByCategory(tok),
+      );
+      return src.length ? src : [() => themealdb.getRandomMeals(8)];
+    }
+    if (selectedCourse === 'dessert') {
+      return [() => themealdb.getMealsByCategory('Dessert')];
+    }
+    if (selectedCourse === 'starter') {
+      return [
+        () => themealdb.getMealsByCategory('Starter'),
+        () => themealdb.getMealsByCategory('Side'),
+      ];
+    }
+    // "main" course, or no filter → two random categories.
+    const pool = selectedCourse === 'main' ? MAIN_CATEGORIES : BROWSE_CATEGORIES;
+    return shuffleInPlace([...pool]).slice(0, 2).map(c => () => themealdb.getMealsByCategory(c));
+  }, [selectedCuisine, selectedCourse]);
+
+  const fetchPage = useCallback(async (append: boolean, req: number) => {
+    const sources = buildSources();
+    const batches = await Promise.all(sources.map(fn => fn().catch(() => [] as Recipe[])));
+    let fetched = batches.flat();
+
+    if (fetched.length === 0) {
+      fetched = await themealdb.getRandomMeals(8).catch(() => [] as Recipe[]);
+    }
+
+    // Fetched by cuisine but a course is also picked → narrow it here.
+    if (selectedCuisine !== 'all' && selectedCourse !== 'all') {
+      fetched = fetched.filter(r => getRecipeCourse(r) === selectedCourse);
+    }
+
+    // De-dupe within the batch, then shuffle the whole thing.
+    const byId = new Map<string, Recipe>();
+    fetched.forEach(r => byId.set(r.id, r));
+    fetched = shuffleInPlace(Array.from(byId.values()));
+
+    if (req !== reqId.current) return; // filters changed while we were fetching
+    if (fetched.length > 0) cacheRecipes(fetched);
+
+    setOnlineResults(prev => {
+      if (!append) return fetched;
+      const seen = new Set(prev.map(r => r.id));
+      const add = fetched.filter(r => !seen.has(r.id));
+      if (add.length === 0) {
+        emptyStreak.current += 1;
+        if (emptyStreak.current >= 3) setHasMoreRecipes(false);
+        return prev;
+      }
+      emptyStreak.current = 0;
+      return [...prev, ...add];
+    });
+  }, [buildSources, selectedCuisine, selectedCourse, getRecipeCourse, cacheRecipes]);
+
+  // (Re)load whenever the tab first mounts or the filter combo changes.
+  const filterKey = `${selectedCuisine}|${selectedCourse}`;
+  useEffect(() => {
+    if (loadedKey.current === filterKey) return;
+    loadedKey.current = filterKey;
+    const myReq = ++reqId.current;
+    setOnlineResults([]);
+    setHasMoreRecipes(true);
+    emptyStreak.current = 0;
+    setInitialLoading(true);
+    fetchPage(false, myReq).finally(() => {
+      if (reqId.current === myReq) setInitialLoading(false);
+    });
+  }, [filterKey, fetchPage]);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMoreRecipes || initialLoading) return;
+    setIsLoadingMore(true);
+    fetchPage(true, reqId.current).finally(() => setIsLoadingMore(false));
+  }, [isLoadingMore, hasMoreRecipes, initialLoading, fetchPage]);
+
   const filterRecipes = useCallback((recipesToFilter: Recipe[]) => {
     let filtered = recipesToFilter;
     if (selectedCuisine !== 'all') {
       const cfg = CUISINE_FILTERS.find(c => c.id === selectedCuisine);
       if (cfg?.match) {
-        filtered = filtered.filter(r => cfg.match?.includes(r.category));
+        const m = cfg.match;
+        filtered = filtered.filter(r => (!!r.area && m.includes(r.area)) || m.includes(r.category));
       }
     }
     if (selectedCourse !== 'all') {
@@ -118,13 +163,14 @@ export default function AllRecipesScreen() {
     }
     return filtered;
   }, [selectedCuisine, selectedCourse, getRecipeCourse]);
-  
+
+  const shuffledMocks = useMemo(() => shuffleInPlace([...recipes]), [recipes]);
+
   const displayedRecipes = useMemo(() => {
-    // API results drive the tab; the bundled mock set is only used when the
-    // API returned nothing (offline / down / empty).
-    const baseRecipes = onlineResults.length > 0 ? onlineResults : recipes;
-    return filterRecipes(baseRecipes);
-  }, [recipes, onlineResults, filterRecipes]);
+    // API results drive the tab; the mock set is only a fallback (API empty).
+    const base = onlineResults.length > 0 ? onlineResults : shuffledMocks;
+    return filterRecipes(base);
+  }, [shuffledMocks, onlineResults, filterRecipes]);
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
@@ -161,7 +207,7 @@ export default function AllRecipesScreen() {
     }
     
     return (
-      <Pressable style={styles.loadMoreButton} onPress={loadMoreRecipes}>
+      <Pressable style={styles.loadMoreButton} onPress={loadMore}>
         <ChefHat size={20} color={Colors.white} />
         <Text style={styles.loadMoreButtonText}>
           {t('discoverMore') || 'Discover More Recipes'}
@@ -171,9 +217,7 @@ export default function AllRecipesScreen() {
   };
   
   const handleEndReached = () => {
-    if (hasMoreRecipes && !isLoadingMore && displayedRecipes.length > 0) {
-      loadMoreRecipes();
-    }
+    if (displayedRecipes.length > 0) loadMore();
   };
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {

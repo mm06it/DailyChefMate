@@ -7,6 +7,9 @@ export interface Recipe {
   servings: number;
   category: string;
   course?: string;
+  // Cuisine / country of origin (TheMealDB strArea). Runtime-only on browse
+  // results — not persisted, so it's stripped before a recipe is saved.
+  area?: string;
   ingredients: Ingredient[];
   steps: string[];
   isFavorite: boolean;

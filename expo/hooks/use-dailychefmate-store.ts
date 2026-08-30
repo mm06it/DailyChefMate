@@ -176,7 +176,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
 
     const recipe = displayedRecipes.find((r) => r.id === recipeId);
     if (recipe) {
-      const { isFavorite: _unused, ...recipeSnapshot } = recipe;
+      // `area` is a runtime-only browse field — not in the favorites validator.
+      const { isFavorite: _unused, area: _area, ...recipeSnapshot } = recipe;
       addFavoriteMutation({ recipe: recipeSnapshot }).catch((e) => console.error("addFavorite failed", e));
     }
   };
