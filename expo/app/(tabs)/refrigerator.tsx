@@ -73,12 +73,15 @@ export default function RefrigeratorScreen() {
 
   // Filter local ingredients
   const filteredLocalIngredients = refrigeratorItems.filter((ingredient: Ingredient) => {
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     const englishName = ingredient.name.toLowerCase();
     const translatedName = translateText(language, ingredient.name).toLowerCase();
-    
-    // Search in both English and translated names
-    return englishName.includes(query) || translatedName.includes(query);
+
+    // Match on English name, translated name, or the amount ("500g" finds
+    // every item stored with that quantity — "500 g" works too).
+    if (englishName.includes(query) || translatedName.includes(query)) return true;
+    const amount = ingredient.amount?.toLowerCase().replace(/\s+/g, '');
+    return !!amount && amount.includes(query.replace(/\s+/g, ''));
   });
 
   // Combine local and online results

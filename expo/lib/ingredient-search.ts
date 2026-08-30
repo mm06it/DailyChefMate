@@ -4,6 +4,9 @@ import { catalogItems } from '@/mocks/refrigerator';
 interface OnlineIngredient {
   name: string;
   category: string;
+  // Default catalogue amount (e.g. "500g"), when known — used only so the
+  // search can also match on quantity ("500g" → every 500g item).
+  amount?: string;
 }
 
 const COMMON_INGREDIENTS: OnlineIngredient[] = [
@@ -186,7 +189,7 @@ const SEARCHABLE_INGREDIENTS: OnlineIngredient[] = (() => {
   for (const item of catalogItems) {
     const key = item.name.toLowerCase();
     if (!byName.has(key)) {
-      byName.set(key, { name: item.name, category: item.category });
+      byName.set(key, { name: item.name, category: item.category, amount: item.amount });
     }
   }
   return Array.from(byName.values());
@@ -198,11 +201,15 @@ export async function searchIngredientsOnline(query: string): Promise<Ingredient
   }
 
   const normalizedQuery = query.toLowerCase().trim();
+  // "500 g" and "500g" should behave the same when matching quantities.
+  const compactQuery = normalizedQuery.replace(/\s+/g, '');
 
-  // Search through the merged ingredient database
-  const matchingIngredients = SEARCHABLE_INGREDIENTS.filter(ingredient =>
-    ingredient.name.toLowerCase().includes(normalizedQuery)
-  );
+  // Match on name or on the catalogue amount ("500g" → every 500g item).
+  const matchingIngredients = SEARCHABLE_INGREDIENTS.filter(ingredient => {
+    if (ingredient.name.toLowerCase().includes(normalizedQuery)) return true;
+    const amount = ingredient.amount?.toLowerCase().replace(/\s+/g, '');
+    return !!amount && amount.includes(compactQuery);
+  });
 
   // Convert to our Ingredient format
   const results: Ingredient[] = matchingIngredients.slice(0, 20).map((ingredient, index) => ({
