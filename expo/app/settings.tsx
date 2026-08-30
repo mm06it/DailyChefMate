@@ -94,13 +94,23 @@ export default function SettingsScreen() {
       successTimer.current = setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      if (message.includes('USERNAME_TAKEN')) {
-        setFeedback({ type: 'error', text: t('usernameTaken') });
-      } else if (message.includes('INVALID_USERNAME')) {
+      if (message.includes('INVALID_USERNAME')) {
         setFeedback({ type: 'error', text: t('usernameInvalid') });
+      } else if (message.includes('USERNAME_TAKEN')) {
+        setFeedback({ type: 'error', text: t('usernameTaken') });
       } else {
-        console.error('updateUsername failed', e);
-        setFeedback({ type: 'error', text: t('usernameUpdateFailed') });
+        // Prod hides the real reason ("Server Error"). Re-check availability
+        // so a race that grabbed the name still shows "taken", not a generic
+        // failure.
+        const stillFree = await convex
+          .query(api.users.usernameAvailable, { username: next })
+          .catch(() => null);
+        if (stillFree === false) {
+          setFeedback({ type: 'error', text: t('usernameTaken') });
+        } else {
+          console.error('updateUsername failed', e);
+          setFeedback({ type: 'error', text: t('usernameUpdateFailed') });
+        }
       }
     } finally {
       setSaving(false);
