@@ -10,12 +10,13 @@ import CollapsingTabHeader, {
 import RecipeCard from "@/components/RecipeCard";
 import { useFavoriteRecipes } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 import { Recipe } from "@/types/recipe";
 
 export default function FavoritesScreen() {
   const { t } = useLanguage();
-  const favoriteRecipes = useFavoriteRecipes();
+  const favoriteRecipes = useLocalizedRecipes(useFavoriteRecipes());
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();

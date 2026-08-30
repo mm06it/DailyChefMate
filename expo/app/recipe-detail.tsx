@@ -9,6 +9,7 @@ import Colors from "@/constants/colors";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { scaleAmount } from "@/lib/scale-amount";
 
@@ -29,6 +30,11 @@ export default function RecipeDetailScreen() {
       favorites.find((r) => r.id === id),
     [recipes, customRecipes, favorites, id],
   );
+
+  // Localize browse/favorite recipes (not the user's own — those keep the
+  // language they were written in).
+  const isCustom = !!recipe && customRecipes.some((c) => c.id === recipe.id);
+  const localized = useLocalizedRecipes(recipe && !isCustom ? [recipe] : []);
 
   useEffect(() => {
     if (recipe) {
@@ -55,7 +61,9 @@ export default function RecipeDetailScreen() {
       </View>
     );
   }
-  
+
+  const displayRecipe = isCustom ? recipe : localized[0] ?? recipe;
+
   const handleStepToggle = (stepIndex: number) => {
     const nextActiveStep = getNextActiveStep();
     // Only allow toggling the current active step or already completed steps
@@ -92,7 +100,7 @@ export default function RecipeDetailScreen() {
       style={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <RecipeDetailHeader recipe={recipe} />
+      <RecipeDetailHeader recipe={displayRecipe} />
 
       <ResponsiveContainer maxWidth={720}>
       <View style={styles.section}>
@@ -122,12 +130,12 @@ export default function RecipeDetailScreen() {
           <Text style={styles.sectionHint}>{getTranslation(currentLanguage, 'servingsAdjustHint')}</Text>
         )}
         <View style={styles.ingredientsList}>
-          {recipe.ingredients.map((ingredient, index) => {
+          {displayRecipe.ingredients.map((ingredient, index) => {
             const scaledAmount = scaleAmount(ingredient.amount, servingsRatio);
             return (
               <View key={ingredient.id} style={[
                 styles.ingredientItem,
-                index === recipe.ingredients.length - 1 && styles.lastIngredientItem
+                index === displayRecipe.ingredients.length - 1 && styles.lastIngredientItem
               ]}>
                 <Text style={styles.ingredientName}>{translateText(currentLanguage, ingredient.name) || ingredient.name}</Text>
                 <Text style={styles.ingredientAmount}>{translateAmount(currentLanguage, scaledAmount) || scaledAmount}</Text>
@@ -156,7 +164,7 @@ export default function RecipeDetailScreen() {
               <Text style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
             </View>
             <View style={styles.stepsList}>
-              {recipe.steps.map((step, index) => {
+              {displayRecipe.steps.map((step, index) => {
                 const nextActiveStep = getNextActiveStep();
                 const isCompleted = completedSteps[index];
                 const isActive = index === nextActiveStep || isCompleted;

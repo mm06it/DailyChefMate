@@ -113,4 +113,18 @@ export default defineSchema({
     recipes: v.array(searchResultRecipe),
     createdAt: v.number(),
   }).index("by_key", ["key"]),
+
+  // Shared cache of machine translations for browse/search recipes so each
+  // recipe is only ever sent to the LLM once per language. `key` is
+  // `${lang}:${recipeId}`. See convex/translate.ts.
+  recipeTranslationCache: defineTable({
+    key: v.string(),
+    translated: v.object({
+      name: v.string(),
+      category: v.string(),
+      ingredients: v.array(v.object({ name: v.string(), amount: v.string() })),
+      steps: v.array(v.string()),
+    }),
+    createdAt: v.number(),
+  }).index("by_key", ["key"]),
 });

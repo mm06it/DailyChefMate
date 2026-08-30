@@ -13,6 +13,7 @@ import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
 import { CUISINE_FILTERS } from "@/constants/recipe-filters";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
+import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import { useGridLayout } from "@/hooks/use-responsive";
 
@@ -209,6 +210,9 @@ export default function AllRecipesScreen() {
     return filterRecipes(browsePool);
   }, [searchQuery, shuffledMocks, onlineResults, searchResults, filterRecipes]);
 
+  // German UI → translate + metric-convert the visible recipes (cached).
+  const localizedRecipes = useLocalizedRecipes(displayedRecipes);
+
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
       <View style={columns > 1 ? { width: itemWidth } : undefined}>
@@ -285,7 +289,7 @@ export default function AllRecipesScreen() {
         <FlatList
           ref={listRef}
           key={columns}
-          data={displayedRecipes}
+          data={localizedRecipes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={columns}

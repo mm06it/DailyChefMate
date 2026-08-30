@@ -14,6 +14,7 @@ import CollapsingTabHeader, {
 import Colors from "@/constants/colors";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import themealdb from "@/lib/themealdb";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
@@ -138,11 +139,13 @@ export default function GeneratedRecipesScreen() {
   // Only the real ingredient-search results — deduped by id. (The local
   // mock-catalog matches were dropped: they made an unrelated recipe like
   // "French Omelette" show up first every time.)
-  const allRecipes = (() => {
-    const uniqueRecipes = new Map<string, Recipe>();
-    onlineRecipes.forEach((recipe) => uniqueRecipes.set(recipe.id, recipe));
-    return Array.from(uniqueRecipes.values());
-  })();
+  const allRecipes = useLocalizedRecipes(
+    useMemo(() => {
+      const uniqueRecipes = new Map<string, Recipe>();
+      onlineRecipes.forEach((recipe) => uniqueRecipes.set(recipe.id, recipe));
+      return Array.from(uniqueRecipes.values());
+    }, [onlineRecipes]),
+  );
   const renderItem = ({ item }: { item: Recipe }) => (
     <View style={columns > 1 ? { width: itemWidth } : undefined}>
       {/* "Vorhanden:" / "Fehlt noch:" lines are rendered inside RecipeCard,

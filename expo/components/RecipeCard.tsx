@@ -77,7 +77,10 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             numberOfLines={2}
             testID={`recipe-card-${recipe.id}-used`}
           >
-            {(t('recipeUses') || 'Vorhanden')}: {recipe.usedIngredients.join(' · ')}
+            {(t('recipeUses') || 'Vorhanden')}:{' '}
+            {recipe.usedIngredients
+              .map((i) => translateText(currentLanguage, i) || i)
+              .join(' · ')}
           </Text>
         )}
         {recipe.missedIngredients && recipe.missedIngredients.length > 0 && (
@@ -86,7 +89,10 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             numberOfLines={2}
             testID={`recipe-card-${recipe.id}-missed`}
           >
-            {(t('recipeMissing') || 'Fehlt noch')}: {recipe.missedIngredients.join(' · ')}
+            {(t('recipeMissing') || 'Fehlt noch')}:{' '}
+            {recipe.missedIngredients
+              .map((i) => translateText(currentLanguage, i) || i)
+              .join(' · ')}
           </Text>
         )}
         <View style={styles.header}>
