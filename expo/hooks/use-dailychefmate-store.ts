@@ -35,6 +35,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
   const seedRefrigerator = useMutation(api.refrigerator.seedIfEmpty);
   const selectItemMutation = useMutation(api.refrigerator.selectItem);
   const toggleSelectionMutation = useMutation(api.refrigerator.toggleSelection);
+  const clearSelectionMutation = useMutation(api.refrigerator.clearSelection);
   const updateAmountMutation = useMutation(api.refrigerator.updateAmount);
   const addItemMutation = useMutation(api.refrigerator.addItem);
 
@@ -249,6 +250,10 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     );
   };
 
+  const clearSelectedIngredients = () => {
+    clearSelectionMutation({}).catch((e) => console.error("clearSelectedIngredients failed", e));
+  };
+
   const addIngredient = (ingredient: Ingredient | Omit<Ingredient, "id" | "isSelected">) => {
     addItemMutation({
       name: ingredient.name,
@@ -421,6 +426,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     generateRecipesFromIngredients,
     toggleIngredientSelection,
     selectIngredient,
+    clearSelectedIngredients,
     addIngredient,
     removeIngredient,
     getSelectedIngredients,

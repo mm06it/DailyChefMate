@@ -6,14 +6,13 @@ import { RefreshCw, ChefHat } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
 import Colors from "@/constants/colors";
-import { useGeneratedRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import themealdb from "@/lib/themealdb";
 import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
   const { t } = useLanguage();
-  const generatedRecipes = useGeneratedRecipes();
   const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -124,13 +123,12 @@ export default function GeneratedRecipesScreen() {
     }
   }, [selectedIngredients.length, onlineRecipes.length, handleGenerateOnlineRecipes]);
 
-  // Combine recipes and remove duplicates based on ID
+  // Only the real ingredient-search results — deduped by id. (The local
+  // mock-catalog matches were dropped: they made an unrelated recipe like
+  // "French Omelette" show up first every time.)
   const allRecipes = (() => {
-    const combined = [...generatedRecipes, ...onlineRecipes];
     const uniqueRecipes = new Map<string, Recipe>();
-    combined.forEach(recipe => {
-      uniqueRecipes.set(recipe.id, recipe);
-    });
+    onlineRecipes.forEach((recipe) => uniqueRecipes.set(recipe.id, recipe));
     return Array.from(uniqueRecipes.values());
   })();
   const renderItem = ({ item }: { item: Recipe }) => (

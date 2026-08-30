@@ -80,6 +80,21 @@ export const toggleSelection = mutation({
   },
 });
 
+// Deselect every ingredient the user currently has selected.
+export const clearSelection = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
+    const items = await ctx.db
+      .query("refrigeratorItems")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const item of items) {
+      if (item.isSelected) await ctx.db.patch(item._id, { isSelected: false });
+    }
+  },
+});
+
 export const updateAmount = mutation({
   args: { id: v.id("refrigeratorItems"), amount: v.string() },
   handler: async (ctx, { id, amount }) => {

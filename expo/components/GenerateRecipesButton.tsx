@@ -1,13 +1,13 @@
 import { ChefHat } from "lucide-react-native";
 import { useNavigation } from "expo-router";
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
 
 import Colors from "@/constants/colors";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 
-export default function GenerateRecipesButton() {
+export default function GenerateRecipesButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const { t } = useLanguage();
   const navigation = useNavigation();
   const { getSelectedIngredients } = useDailyChefMateStore();
@@ -22,7 +22,7 @@ export default function GenerateRecipesButton() {
 
   return (
     <Pressable
-      style={[styles.button, isDisabled && styles.buttonDisabled]}
+      style={[styles.button, isDisabled && styles.buttonDisabled, style]}
       onPress={handlePress}
       disabled={isDisabled}
     >

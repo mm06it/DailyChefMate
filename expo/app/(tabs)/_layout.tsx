@@ -2,7 +2,6 @@ import { Tabs } from "expo-router";
 import { BookOpen, Refrigerator, Settings, Star } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, View, Image } from "react-native";
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { LanguageSelector } from "@/components/LanguageSelector";
 import ProfileMenuButton from "@/components/ProfileMenuButton";
@@ -46,14 +45,6 @@ export default function TabLayout() {
         tabBarLabelStyle: styles.tabLabel,
         headerShown: !isDesktop,
         headerStyle: styles.header,
-        headerBackground: () => (
-          <LinearGradient
-            colors={[Colors.gradientStart, Colors.gradientEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.headerGradient}
-          />
-        ),
         headerTitle: () => <HeaderTitle />,
         headerTitleAlign: 'center',
         headerLeft: () => <HeaderLeft />,
@@ -136,9 +127,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
-  },
-  headerGradient: {
-    flex: 1,
   },
   headerContainer: {
     flexDirection: 'row',

@@ -1,5 +1,4 @@
-import { Stack } from "expo-router";
-import { Plus } from "lucide-react-native";
+import { Plus, X } from "lucide-react-native";
 import React, { useState, useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, View, FlatList, Text } from "react-native";
 
@@ -25,7 +24,9 @@ export default function RefrigeratorScreen() {
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [onlineResults, setOnlineResults] = useState<Ingredient[]>([]);
-  const { refrigeratorItems, updateIngredientAmount, addIngredient } = useDailyChefMateStore();
+  const { refrigeratorItems, updateIngredientAmount, addIngredient, clearSelectedIngredients } =
+    useDailyChefMateStore();
+  const hasSelection = refrigeratorItems.some((i) => i.isSelected);
 
   const toggleAddForm = () => {
     setShowAddForm(!showAddForm);
@@ -131,14 +132,8 @@ export default function RefrigeratorScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: false,
-        }} 
-      />
-      
       <View style={styles.header}>
-        <SearchBar 
+        <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder={t('search')}
@@ -147,9 +142,20 @@ export default function RefrigeratorScreen() {
           <Plus size={24} color={Colors.background} />
         </Pressable>
       </View>
-      
-      <GenerateRecipesButton />
-      
+
+      <View style={styles.actionRow}>
+        <GenerateRecipesButton style={styles.generateButton} />
+        <Pressable
+          style={[styles.clearButton, !hasSelection && styles.clearButtonDisabled]}
+          onPress={clearSelectedIngredients}
+          disabled={!hasSelection}
+          testID="clear-selection-button"
+          accessibilityLabel={t('clearSelection') || 'Auswahl aufheben'}
+        >
+          <X size={22} color={Colors.background} />
+        </Pressable>
+      </View>
+
       <FlatList
         key={columns}
         data={allIngredients}
@@ -203,6 +209,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
+    marginHorizontal: 16,
+    marginVertical: 16,
+  },
+  generateButton: {
+    flex: 3,
+    marginHorizontal: 0,
+    marginVertical: 0,
+  },
+  clearButton: {
+    flex: 1,
+    backgroundColor: Colors.textLight,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  clearButtonDisabled: {
+    opacity: 0.45,
   },
   listContent: {
     padding: 16,

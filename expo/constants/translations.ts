@@ -89,6 +89,7 @@ export const TRANSLATIONS = {
     
     // Generated Recipes
     selectedIngredients: 'Ausgewählte Zutaten',
+    clearSelection: 'Auswahl aufheben',
     recipeUses: 'Vorhanden',
     recipeMissing: 'Fehlt noch',
     findMoreRecipes: 'Weitere Rezepte finden',
@@ -605,6 +606,7 @@ export const TRANSLATIONS = {
     
     // Generated Recipes
     selectedIngredients: 'Selected ingredients',
+    clearSelection: 'Clear selection',
     recipeUses: 'You have',
     recipeMissing: 'Still need',
     findMoreRecipes: 'Find More Recipes',
