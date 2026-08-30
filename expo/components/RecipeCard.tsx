@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
-import { translateText } from "@/constants/translations";
+import { translateText, translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { Recipe } from "@/types/recipe";
@@ -79,7 +79,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
           >
             {(t('recipeUses') || 'Vorhanden')}:{' '}
             {recipe.usedIngredients
-              .map((i) => translateText(currentLanguage, i) || i)
+              .map((i) => translateIngredientName(currentLanguage, i))
               .join(' · ')}
           </Text>
         )}
@@ -91,7 +91,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
           >
             {(t('recipeMissing') || 'Fehlt noch')}:{' '}
             {recipe.missedIngredients
-              .map((i) => translateText(currentLanguage, i) || i)
+              .map((i) => translateIngredientName(currentLanguage, i))
               .join(' · ')}
           </Text>
         )}

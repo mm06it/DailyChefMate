@@ -1463,6 +1463,21 @@ export const translateText = (language: LanguageCode | undefined | null, text: s
   return (result && typeof result === 'string' && result.trim()) ? result : text;
 };
 
+// Like translateText, but tolerant of the casing that recipe APIs use for
+// ingredient names ("olive oil", "GARLIC" -> the "Olive Oil" / "Garlic"
+// dictionary keys). Unknown terms are left untouched.
+export const translateIngredientName = (
+  language: LanguageCode | undefined | null,
+  name: string,
+): string => {
+  if (!name || typeof name !== 'string') return name || '';
+  const direct = translateText(language, name);
+  if (direct !== name) return direct;
+  const titled = name.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+  const hit = translateText(language, titled);
+  return hit !== titled ? hit : name;
+};
+
 export const translateAmount = (language: LanguageCode, amount: string): string => {
   if (!amount || typeof amount !== 'string') return amount || 'N/A';
   

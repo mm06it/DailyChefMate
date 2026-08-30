@@ -12,6 +12,7 @@ import CollapsingTabHeader, {
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
 import Colors from "@/constants/colors";
+import { translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
@@ -19,7 +20,7 @@ import themealdb from "@/lib/themealdb";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -208,7 +209,7 @@ export default function GeneratedRecipesScreen() {
       {selectedIngredients.length > 0 && (
         <View style={styles.ingredientsInfo}>
           <Text style={styles.ingredientsText}>
-            {t('selectedIngredients') || 'Selected ingredients'}: {selectedIngredients.map(i => i.name).join(', ')}
+            {t('selectedIngredients') || 'Selected ingredients'}: {selectedIngredients.map(i => translateIngredientName(currentLanguage, i.name)).join(', ')}
           </Text>
           <Pressable 
             style={styles.refreshButton}
