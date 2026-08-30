@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConvex } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useIsDesktop } from '@/hooks/use-responsive';
 import { getTranslation } from '@/constants/translations';
 import { api } from '@/convex/_generated/api';
 import { LanguageSelector } from '@/components/LanguageSelector';
@@ -49,11 +50,12 @@ export default function AuthScreen() {
 
   const { signIn, signUp, verifyEmail, resendVerificationCode } = useAuth();
   const { language } = useLanguage();
+  const isDesktop = useIsDesktop();
 
   const scrollRef = useRef<ScrollView>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // "Pull up / scroll past the top" reloads the page.
+  // Pulling / scrolling past the top reloads the page — mobile only.
   const reloadApp = useCallback(() => {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') window.location.reload();
@@ -64,7 +66,7 @@ export default function AuthScreen() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    if (Platform.OS !== 'web' || isDesktop) return;
     const node: HTMLElement | undefined = (scrollRef.current as any)?.getScrollableNode?.();
     if (!node) return;
 
@@ -101,7 +103,7 @@ export default function AuthScreen() {
       node.removeEventListener('touchmove', onTouchMove);
       if (wheelTimer) clearTimeout(wheelTimer);
     };
-  }, [reloadApp]);
+  }, [reloadApp, isDesktop]);
   const convex = useConvex();
 
   const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
@@ -362,17 +364,21 @@ export default function AuthScreen() {
         </Animated.View>
       )}
 
-      {/* Pinned to the top of the screen, independent of the centered form. */}
-      <View style={styles.topBar} pointerEvents="box-none">
-        <Image
-          source={require('@/assets/images/icon.png')}
-          style={styles.topBarIcon}
-          resizeMode="contain"
-        />
-        <View style={styles.topBarLang}>
-          <LanguageSelector />
+      {/* Desktop: icon + language selector sit between the top edge and the
+          (centered) welcome text. Mobile: they ride with the centered
+          content — see below. */}
+      {isDesktop && (
+        <View style={styles.topBarDesktop} pointerEvents="box-none">
+          <Image
+            source={require('@/assets/images/icon.png')}
+            style={styles.topBarIcon}
+            resizeMode="contain"
+          />
+          <View style={styles.topBarLang}>
+            <LanguageSelector />
+          </View>
         </View>
-      </View>
+      )}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -382,12 +388,24 @@ export default function AuthScreen() {
           ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
-            Platform.OS === 'web'
+            Platform.OS === 'web' || isDesktop
               ? undefined
               : <RefreshControl refreshing={refreshing} onRefresh={reloadApp} />
           }
         >
           <ResponsiveContainer maxWidth={480}>
+          {!isDesktop && (
+            <View style={styles.topBarMobile} pointerEvents="box-none">
+              <Image
+                source={require('@/assets/images/icon.png')}
+                style={styles.topBarIcon}
+                resizeMode="contain"
+              />
+              <View style={styles.topBarLangMobile}>
+                <LanguageSelector />
+              </View>
+            </View>
+          )}
           <View style={styles.logoContainer}>
             <Text style={styles.title}>
               {verificationEmail
@@ -573,14 +591,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
-  topBar: {
+  topBarDesktop: {
     position: 'absolute',
-    top: 0,
+    top: '15%',
     left: 0,
     right: 0,
     zIndex: 10,
     alignItems: 'center',
-    paddingTop: 6,
+  },
+  topBarMobile: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   topBarIcon: {
     width: 76,
@@ -590,6 +612,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 20,
+  },
+  topBarLangMobile: {
+    position: 'absolute',
+    top: 6,
+    right: 0,
   },
   logoContainer: {
     alignItems: 'center',
