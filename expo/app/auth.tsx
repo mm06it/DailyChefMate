@@ -378,6 +378,7 @@ export default function AuthScreen() {
           <View style={styles.formContainer}>
             {isSignUp && (
               <>
+                <Text style={styles.fieldHint}>{getTranslation(language, 'usernameOptionalHint')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder={getTranslation(language, 'enterUsername')}
@@ -597,10 +598,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   codeInput: {
-    fontSize: 24,
-    letterSpacing: 8,
+    fontSize: 18,
+    letterSpacing: 2,
     textAlign: 'center',
     fontWeight: '600',
+  },
+  fieldHint: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 6,
+    marginLeft: 2,
   },
   usernameOk: {
     color: '#16a34a',
