@@ -340,20 +340,15 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       const names = selectedIngredients.map((i) => i.name);
       console.log("Searching recipes for ingredients:", names);
 
+      // Count this as one generation run (regardless of how many recipes
+      // come back).
+      recordGeneratedMutation({}).catch((e) =>
+        console.error("recordGenerated failed", e)
+      );
+
       // Convex action: Spoonacular (cached) with a TheMealDB fallback.
       const found = await findByIngredientsAction({ ingredients: names });
       const matchingRecipes: Recipe[] = found.map((r) => ({ ...r, isFavorite: false }));
-
-      const existingIds = new Set(recipes.map((r) => r.id));
-      const existingNames = new Set(recipes.map((r) => r.name.toLowerCase()));
-      const newCount = matchingRecipes.filter(
-        (r) => !existingIds.has(r.id) && !existingNames.has(r.name.toLowerCase())
-      ).length;
-      if (newCount > 0) {
-        recordGeneratedMutation({ count: newCount }).catch((e) =>
-          console.error("recordGenerated failed", e)
-        );
-      }
 
       return addUniqueRecipes(matchingRecipes);
     } catch (error) {

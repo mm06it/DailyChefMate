@@ -42,14 +42,15 @@ export const recordView = mutation({
   },
 });
 
+// Bumped once per "generate recipes" run — counts how many times the user
+// kicked off a generation, not how many recipes came back.
 export const recordGenerated = mutation({
-  args: { count: v.number() },
-  handler: async (ctx, { count }) => {
-    if (count <= 0) return;
+  args: {},
+  handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return;
     const row = await getOrCreateRow(ctx, userId);
     if (!row) return;
-    await ctx.db.patch(row._id, { generatedCount: row.generatedCount + count });
+    await ctx.db.patch(row._id, { generatedCount: row.generatedCount + 1 });
   },
 });
