@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Recipe } from "@/types/recipe";
 import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { ChefHat } from "lucide-react-native";
@@ -14,15 +14,18 @@ import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import { useGridLayout } from "@/hooks/use-responsive";
 
-// This tab is browse-only — the search field was removed. Recipes come from
-// the local set plus lazily-loaded TheMealDB pages, narrowed by the cuisine /
-// course chips in the tab bar.
+// This tab is browse-only — the search field was removed. Recipes are
+// API-driven (TheMealDB, loaded on mount and paged on scroll); the bundled
+// mock set is only a fallback when the API returns nothing. The cuisine /
+// course chips in the tab bar narrow the list.
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
   const [onlineResults, setOnlineResults] = useState<Recipe[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreRecipes, setHasMoreRecipes] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const didInitialLoad = useRef(false);
   const { selectedCuisine, selectedCourse } = useRecipeFilters();
   const recipes = useRecipes("");
   const { setProgress } = useCollapsibleHeader();
@@ -82,12 +85,12 @@ export default function AllRecipesScreen() {
     }
   }, [isLoadingMore, hasMoreRecipes, currentPage, recipeCategories, popularIngredients]);
 
-  // Load an initial page of recipes if the local set is thin.
+  // Pull the first page from the API as soon as the tab mounts.
   useEffect(() => {
-    if (onlineResults.length === 0 && recipes.length < 10) {
-      loadMoreRecipes();
-    }
-  }, [onlineResults.length, recipes.length, loadMoreRecipes]);
+    if (didInitialLoad.current) return;
+    didInitialLoad.current = true;
+    loadMoreRecipes().finally(() => setInitialLoading(false));
+  }, [loadMoreRecipes]);
 
   const getRecipeCourse = useCallback((recipe: Recipe): 'starter' | 'main' | 'dessert' => {
     const course = recipe.course?.toLowerCase() ?? '';
@@ -112,17 +115,9 @@ export default function AllRecipesScreen() {
   }, [selectedCuisine, selectedCourse, getRecipeCourse]);
   
   const displayedRecipes = useMemo(() => {
-    const baseRecipes = onlineResults.length > 0 
-      ? (() => {
-          const combined = [...recipes, ...onlineResults];
-          const uniqueRecipes = new Map<string, Recipe>();
-          combined.forEach(recipe => {
-            uniqueRecipes.set(recipe.id, recipe);
-          });
-          return Array.from(uniqueRecipes.values());
-        })()
-      : recipes;
-    
+    // API results drive the tab; the bundled mock set is only used when the
+    // API returned nothing (offline / down / empty).
+    const baseRecipes = onlineResults.length > 0 ? onlineResults : recipes;
     return filterRecipes(baseRecipes);
   }, [recipes, onlineResults, filterRecipes]);
 
@@ -186,7 +181,14 @@ export default function AllRecipesScreen() {
 
   return (
     <View style={styles.container}>
-      {displayedRecipes.length > 0 ? (
+      {initialLoading && onlineResults.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} style={styles.emptyLoader} />
+          <Text style={styles.emptyText}>
+            {t('loadingMoreRecipes') || 'Loading recipes...'}
+          </Text>
+        </View>
+      ) : displayedRecipes.length > 0 ? (
         <FlatList
           key={columns}
           data={displayedRecipes}
@@ -208,9 +210,8 @@ export default function AllRecipesScreen() {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} style={styles.emptyLoader} />
           <Text style={styles.emptyText}>
-            {t('popularRecipes') || 'Popular Recipes'}
+            {t('noRecipesFound') || 'No recipes found'}
           </Text>
         </View>
       )}
