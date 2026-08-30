@@ -5,7 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { recipes as initialRecipes } from "@/mocks/recipes";
-import { refrigeratorItems as initialRefrigeratorItems } from "@/mocks/refrigerator";
+import {
+  refrigeratorItems as initialRefrigeratorItems,
+  catalogItems as fullCatalogItems,
+} from "@/mocks/refrigerator";
 import { Recipe, Ingredient } from "@/types/recipe";
 import themealdb from "@/lib/themealdb";
 import { trpcClient } from "@/lib/trpc";
@@ -33,6 +36,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     convexUserStats === undefined;
 
   const seedRefrigerator = useMutation(api.refrigerator.seedIfEmpty);
+  const trimSeededCatalog = useMutation(api.refrigerator.trimSeededCatalog);
   const selectItemMutation = useMutation(api.refrigerator.selectItem);
   const toggleSelectionMutation = useMutation(api.refrigerator.toggleSelection);
   const clearSelectionMutation = useMutation(api.refrigerator.clearSelection);
@@ -73,6 +77,28 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       hasSeededRef.current = false;
     });
   }, [isAuthenticated, convexRefrigeratorItems, seedRefrigerator]);
+
+  // Accounts seeded before the catalogue was slimmed still carry the full
+  // ~358-item fridge. Bring them in line with new accounts by dropping the
+  // pristine, non-starter catalogue rows (server-side; keeps anything the
+  // user selected, re-portioned or added). Gated on the row count so it only
+  // runs for a not-yet-trimmed fridge.
+  const hasTrimmedRef = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (convexRefrigeratorItems === undefined) return;
+    if (hasTrimmedRef.current) return;
+    if (convexRefrigeratorItems.length <= initialRefrigeratorItems.length) return;
+
+    hasTrimmedRef.current = true;
+    trimSeededCatalog({
+      keep: initialRefrigeratorItems.map((i) => i.name),
+      catalog: fullCatalogItems.map(({ name, amount }) => ({ name, amount })),
+    }).catch((e) => {
+      console.error("Failed to trim seeded catalog", e);
+      hasTrimmedRef.current = false;
+    });
+  }, [isAuthenticated, convexRefrigeratorItems, trimSeededCatalog]);
 
   const refrigeratorItems: Ingredient[] = useMemo(() => {
     return (convexRefrigeratorItems ?? []).map((item) => ({

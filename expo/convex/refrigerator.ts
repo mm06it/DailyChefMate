@@ -62,6 +62,42 @@ export const seedIfEmpty = mutation({
   },
 });
 
+// Retrofit for accounts seeded before the catalogue was slimmed to ~12 per
+// category: remove the *pristine* catalogue rows that a new account no longer
+// gets. Only deletes an item when it is untouched — not selected and still at
+// its original catalogue amount — so anything the user picked, re-portioned or
+// added by hand is left alone. Idempotent: once the stale rows are gone it
+// finds nothing to do.
+export const trimSeededCatalog = mutation({
+  args: {
+    keep: v.array(v.string()),
+    catalog: v.array(v.object({ name: v.string(), amount: v.string() })),
+  },
+  handler: async (ctx, { keep, catalog }) => {
+    const userId = await requireUserId(ctx);
+
+    const keepSet = new Set(keep);
+    const catalogAmount = new Map(catalog.map((c) => [c.name, c.amount]));
+
+    const items = await ctx.db
+      .query("refrigeratorItems")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    let removed = 0;
+    for (const item of items) {
+      if (item.isSelected) continue;
+      if (keepSet.has(item.name)) continue;
+      const original = catalogAmount.get(item.name);
+      if (original === undefined) continue; // user-added, not a catalogue seed
+      if (item.amount !== original) continue; // re-portioned by the user
+      await ctx.db.delete(item._id);
+      removed++;
+    }
+    return { removed };
+  },
+});
+
 // Selecting an ingredient always clears the amount — quantity is opt-in via
 // updateAmount, never implied by a preset catalog value.
 export const selectItem = mutation({
