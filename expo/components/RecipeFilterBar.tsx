@@ -1,4 +1,4 @@
-import { ChevronDown, Search, X } from 'lucide-react-native';
+import { ChevronDown, Globe, Search, UtensilsCrossed, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -103,9 +103,9 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
         >
           {fieldMode ? (
             <>
-              <Search size={18} color={Colors.textLight} style={styles.searchIcon} />
+              <Search size={22} color={Colors.textLight} style={styles.searchIcon} strokeWidth={2.5} />
               <TextInput
-                style={styles.input}
+                style={styles.inputSearch}
                 value={search}
                 onChangeText={setSearch}
                 placeholder={translate('search')}
@@ -125,6 +125,26 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
                   <X size={18} color={Colors.textLight} />
                 </Pressable>
               )}
+              {showFilters && (
+                <View style={styles.miniGroup}>
+                  <Pressable
+                    style={[styles.pillMini, selectedCuisine !== 'all' && styles.pillActive]}
+                    onPress={() => setMenu('cuisine')}
+                    testID="filter-cuisine-button"
+                    accessibilityLabel="Küche"
+                  >
+                    <Globe size={16} color={selectedCuisine !== 'all' ? Colors.white : Colors.textLight} />
+                  </Pressable>
+                  <Pressable
+                    style={[styles.pillMini, selectedCourse !== 'all' && styles.pillActive]}
+                    onPress={() => setMenu('course')}
+                    testID="filter-course-button"
+                    accessibilityLabel="Kurs-Art"
+                  >
+                    <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? Colors.white : Colors.textLight} />
+                  </Pressable>
+                </View>
+              )}
             </>
           ) : (
             <>
@@ -136,7 +156,7 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
                 accessibilityRole="button"
                 accessibilityLabel={translate('search')}
               >
-                <Search size={20} color={Colors.text} />
+                <Search size={24} color={Colors.text} strokeWidth={2.5} />
               </Pressable>
               <Pressable
                 style={[styles.pill, selectedCuisine !== 'all' && styles.pillActive]}
@@ -219,14 +239,38 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   searchIconBtn: {
-    paddingVertical: 6,
-    paddingRight: 4,
+    width: 44,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  input: {
-    flex: 1,
+  inputSearch: {
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 80,
+    maxWidth: 240,
     fontSize: 15,
     color: Colors.text,
     paddingVertical: 6,
+  },
+  miniGroup: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 'auto',
+  },
+  pillMini: {
+    width: 38,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pill: {
     flex: 1,
