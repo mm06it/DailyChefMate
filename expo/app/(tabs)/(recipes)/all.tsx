@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Recipe } from "@/types/recipe";
 import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { ChefHat } from "lucide-react-native";
+import { useFocusEffect } from "expo-router";
 import { useScrollToTop } from "@react-navigation/native";
 
 import RecipeCard from "@/components/RecipeCard";
@@ -36,13 +37,15 @@ function shuffleInPlace<T>(a: T[]): T[] {
   return a;
 }
 
-// This tab is browse-only — the search field was removed. Recipes are
-// API-driven (TheMealDB); what gets fetched depends on the cuisine / course
-// chips, and the whole feed is shuffled. The bundled mock set is only a
-// fallback when the API returns nothing.
+// Recipes are API-driven (TheMealDB): browse pulls depend on the cuisine /
+// course chips and the feed is shuffled; a non-empty search query switches
+// to online + local name search. The bundled mock set is only a fallback
+// when the API returns nothing.
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
   const [onlineResults, setOnlineResults] = useState<Recipe[]>([]);
+  const [searchResults, setSearchResults] = useState<Recipe[]>([]);
+  const [searching, setSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreRecipes, setHasMoreRecipes] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -53,11 +56,38 @@ export default function AllRecipesScreen() {
 
   // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
   useScrollToTop(listRef);
-  const { selectedCuisine, selectedCourse } = useRecipeFilters();
+  const { search, selectedCuisine, selectedCourse } = useRecipeFilters();
   const recipes = useRecipes("");
-  const { cacheRecipes } = useDailyChefMateStore();
+  const { cacheRecipes, searchRecipesOnline } = useDailyChefMateStore();
   const { setProgress } = useCollapsibleHeader();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
+  const searchQuery = search.trim();
+
+  // Reset the collapsing search/filter bar when this sub-tab gains focus.
+  useFocusEffect(useCallback(() => setProgress(0), [setProgress]));
+
+  // Debounced online recipe search (also caches results into the store so
+  // recipe-detail can resolve them).
+  const searchFnRef = useRef(searchRecipesOnline);
+  searchFnRef.current = searchRecipesOnline;
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const id = setTimeout(async () => {
+      try {
+        setSearchResults(await searchFnRef.current(searchQuery));
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
 
   const getRecipeCourse = useCallback((recipe: Recipe): 'starter' | 'main' | 'dessert' => {
     const course = recipe.course?.toLowerCase() ?? '';
@@ -144,10 +174,10 @@ export default function AllRecipesScreen() {
   }, [filterKey, fetchPage]);
 
   const loadMore = useCallback(() => {
-    if (isLoadingMore || !hasMoreRecipes || initialLoading) return;
+    if (searchQuery || isLoadingMore || !hasMoreRecipes || initialLoading) return;
     setIsLoadingMore(true);
     fetchPage(true, reqId.current).finally(() => setIsLoadingMore(false));
-  }, [isLoadingMore, hasMoreRecipes, initialLoading, fetchPage]);
+  }, [searchQuery, isLoadingMore, hasMoreRecipes, initialLoading, fetchPage]);
 
   const filterRecipes = useCallback((recipesToFilter: Recipe[]) => {
     let filtered = recipesToFilter;
@@ -167,10 +197,17 @@ export default function AllRecipesScreen() {
   const shuffledMocks = useMemo(() => shuffleInPlace([...recipes]), [recipes]);
 
   const displayedRecipes = useMemo(() => {
-    // API results drive the tab; the mock set is only a fallback (API empty).
-    const base = onlineResults.length > 0 ? onlineResults : shuffledMocks;
-    return filterRecipes(base);
-  }, [shuffledMocks, onlineResults, filterRecipes]);
+    const q = searchQuery.toLowerCase();
+    const browsePool = onlineResults.length > 0 ? onlineResults : shuffledMocks;
+    if (q) {
+      // Local name matches from whatever's loaded + the online search results.
+      const local = browsePool.filter(r => r.name.toLowerCase().includes(q));
+      const byId = new Map<string, Recipe>();
+      [...local, ...searchResults].forEach(r => byId.set(r.id, r));
+      return filterRecipes(Array.from(byId.values()));
+    }
+    return filterRecipes(browsePool);
+  }, [searchQuery, shuffledMocks, onlineResults, searchResults, filterRecipes]);
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
@@ -181,6 +218,7 @@ export default function AllRecipesScreen() {
   };
   
   const renderFooter = () => {
+    if (searchQuery) return null;
     if (!hasMoreRecipes) {
       return (
         <View style={styles.footerContainer}>
@@ -228,13 +266,19 @@ export default function AllRecipesScreen() {
     onHeaderScroll(e);
   }, [setProgress]);
 
+  const showSpinner =
+    (!searchQuery && initialLoading && onlineResults.length === 0) ||
+    (!!searchQuery && searching && displayedRecipes.length === 0);
+
   return (
     <View style={styles.container}>
-      {initialLoading && onlineResults.length === 0 ? (
+      {showSpinner ? (
         <View style={styles.emptyContainer}>
           <ActivityIndicator size="large" color={Colors.primary} style={styles.emptyLoader} />
           <Text style={styles.emptyText}>
-            {t('loadingMoreRecipes') || 'Loading recipes...'}
+            {searchQuery
+              ? (t('searching') || 'Searching...')
+              : (t('loadingMoreRecipes') || 'Loading recipes...')}
           </Text>
         </View>
       ) : displayedRecipes.length > 0 ? (
@@ -279,7 +323,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingTop: 0,
   },
   gridRow: {
     gap: 16,

@@ -2,6 +2,7 @@ import { Filter } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import SearchBar from '@/components/SearchBar';
 import Colors from '@/constants/colors';
 import {
   CUISINE_FILTERS,
@@ -10,21 +11,28 @@ import {
   type CourseFilter,
 } from '@/constants/recipe-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
+import { useLanguage } from '@/hooks/use-language';
 import { useRecipeFilters } from '@/hooks/use-recipe-filters';
 
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
 
-// Cuisine / course chips for the "Alle Rezepte" tab. Rendered as part of the
-// tab bar (i.e. OUTSIDE react-native-tab-view's swipeable pager) so a
-// horizontal swipe scrolls the chips instead of flipping to the next tab.
-// Collapses away as the list is scrolled, mirroring the header.
-export default function RecipeFilterBar({ visible }: { visible: boolean }) {
+// Search field (both Rezepte sub-tabs) + cuisine / course chips ("Alle
+// Rezepte" only). Rendered as part of the tab bar — OUTSIDE
+// react-native-tab-view's swipeable pager — so a horizontal swipe on the
+// chips scrolls them instead of flipping tabs. Collapses away as the list
+// is scrolled, mirroring the header.
+export default function RecipeFilterBar({ showFilters }: { showFilters: boolean }) {
   const { progress } = useCollapsibleHeader();
-  const { selectedCuisine, setSelectedCuisine, selectedCourse, setSelectedCourse } =
-    useRecipeFilters();
+  const { t: translate } = useLanguage();
+  const {
+    search,
+    setSearch,
+    selectedCuisine,
+    setSelectedCuisine,
+    selectedCourse,
+    setSelectedCourse,
+  } = useRecipeFilters();
   const [contentHeight, setContentHeight] = useState<number | null>(null);
-
-  if (!visible) return null;
 
   const t = clamp(progress);
   const collapsed = t > 0.98;
@@ -64,35 +72,47 @@ export default function RecipeFilterBar({ visible }: { visible: boolean }) {
       pointerEvents={collapsed ? 'none' : 'auto'}
     >
       <View onLayout={(e) => setContentHeight(e.nativeEvent.layout.height)}>
-        <View style={styles.row}>
-          <View style={styles.rowHeader}>
-            <Filter size={16} color={Colors.textLight} />
-            <Text style={styles.rowTitle}>Küche</Text>
-          </View>
-          <FlatList
-            data={CUISINE_FILTERS}
-            renderItem={renderCuisine}
-            keyExtractor={(i) => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.list}
+        <View style={styles.searchRow}>
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder={translate('search')}
           />
         </View>
 
-        <View style={styles.row}>
-          <View style={styles.rowHeader}>
-            <Filter size={16} color={Colors.textLight} />
-            <Text style={styles.rowTitle}>Kurs-Art</Text>
-          </View>
-          <FlatList
-            data={COURSE_FILTERS}
-            renderItem={renderCourse}
-            keyExtractor={(i) => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.list}
-          />
-        </View>
+        {showFilters && (
+          <>
+            <View style={styles.row}>
+              <View style={styles.rowHeader}>
+                <Filter size={16} color={Colors.textLight} />
+                <Text style={styles.rowTitle}>Küche</Text>
+              </View>
+              <FlatList
+                data={CUISINE_FILTERS}
+                renderItem={renderCuisine}
+                keyExtractor={(i) => i.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.list}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.rowHeader}>
+                <Filter size={16} color={Colors.textLight} />
+                <Text style={styles.rowTitle}>Kurs-Art</Text>
+              </View>
+              <FlatList
+                data={COURSE_FILTERS}
+                renderItem={renderCourse}
+                keyExtractor={(i) => i.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.list}
+              />
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
@@ -105,9 +125,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  row: {
+  searchRow: {
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 12,
+  },
+  row: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
   },
   rowHeader: {
     flexDirection: 'row',

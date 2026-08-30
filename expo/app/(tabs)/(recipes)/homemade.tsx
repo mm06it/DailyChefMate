@@ -1,30 +1,41 @@
-import React, { useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, View, Pressable } from "react-native";
+import React, { useCallback, useRef, useState } from "react";
+import { FlatList, StyleSheet, Text, View, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { Plus, ChefHat, Edit, Trash2 } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useScrollToTop } from "@react-navigation/native";
 
 import RecipeCard from "@/components/RecipeCard";
-import SearchBar from "@/components/SearchBar";
 import InlineConfirm from "@/components/InlineConfirm";
 import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
+import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import { useGridLayout } from "@/hooks/use-responsive";
 
 export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { search } = useRecipeFilters();
+  const { setProgress } = useCollapsibleHeader();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
-  const customRecipes = useCustomRecipes(searchQuery);
+  const customRecipes = useCustomRecipes(search);
   const { deleteCustomRecipe } = useDailyChefMateStore();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   const listRef = useRef<FlatList<Recipe>>(null);
 
   // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
   useScrollToTop(listRef);
+
+  // Reset the collapsing search/filter bar when this sub-tab gains focus.
+  useFocusEffect(useCallback(() => setProgress(0), [setProgress]));
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    setProgress(Math.max(0, Math.min(1, y / 220)));
+    onHeaderScroll(e);
+  }, [setProgress]);
 
   const handleAddRecipe = () => {
     router.push("/add-recipe");
@@ -90,14 +101,6 @@ export default function HomemadeRecipesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <SearchBar 
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder={t('search')}
-        />
-      </View>
-      
       {customRecipes.length > 0 ? (
         <>
           <FlatList
@@ -110,7 +113,7 @@ export default function HomemadeRecipesScreen() {
             columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            onScroll={onHeaderScroll}
+            onScroll={onScroll}
             scrollEventThrottle={16}
             testID="custom-recipes-list"
           />
@@ -132,9 +135,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  header: {
-    padding: 16,
   },
   addButton: {
     flexDirection: 'row',
@@ -165,7 +165,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
-    paddingTop: 0,
   },
   recipeContainer: {
     marginBottom: 16,

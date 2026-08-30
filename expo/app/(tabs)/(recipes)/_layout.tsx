@@ -22,15 +22,15 @@ const { Navigator } = createMaterialTopTabNavigator();
 
 export const MaterialTopTabs = withLayoutContext(Navigator);
 
-// The cuisine / course filters render as part of the tab bar — i.e. OUTSIDE
-// react-native-tab-view's swipeable pager — so swiping across the chips
-// scrolls them instead of flipping to the "Selbsterstellte Rezepte" sub-tab.
-// Only the first sub-tab ("Alle Rezepte") shows them.
+// Search + cuisine/course filters render as part of the tab bar — i.e.
+// OUTSIDE react-native-tab-view's swipeable pager — so swiping across the
+// chips scrolls them instead of flipping to the "Selbsterstellte Rezepte"
+// sub-tab. Search shows on both sub-tabs; the chips only on "Alle Rezepte".
 function renderTabBar(props: MaterialTopTabBarProps) {
   return (
     <View>
       <MaterialTopTabBar {...props} />
-      <RecipeFilterBar visible={props.state.index === 0} />
+      <RecipeFilterBar showFilters={props.state.index === 0} />
     </View>
   );
 }
