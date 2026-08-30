@@ -1,4 +1,5 @@
 import { Ingredient } from '@/types/recipe';
+import { catalogItems } from '@/mocks/refrigerator';
 
 interface OnlineIngredient {
   name: string;
@@ -174,20 +175,37 @@ const COMMON_INGREDIENTS: OnlineIngredient[] = [
   { name: 'Mayonnaise', category: 'Condiments' },
 ];
 
+// The searchable universe: the hand-picked common list above merged with the
+// full refrigerator catalogue (of which only the ~12 most common per category
+// are seeded into a new fridge). Dedup by lowercased name, common list wins.
+const SEARCHABLE_INGREDIENTS: OnlineIngredient[] = (() => {
+  const byName = new Map<string, OnlineIngredient>();
+  for (const item of COMMON_INGREDIENTS) {
+    byName.set(item.name.toLowerCase(), item);
+  }
+  for (const item of catalogItems) {
+    const key = item.name.toLowerCase();
+    if (!byName.has(key)) {
+      byName.set(key, { name: item.name, category: item.category });
+    }
+  }
+  return Array.from(byName.values());
+})();
+
 export async function searchIngredientsOnline(query: string): Promise<Ingredient[]> {
   if (!query || query.length < 2) {
     return [];
   }
 
   const normalizedQuery = query.toLowerCase().trim();
-  
-  // Search through our common ingredients database
-  const matchingIngredients = COMMON_INGREDIENTS.filter(ingredient => 
+
+  // Search through the merged ingredient database
+  const matchingIngredients = SEARCHABLE_INGREDIENTS.filter(ingredient =>
     ingredient.name.toLowerCase().includes(normalizedQuery)
   );
 
   // Convert to our Ingredient format
-  const results: Ingredient[] = matchingIngredients.slice(0, 10).map((ingredient, index) => ({
+  const results: Ingredient[] = matchingIngredients.slice(0, 20).map((ingredient, index) => ({
     id: `online-${Date.now()}-${index}`,
     name: ingredient.name,
     amount: '',

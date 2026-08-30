@@ -1,6 +1,8 @@
 import { Ingredient } from "@/types/recipe";
 
-export const refrigeratorItems: Ingredient[] = [
+// The full ingredient catalogue. Only the ~12 most common per category
+// (STARTER_NAMES) are seeded into a new fridge; the rest stay searchable.
+const CATALOG: Ingredient[] = [
   // Dairy / Milchprodukte
   { id: "1", name: "Milk", amount: "1L", category: "Dairy", isSelected: false },
   { id: "2", name: "Eggs", amount: "6", category: "Dairy", isSelected: false },
@@ -375,3 +377,60 @@ export const refrigeratorItems: Ingredient[] = [
   { id: "376", name: "Split Peas", amount: "500g", category: "Legumes", isSelected: false },
   { id: "377", name: "Soybeans", amount: "500g", category: "Legumes", isSelected: false },
 ];
+
+// ~12 most common per category — the starter fridge. Everything else is
+// only reachable through the search field ("weitere Lebensmittel suchen").
+const STARTER_NAMES = new Set<string>([
+  // Dairy
+  "Milk", "Eggs", "Butter", "Cheddar Cheese", "Parmesan", "Mozzarella",
+  "Yogurt", "Heavy Cream", "Cream Cheese", "Sour Cream", "Feta Cheese", "Quark",
+  // Meat
+  "Chicken Breast", "Ground Beef", "Bacon", "Chicken Thighs", "Pork Chops",
+  "Sausages", "Ham", "Salmon", "Shrimp", "Tuna", "Turkey Breast", "Ribeye Steak",
+  // Vegetables
+  "Tomatoes", "Onions", "Garlic", "Potatoes", "Carrots", "Bell Peppers",
+  "Cucumber", "Lettuce", "Broccoli", "Mushrooms", "Spinach", "Zucchini",
+  // Fruits
+  "Apples", "Bananas", "Lemons", "Lime", "Oranges", "Strawberries",
+  "Blueberries", "Grapes", "Avocado", "Pineapple", "Mango", "Pear",
+  // Grains
+  "Rice", "Bread", "Oats", "Basmati Rice", "Brown Rice", "Quinoa",
+  "Couscous", "Barley", "Arborio Rice", "Bulgur", "Polenta", "Cornmeal",
+  // Pasta
+  "Pasta", "Spaghetti", "Penne", "Fusilli", "Macaroni", "Lasagna Sheets",
+  "Fettuccine", "Tagliatelle", "Rigatoni", "Rice Noodles", "Udon Noodles", "Orzo",
+  // Spices
+  "Salt", "Black Pepper", "Paprika Powder", "Oregano", "Fresh Basil", "Thyme",
+  "Cumin", "Curry Powder", "Cinnamon", "Garlic Powder", "Chili Powder", "Bay Leaves",
+  // Oils
+  "Olive Oil", "Vegetable Oil", "Sesame Oil", "Sunflower Oil", "Canola Oil",
+  "Avocado Oil", "Coconut Oil",
+  // Condiments
+  "Soy Sauce", "Ketchup", "Mayonnaise", "Mustard", "Vinegar", "Lemon Juice",
+  "Balsamic Vinegar", "Hot Sauce", "BBQ Sauce", "Sriracha", "Pesto", "Fish Sauce",
+  // Frozen
+  "Frozen Peas", "Ice Cream", "Frozen Spinach", "Frozen Mixed Vegetables",
+  "Frozen Berries", "Frozen Fries", "Frozen Pizza", "Tofu", "Edamame",
+  // Beverages
+  "Coffee", "Tea", "Green Tea", "Orange Juice", "Apple Juice", "Sparkling Water",
+  "Mineral Water", "Cola", "Red Wine", "White Wine", "Beer",
+  // Baking
+  "Flour", "Sugar", "Brown Sugar", "Baking Powder", "Baking Soda",
+  "Vanilla Extract", "Cornstarch", "Cocoa Powder", "Chocolate Chips",
+  "Powdered Sugar", "Honey", "Active Dry Yeast",
+  // Nuts
+  "Peanuts", "Almonds", "Walnuts", "Cashews", "Pistachios", "Hazelnuts",
+  "Pecans", "Macadamia Nuts", "Pine Nuts", "Sunflower Seeds", "Pumpkin Seeds",
+  // Legumes
+  "Chickpeas", "Kidney Beans", "Lentils", "Black Beans", "White Beans",
+  "Pinto Beans", "Split Peas", "Soybeans",
+]);
+
+// Seeded into a new fridge (see convex/refrigerator.ts's seedIfEmpty).
+export const refrigeratorItems: Ingredient[] = CATALOG.filter((i) =>
+  STARTER_NAMES.has(i.name),
+);
+
+// Every catalogue entry — the search field draws its "more ingredients"
+// results from this (see lib/ingredient-search.ts).
+export const catalogItems: Ingredient[] = CATALOG;

@@ -19,9 +19,18 @@ import Colors from "@/constants/colors";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { translateText } from "@/constants/translations";
+import { categories as categoryMeta } from "@/mocks/categories";
 import { Ingredient } from "@/types/recipe";
 import { searchIngredientsOnline } from "@/lib/ingredient-search";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
+
+// Order the category sections follow; anything unlisted (e.g. online-only
+// categories like "Seafood") is appended after these, in first-seen order.
+const CATEGORY_ORDER = categoryMeta.map((c) => c.name);
+
+type ListRow =
+  | { type: "header"; key: string; category: string }
+  | { type: "row"; key: string; items: Ingredient[] };
 
 export default function RefrigeratorScreen() {
   const { t, language } = useLanguage();
@@ -123,19 +132,61 @@ export default function RefrigeratorScreen() {
     }
   };
 
-  const renderIngredient = ({ item }: { item: Ingredient }) => {
+  // Group the flat ingredient list into category sections, each split into
+  // rows of `columns`, with a header row before every section.
+  const listRows = useMemo<ListRow[]>(() => {
+    const groups = new Map<string, Ingredient[]>();
+    for (const item of allIngredients) {
+      const cat = item.category || "Other";
+      const bucket = groups.get(cat);
+      if (bucket) bucket.push(item);
+      else groups.set(cat, [item]);
+    }
+
+    const orderedCats = Array.from(groups.keys()).sort((a, b) => {
+      const ia = CATEGORY_ORDER.indexOf(a);
+      const ib = CATEGORY_ORDER.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+
+    const rows: ListRow[] = [];
+    for (const cat of orderedCats) {
+      const items = groups.get(cat)!;
+      rows.push({ type: "header", key: `header-${cat}`, category: cat });
+      for (let i = 0; i < items.length; i += columns) {
+        rows.push({ type: "row", key: `row-${cat}-${i}`, items: items.slice(i, i + columns) });
+      }
+    }
+    return rows;
+  }, [allIngredients, columns]);
+
+  const renderRow = ({ item, index }: { item: ListRow; index: number }) => {
+    if (item.type === "header") {
+      return (
+        <Text style={[styles.sectionHeader, index === 0 && styles.sectionHeaderFirst]}>
+          {translateText(language, item.category)}
+        </Text>
+      );
+    }
     return (
-      <View style={[styles.ingredientContainer, columns > 1 && { width: itemWidth }]}>
-        <IngredientItem
-          ingredient={item}
-          onSelect={item.isOnlineResult ? () => handleImmediateAdd(item) : undefined}
-          onEditQuantity={() => handleOpenQuantityModal(item)}
-        />
-        {item.isOnlineResult && (
-          <View style={styles.onlineIndicator}>
-            <Text style={styles.onlineText}>Online</Text>
+      <View style={styles.gridRow}>
+        {item.items.map((ingredient) => (
+          <View
+            key={ingredient.id}
+            style={[styles.ingredientContainer, columns > 1 && { width: itemWidth }]}
+          >
+            <IngredientItem
+              ingredient={ingredient}
+              onSelect={ingredient.isOnlineResult ? () => handleImmediateAdd(ingredient) : undefined}
+              onEditQuantity={() => handleOpenQuantityModal(ingredient)}
+            />
+            {ingredient.isOnlineResult && (
+              <View style={styles.onlineIndicator}>
+                <Text style={styles.onlineText}>Online</Text>
+              </View>
+            )}
           </View>
-        )}
+        ))}
       </View>
     );
   };
@@ -146,7 +197,7 @@ export default function RefrigeratorScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder={t('search')}
+          placeholder={t('searchMoreIngredients')}
         />
         <Pressable onPress={toggleAddForm} style={styles.addButton}>
           <Plus size={24} color={Colors.background} />
@@ -171,11 +222,9 @@ export default function RefrigeratorScreen() {
   const list = (
     <FlatList
       key={columns}
-      data={allIngredients}
-      renderItem={renderIngredient}
-      keyExtractor={(item) => item.id}
-      numColumns={columns}
-      columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
+      data={listRows}
+      renderItem={renderRow}
+      keyExtractor={(item) => item.key}
       contentContainerStyle={styles.listContent}
       style={styles.list}
       showsVerticalScrollIndicator={false}
@@ -282,7 +331,21 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   gridRow: {
+    flexDirection: 'row',
     gap: 8,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 20,
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  sectionHeaderFirst: {
+    marginTop: 0,
   },
   ingredientContainer: {
     marginVertical: 6,

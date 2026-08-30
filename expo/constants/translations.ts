@@ -59,6 +59,7 @@ export const TRANSLATIONS = {
     
     // Common
     search: 'Suchen...',
+    searchMoreIngredients: 'Weitere Lebensmittel suchen',
     setAmount: '+ Menge',
     back: 'Zurück',
     save: 'Speichern',
@@ -209,7 +210,22 @@ export const TRANSLATIONS = {
     'Pancakes': 'Pfannkuchen',
     'Beef Burgers': 'Rindfleisch Burger',
     'Chocolate Cake': 'Schokoladenkuchen',
-    
+
+    // Ingredient Categories
+    'Dairy': 'Milchprodukte',
+    'Meat': 'Fleisch & Fisch',
+    'Vegetables': 'Gemüse',
+    'Fruits': 'Obst',
+    'Grains': 'Getreide',
+    'Spices': 'Gewürze',
+    'Condiments': 'Saucen & Würze',
+    'Oils': 'Öle',
+    'Frozen': 'Tiefkühl',
+    'Beverages': 'Getränke',
+    'Baking': 'Backzutaten',
+    'Nuts': 'Nüsse & Kerne',
+    'Legumes': 'Hülsenfrüchte',
+
     // Ingredient Names
     'Spaghetti': 'Spaghetti',
     'Eggs': 'Eier',
@@ -576,6 +592,7 @@ export const TRANSLATIONS = {
     
     // Common
     search: 'Search...',
+    searchMoreIngredients: 'Search for more ingredients',
     setAmount: '+ Amount',
     back: 'Back',
     save: 'Save',
@@ -862,7 +879,22 @@ export const TRANSLATIONS = {
     'Bake for 30-35 minutes until a toothpick comes out clean.': 'Bake for 30-35 minutes until a toothpick comes out clean.',
     'Cool completely before frosting.': 'Cool completely before frosting.',
     'Frost with chocolate buttercream or your favorite frosting.': 'Frost with chocolate buttercream or your favorite frosting.',
-    
+
+    // Ingredient Categories — explicit so they don't fall back to the German map
+    'Dairy': 'Dairy',
+    'Meat': 'Meat & Fish',
+    'Vegetables': 'Vegetables',
+    'Fruits': 'Fruits',
+    'Grains': 'Grains',
+    'Spices': 'Spices',
+    'Condiments': 'Condiments',
+    'Oils': 'Oils',
+    'Frozen': 'Frozen',
+    'Beverages': 'Beverages',
+    'Baking': 'Baking',
+    'Nuts': 'Nuts & Seeds',
+    'Legumes': 'Legumes',
+
     // Ingredient Names
     'Spaghetti': 'Spaghetti',
     'Eggs': 'Eggs',
