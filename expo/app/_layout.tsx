@@ -1,6 +1,7 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -92,9 +93,10 @@ export default function RootLayout() {
           </QueryClientProvider>
         </trpc.Provider>
       </ConvexAuthProvider>
-      {/* Vercel Web Analytics — web only; the component touches `document`,
-          which doesn't exist on native. */}
+      {/* Vercel Web Analytics + Speed Insights — web only; these touch
+          `document`, which doesn't exist on native. */}
       {Platform.OS === "web" && <Analytics />}
+      {Platform.OS === "web" && <SpeedInsights />}
     </>
   );
 }
