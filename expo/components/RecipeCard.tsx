@@ -66,6 +66,15 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
         onError={() => setImageError(true)}
       />
       <View style={styles.infoContainer}>
+        {recipe.usedIngredients && recipe.usedIngredients.length > 0 && (
+          <Text
+            style={styles.usedIngredients}
+            numberOfLines={2}
+            testID={`recipe-card-${recipe.id}-used`}
+          >
+            {recipe.usedIngredients.join(' · ')}
+          </Text>
+        )}
         <View style={styles.header}>
           <View style={styles.titleWithBadge}>
             <Text style={styles.name}>{translatedName}</Text>
@@ -147,6 +156,13 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: Colors.text,
     flexShrink: 1,
+  },
+  usedIngredients: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.success,
+    lineHeight: 16,
+    marginBottom: 2,
   },
   categoryBadge: {
     backgroundColor: Colors.cardSecondary,

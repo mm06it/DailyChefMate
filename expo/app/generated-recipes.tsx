@@ -136,18 +136,11 @@ export default function GeneratedRecipesScreen() {
   const renderItem = ({ item }: { item: Recipe }) => (
     <View style={columns > 1 ? { width: itemWidth } : undefined}>
       <RecipeCard recipe={item} />
-      {(item.usedIngredients?.length || item.missedIngredients?.length) ? (
+      {item.missedIngredients?.length ? (
         <View style={styles.matchInfo}>
-          {item.usedIngredients?.length ? (
-            <Text style={styles.matchHave} numberOfLines={2}>
-              {(t('recipeUses') || 'Vorhanden')}: {item.usedIngredients.join(', ')}
-            </Text>
-          ) : null}
-          {item.missedIngredients?.length ? (
-            <Text style={styles.matchNeed} numberOfLines={2}>
-              {(t('recipeMissing') || 'Fehlt noch')}: {item.missedIngredients.join(', ')}
-            </Text>
-          ) : null}
+          <Text style={styles.matchNeed} numberOfLines={2}>
+            {(t('recipeMissing') || 'Fehlt noch')}: {item.missedIngredients.join(', ')}
+          </Text>
         </View>
       ) : null}
     </View>
@@ -329,12 +322,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 12,
     paddingHorizontal: 4,
-    gap: 2,
-  },
-  matchHave: {
-    fontSize: 12,
-    color: Colors.success,
-    lineHeight: 16,
   },
   matchNeed: {
     fontSize: 12,

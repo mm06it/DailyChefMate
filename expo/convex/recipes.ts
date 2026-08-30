@@ -37,6 +37,16 @@ function titleCase(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Spoonacular serves the same photo at several sizes; prefer the largest
+// (636x393) for the card preview. `info.image` is usually a full URL,
+// `m.image` from findByIngredients is sometimes just a filename.
+function bestSpoonacularImage(raw: string): string {
+  if (!raw) return "";
+  let url = raw;
+  if (!/^https?:\/\//.test(url)) url = `https://img.spoonacular.com/recipes/${url}`;
+  return url.replace(/-\d+x\d+(\.\w+)(\?|$)/, "-636x393$1$2");
+}
+
 export const getCache = internalQuery({
   args: { key: v.string() },
   handler: async (ctx, { key }) =>
@@ -122,7 +132,7 @@ async function fromSpoonacular(ingredients: string[]): Promise<SearchRecipe[] | 
     return {
       id: `spoonacular_${m.id}`,
       name: String(m.title ?? info.title ?? "Recipe"),
-      image: String(info.image ?? m.image ?? ""),
+      image: bestSpoonacularImage(String(info.image ?? m.image ?? "")),
       rating: 4.5,
       cookTime: info.readyInMinutes ? `${info.readyInMinutes} min` : "",
       servings: typeof info.servings === "number" ? info.servings : 2,
