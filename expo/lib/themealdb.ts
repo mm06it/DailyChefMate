@@ -20,6 +20,15 @@ interface MealDBResponse {
 class TheMealDBService {
   private baseUrl = 'https://www.themealdb.com/api/json/v1/1';
 
+  private shuffle<T>(arr: T[]): T[] {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   async searchMealsByName(query: string): Promise<Recipe[]> {
     try {
       console.log('Searching TheMealDB for:', query);
@@ -189,9 +198,10 @@ class TheMealDBService {
         return [];
       }
       
-      // Get detailed info for each meal (filter endpoint only returns basic info)
+      // Get detailed info for a random handful (filter endpoint only returns
+      // basic info, and returns the same fixed order every time).
       const detailedMeals = await Promise.all(
-        data.meals.slice(0, 10).map(async (meal) => {
+        this.shuffle(data.meals).slice(0, 10).map(async (meal) => {
           try {
             const detailResponse = await fetch(`${this.baseUrl}/lookup.php?i=${meal.idMeal}`);
             const detailData: MealDBResponse = await detailResponse.json();
@@ -224,9 +234,9 @@ class TheMealDBService {
         return [];
       }
       
-      // Get detailed info for first 8 meals
+      // Get detailed info for a random 8 (filter endpoint returns a fixed order)
       const detailedMeals = await Promise.all(
-        data.meals.slice(0, 8).map(async (meal) => {
+        this.shuffle(data.meals).slice(0, 8).map(async (meal) => {
           try {
             const detailResponse = await fetch(`${this.baseUrl}/lookup.php?i=${meal.idMeal}`);
             const detailData: MealDBResponse = await detailResponse.json();

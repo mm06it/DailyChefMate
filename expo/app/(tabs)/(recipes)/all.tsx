@@ -24,9 +24,9 @@ export default function AllRecipesScreen() {
   const [onlineResults, setOnlineResults] = useState<Recipe[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMoreRecipes, setHasMoreRecipes] = useState(true);
-  const [currentPage, setCurrentPage] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const didInitialLoad = useRef(false);
+  const emptyStreak = useRef(0);
   const listRef = useRef<FlatList<Recipe>>(null);
 
   // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
@@ -42,57 +42,53 @@ export default function AllRecipesScreen() {
     'Seafood', 'Side', 'Starter', 'Vegan', 'Vegetarian', 'Breakfast', 'Goat'
   ], []);
 
-  const popularIngredients = useMemo(() => [
-    'chicken', 'beef', 'salmon', 'pasta', 'rice', 'cheese', 'tomato', 'mushroom',
-    'garlic', 'onion', 'potato', 'lemon', 'herbs', 'bacon', 'shrimp', 'avocado'
-  ], []);
-
   const loadMoreRecipes = useCallback(async () => {
     if (isLoadingMore || !hasMoreRecipes) return;
-    
+
     setIsLoadingMore(true);
     try {
-      const nextPage = currentPage + 1;
-      let newRecipes: Recipe[] = [];
+      // Two *randomly chosen* categories per pull, unioned and shuffled, so
+      // the feed is genuinely mixed — not "all beef, then all chicken" — and
+      // not the same set on every visit.
+      const cats = [...recipeCategories].sort(() => Math.random() - 0.5).slice(0, 2);
+      const batches = await Promise.all(
+        cats.map((c) => themealdb.getMealsByCategory(c).catch(() => [] as Recipe[]))
+      );
+      let fetched = batches.flat();
 
-      // Load recipes from different categories, then popular ingredients.
-      if (nextPage <= recipeCategories.length) {
-        const categoryIndex = (nextPage - 1) % recipeCategories.length;
-        const category = recipeCategories[categoryIndex];
-        console.log(`Loading recipes from category: ${category}`);
-        newRecipes = await themealdb.getMealsByCategory(category);
-      } else {
-        const ingredientIndex = (nextPage - recipeCategories.length - 1) % popularIngredients.length;
-        const ingredient = popularIngredients[ingredientIndex];
-        console.log(`Loading recipes with ingredient: ${ingredient}`);
-        newRecipes = await themealdb.getMealsByIngredient(ingredient);
+      if (fetched.length === 0) {
+        fetched = await themealdb.getRandomMeals(8).catch(() => [] as Recipe[]);
       }
 
-      // Fallback to random recipes
-      if (newRecipes.length === 0) {
-        console.log('Loading random recipes as fallback');
-        newRecipes = await themealdb.getRandomMeals(6);
+      // Shuffle the whole batch before it enters the list.
+      for (let i = fetched.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [fetched[i], fetched[j]] = [fetched[j], fetched[i]];
       }
 
-      if (newRecipes.length > 0) {
+      const seen = new Set(onlineResults.map((r) => r.id));
+      const unique = fetched.filter((r) => !seen.has(r.id));
+
+      if (unique.length > 0) {
         // Put them in the shared cache so tapping a card / favouriting works
         // (recipe-detail resolves recipes by id from the store).
-        cacheRecipes(newRecipes);
-        setOnlineResults(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const uniqueNewRecipes = newRecipes.filter(r => !existingIds.has(r.id));
-          return [...prev, ...uniqueNewRecipes];
+        cacheRecipes(fetched);
+        setOnlineResults((prev) => {
+          const prevIds = new Set(prev.map((r) => r.id));
+          return [...prev, ...fetched.filter((r) => !prevIds.has(r.id))];
         });
-        setCurrentPage(nextPage);
+        emptyStreak.current = 0;
       } else {
-        setHasMoreRecipes(false);
+        // Nothing new after a couple of tries → we've likely seen the catalog.
+        emptyStreak.current += 1;
+        if (emptyStreak.current >= 3) setHasMoreRecipes(false);
       }
     } catch (error) {
       console.error('Error loading more recipes:', error);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMoreRecipes, currentPage, recipeCategories, popularIngredients, cacheRecipes]);
+  }, [isLoadingMore, hasMoreRecipes, recipeCategories, onlineResults, cacheRecipes]);
 
   // Pull the first page from the API as soon as the tab mounts.
   useEffect(() => {
