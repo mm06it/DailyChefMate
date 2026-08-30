@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import { BookOpen, Refrigerator, Settings, Star } from "lucide-react-native";
 import React from "react";
-import { StyleSheet, View, Text, Image } from "react-native";
+import { StyleSheet, View, Image } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { LanguageSelector } from "@/components/LanguageSelector";
@@ -12,11 +12,11 @@ import { useIsDesktop } from "@/hooks/use-responsive";
 
 const HeaderTitle = () => (
   <View style={styles.headerContainer}>
-    <Image 
+    <Image
       source={require('@/assets/images/logo.png')}
       style={styles.logo}
+      resizeMode="contain"
     />
-    <Text style={styles.brandTitle}>DailyChefMate</Text>
   </View>
 );
 
@@ -148,16 +148,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  brandTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.3,
+    width: 84,
+    height: 52,
   },
   headerSide: {
     marginTop: 12,

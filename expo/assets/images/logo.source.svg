@@ -1,0 +1,25 @@
+<svg width="800" height="530" viewBox="0 0 800 530" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <title>DailyChefMate logo</title>
+  <desc>A playful fridge and chef hat icon above the DailyChefMate wordmark</desc>
+  <!-- Icon: friendly refrigerator -->
+  <g transform="translate(263 38) scale(.8)">
+    <path d="M55 80C55 42 85 16 123 16H217C255 16 285 42 285 80V333H55V80Z" fill="#267B72"/>
+    <path d="M55 199H285V333H55V199Z" fill="#1E665F"/>
+    <path d="M55 199H285" stroke="#FFF9F0" stroke-width="12"/>
+    <path d="M239 101V164" stroke="#FFF9F0" stroke-width="14" stroke-linecap="round"/>
+    <path d="M239 237V294" stroke="#FFF9F0" stroke-width="14" stroke-linecap="round"/>
+    <path d="M82 333V357" stroke="#267B72" stroke-width="16" stroke-linecap="round"/>
+    <path d="M258 333V357" stroke="#267B72" stroke-width="16" stroke-linecap="round"/>
+    <!-- chef hat -->
+    <path d="M104 90C87 86 76 72 76 55C76 35 92 20 112 20C120 20 128 23 134 28C142 11 160 0 181 0C205 0 225 15 230 36C236 33 242 32 249 32C270 32 287 49 287 70C287 90 271 106 251 107H104C94 107 86 99 86 89C86 80 94 72 104 72" fill="#F4B95A"/>
+    <path d="M109 107H250V128C250 142 239 153 225 153H134C120 153 109 142 109 128V107Z" fill="#F4B95A"/>
+    <path d="M127 123H232" stroke="#FFF9F0" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <!-- Wordmark -->
+  <g transform="translate(38 352)">
+    <text x="0" y="100" fill="#173F3A" font-family="Avenir Next, Nunito, Arial Rounded MT Bold, Arial, sans-serif" font-size="98" font-weight="800" letter-spacing="-4">Daily</text>
+    <text x="265" y="100" fill="#E66D52" font-family="Avenir Next, Nunito, Arial Rounded MT Bold, Arial, sans-serif" font-size="98" font-weight="800" letter-spacing="-4">Chef</text>
+    <text x="479" y="100" fill="#267B72" font-family="Avenir Next, Nunito, Arial Rounded MT Bold, Arial, sans-serif" font-size="98" font-weight="800" letter-spacing="-4">Mate</text>
+    <path d="M6 139H725" stroke="#F4B95A" stroke-width="11" stroke-linecap="round"/>
+  </g>
+</svg>

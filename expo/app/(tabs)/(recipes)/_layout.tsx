@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { withLayoutContext } from 'expo-router';
 import { useLanguage } from '@/hooks/use-language';
@@ -15,11 +15,11 @@ export const MaterialTopTabs = withLayoutContext(Navigator);
 
 const HeaderTitle = () => (
   <View style={styles.headerContainer}>
-    <Image 
+    <Image
       source={require('@/assets/images/logo.png')}
       style={styles.logo}
+      resizeMode="contain"
     />
-    <Text style={styles.brandTitle}>DailyChefMate</Text>
   </View>
 );
 
@@ -120,15 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    marginRight: 8,
-  },
-  brandTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.3,
+    width: 84,
+    height: 52,
   },
 });

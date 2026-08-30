@@ -54,8 +54,7 @@ export default function DesktopSidebar() {
   return (
     <View style={styles.sidebar}>
       <Pressable style={styles.brand} onPress={() => router.push('/(tabs)/(recipes)/all')}>
-        <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
-        <Text style={styles.brandText}>DailyChefMate</Text>
+        <Image source={require('@/assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
       </Pressable>
 
       <View style={styles.nav}>
@@ -110,22 +109,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    alignItems: 'flex-start',
     marginBottom: 32,
     paddingHorizontal: 8,
   },
   logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  brandText: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.3,
+    width: 150,
+    height: 95,
   },
   nav: {
     gap: 4,

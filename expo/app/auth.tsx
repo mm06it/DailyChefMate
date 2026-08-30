@@ -322,6 +322,7 @@ export default function AuthScreen() {
             <Image
               source={require('@/assets/images/logo.png')}
               style={styles.logo}
+              resizeMode="contain"
             />
             <Text style={styles.title}>
               {verificationEmail
@@ -518,10 +519,9 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 20,
+    width: 240,
+    height: 152,
+    marginBottom: 12,
   },
   title: {
     fontSize: 28,
