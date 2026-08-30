@@ -1,4 +1,4 @@
-import { Star, Clock, Users } from "lucide-react-native";
+import { Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -16,8 +16,7 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
-
-  const fallbackImage = "https://images.unsplash.com/photo-1546548970-71785318a17b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
+  const showImage = !!recipe.image && !imageError;
 
   const handleFavoritePress = () => {
     toggleFavorite(recipe.id);
@@ -52,11 +51,17 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
   return (
     <View style={styles.container}>
       <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: imageError ? fallbackImage : recipe.image }}
-          style={styles.image}
-          onError={() => setImageError(true)}
-        />
+        {showImage ? (
+          <Image
+            source={{ uri: recipe.image }}
+            style={styles.image}
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <View style={[styles.image, styles.imageFallback]}>
+            <UtensilsCrossed size={52} color={Colors.textLight} />
+          </View>
+        )}
         <Pressable
           onPress={handleFavoritePress}
           hitSlop={10}
@@ -119,6 +124,11 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 250,
     resizeMode: "cover",
+  },
+  imageFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.cardSecondary,
   },
   content: {
     padding: 16,

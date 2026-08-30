@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { Star } from "lucide-react-native";
+import { Star, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -17,8 +17,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
-
-  const fallbackImage = "https://images.unsplash.com/photo-1546548970-71785318a17b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
+  const showImage = !!recipe.image && !imageError;
 
   const handlePress = () => {
     router.push(`/recipe-detail?id=${recipe.id}`);
@@ -60,11 +59,17 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
       onPress={handlePress}
       testID={`recipe-card-${recipe.id}`}
     >
-      <Image 
-        source={{ uri: imageError ? fallbackImage : recipe.image }} 
-        style={styles.image}
-        onError={() => setImageError(true)}
-      />
+      {showImage ? (
+        <Image
+          source={{ uri: recipe.image }}
+          style={styles.image}
+          onError={() => setImageError(true)}
+        />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]}>
+          <UtensilsCrossed size={36} color={Colors.textLight} />
+        </View>
+      )}
       <View style={styles.infoContainer}>
         {recipe.usedIngredients && recipe.usedIngredients.length > 0 && (
           <Text
@@ -138,6 +143,11 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 190,
     resizeMode: "cover",
+  },
+  imageFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.cardSecondary,
   },
   infoContainer: {
     padding: 14,
