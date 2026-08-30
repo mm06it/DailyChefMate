@@ -12,10 +12,11 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useConvex } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { getTranslation } from '@/constants/translations';
-import { alertMessage } from '@/lib/confirm';
+import { api } from '@/convex/_generated/api';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 
@@ -31,7 +32,9 @@ export default function AuthScreen() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState<boolean>(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   const [successVisible, setSuccessVisible] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -45,6 +48,16 @@ export default function AuthScreen() {
 
   const { signIn, signUp, verifyEmail, resendVerificationCode } = useAuth();
   const { language } = useLanguage();
+  const convex = useConvex();
+
+  const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
+    try {
+      return await convex.query(api.users.emailRegistered, { email: value.trim() });
+    } catch (e) {
+      console.log('emailRegistered check failed', e);
+      return null;
+    }
+  }, [convex]);
 
   const validateEmail = (val: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,62 +114,77 @@ export default function AuthScreen() {
     });
   }, [successAnim]);
 
-  const handleEmailAuth = async () => {
-    setPasswordError(null);
-    setEmailError(null);
+  const tr = (key: string) => getTranslation(language, key);
 
-    if (!email.trim() || !password.trim()) {
-      alertMessage('Fehler', 'Bitte alle Felder ausfüllen');
-      return;
+  const clearErrors = () => {
+    setEmailError(null);
+    setPasswordError(null);
+    setConfirmPasswordError(null);
+    setGeneralError(null);
+  };
+
+  // A thrown auth error that clearly points at a backend/config problem
+  // rather than user input — so we don't mislabel it as "wrong password".
+  const looksLikeBackendError = (msg: string) => {
+    const m = msg.toLowerCase();
+    return (
+      m.includes('environment variable') ||
+      m.includes('not configured') ||
+      m.includes('resend') ||
+      m.includes('network') ||
+      m.includes('failed to fetch')
+    );
+  };
+
+  const handleEmailAuth = async () => {
+    clearErrors();
+
+    const trimmedEmail = email.trim();
+    let hasFieldError = false;
+    if (!trimmedEmail) {
+      setEmailError(tr('emailRequired') ?? 'Bitte E-Mail-Adresse eingeben');
+      hasFieldError = true;
     }
+    if (!password.trim()) {
+      setPasswordError(tr('passwordRequired') ?? 'Bitte Passwort eingeben');
+      hasFieldError = true;
+    }
+    if (hasFieldError) return;
 
     if (email.toLowerCase() === 'admin' && password === 'admin') {
       setLoading(true);
       try {
-        console.log('Admin login detected, creating/signing in admin account...');
         const adminEmail = 'admin@fridgy.app';
         const adminPassword = 'admin123456';
         const { error: signInError } = await signIn(adminEmail, adminPassword);
         if (signInError) {
-          console.log('Admin account does not exist, creating...');
           const { error: signUpError } = await signUp(adminEmail, adminPassword, 'admin');
           if (signUpError) {
-            alertMessage('Error', 'Failed to create admin account: ' + (signUpError as any).message);
-          } else {
-            alertMessage('Success', 'Admin account created and signed in!');
+            console.error('Admin account creation failed:', (signUpError as any)?.message);
+            setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen.');
           }
-        } else {
-          alertMessage('Success', 'Signed in as admin!');
         }
       } catch (err) {
         console.error('Admin auth error:', err);
-        alertMessage('Error', 'Failed to authenticate as admin');
+        setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen.');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    if (isSignUp && !normalizedUsername) {
-      // Username is optional now; do not block sign up
-    }
-
-    if (USERNAME_CHECK_ENABLED && isSignUp && usernameAvailable === false) {
-      // Availability check disabled; proceed regardless
-    }
-
     if (!validateEmail(email)) {
-      setEmailError(getTranslation(language, 'invalidEmail') ?? 'Ungültige E-Mail-Adresse');
+      setEmailError(tr('invalidEmail') ?? 'Ungültige E-Mail-Adresse');
       return;
     }
 
     if (password.length < 8) {
-      setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
+      setPasswordError(tr('passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
       return;
     }
 
     if (isSignUp && password !== confirmPassword) {
-      setPasswordError(getTranslation(language, 'passwordsDoNotMatch') ?? 'Passwörter stimmen nicht überein');
+      setConfirmPasswordError(tr('passwordsDoNotMatch') ?? 'Passwörter stimmen nicht überein');
       return;
     }
 
@@ -164,57 +192,58 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
-        console.log('Attempting sign up with:', email);
-        const { data, error, pendingVerification } = await signUp(email, password, normalizedUsername);
-        console.log('Sign up result:', { data: !!data, error, pendingVerification });
+        // Convex Auth returns an opaque error for a duplicate email, so
+        // check first and label the field precisely.
+        if ((await isEmailRegistered(trimmedEmail)) === true) {
+          setEmailError(tr('emailAlreadyRegistered') ?? 'Für diese E-Mail-Adresse gibt es bereits ein Konto');
+          return;
+        }
+
+        const { error, pendingVerification } = await signUp(trimmedEmail, password, normalizedUsername);
         if (error) {
-          const msg = (error as any)?.message ?? '';
-          const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
-          if (lowerMsg.includes('already exists')) {
-            setEmailError('E-Mail-Adresse ist bereits vergeben');
-          } else if (lowerMsg.includes('invalid password')) {
-            setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
+          const msg = String((error as any)?.message ?? '');
+          if (/already (exists|registered)/i.test(msg)) {
+            setEmailError(tr('emailAlreadyRegistered') ?? 'Für diese E-Mail-Adresse gibt es bereits ein Konto');
+          } else if (/password/i.test(msg)) {
+            setPasswordError(tr('passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
           } else {
-            alertMessage('Fehler', msg || 'Registrierung fehlgeschlagen');
+            console.error('Sign up error:', msg);
+            setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.');
           }
         } else if (pendingVerification) {
           setCode('');
           setCodeError(null);
-          setVerificationEmail(email.trim());
+          setVerificationEmail(trimmedEmail);
         } else {
-          triggerSuccessToast('Erfolgreich registriert! Du kannst dich jetzt anmelden.');
+          triggerSuccessToast(tr('signUpSuccess') ?? 'Erfolgreich registriert!');
           setIsSignUp(false);
         }
       } else {
-        console.log('Attempting sign in with:', email);
-        const { data, error, pendingVerification } = await signIn(email, password);
-        console.log('Sign in result:', { data: !!data, error, pendingVerification });
+        const { error, pendingVerification } = await signIn(trimmedEmail, password);
         if (error) {
-          const msg = (error as any)?.message ?? '';
-          const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
-          // A genuine backend/config problem still surfaces raw; everything
-          // else on a sign-in failure is, in practice, wrong credentials —
-          // and on prod Convex redacts the real reason to "Server Error"
-          // anyway, so that's the sensible default.
-          const looksLikeConfigError =
-            lowerMsg.includes('environment variable') ||
-            lowerMsg.includes('not configured') ||
-            lowerMsg.includes('resend');
-          if (looksLikeConfigError) {
-            alertMessage('Fehler', msg || 'Anmeldung fehlgeschlagen');
+          const msg = String((error as any)?.message ?? '');
+          if (looksLikeBackendError(msg)) {
+            console.error('Sign in error:', msg);
+            setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.');
           } else {
-            setEmailError('E-Mail oder Passwort ist falsch');
+            // Distinguish "no such account" from "wrong password".
+            const registered = await isEmailRegistered(trimmedEmail);
+            if (registered === false) {
+              setEmailError(tr('emailNotRegistered') ?? 'Diese E-Mail-Adresse ist nicht registriert');
+            } else {
+              setPasswordError(tr('wrongPassword') ?? 'Passwort ist falsch');
+            }
           }
         } else if (pendingVerification) {
           // Account exists but its email was never verified.
           setCode('');
           setCodeError(null);
-          setVerificationEmail(email.trim());
+          setVerificationEmail(trimmedEmail);
         }
       }
     } catch (err) {
       console.error('Auth error:', err);
-      alertMessage('Error', 'An unexpected error occurred');
+      setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.');
     } finally {
       setLoading(false);
     }
@@ -372,6 +401,7 @@ export default function AuthScreen() {
               onChangeText={(t) => {
                 setEmail(t);
                 setEmailError(null);
+                setGeneralError(null);
               }}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -389,11 +419,15 @@ export default function AuthScreen() {
               onChangeText={(t) => {
                 setPassword(t);
                 setPasswordError(null);
+                setGeneralError(null);
               }}
               secureTextEntry
               autoComplete="password"
               testID="auth-password-input"
             />
+            {!!passwordError && (
+              <Text style={[styles.hint, styles.usernameBad]} testID="auth-password-error">{passwordError}</Text>
+            )}
 
             {isSignUp && (
               <>
@@ -403,16 +437,20 @@ export default function AuthScreen() {
                   value={confirmPassword}
                   onChangeText={(t) => {
                     setConfirmPassword(t);
-                    setPasswordError(null);
+                    setConfirmPasswordError(null);
                   }}
                   secureTextEntry
                   autoComplete="password"
                   testID="auth-confirm-password-input"
                 />
-                {!!passwordError && (
-                  <Text style={[styles.hint, styles.usernameBad]} testID="auth-password-error">{passwordError}</Text>
+                {!!confirmPasswordError && (
+                  <Text style={[styles.hint, styles.usernameBad]} testID="auth-confirm-password-error">{confirmPasswordError}</Text>
                 )}
               </>
+            )}
+
+            {!!generalError && (
+              <Text style={[styles.hint, styles.usernameBad, styles.generalError]} testID="auth-general-error">{generalError}</Text>
             )}
 
             <TouchableOpacity
@@ -532,6 +570,10 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 12,
     color: '#64748b',
+  },
+  generalError: {
+    marginTop: 0,
+    textAlign: 'center',
   },
   verifySubtitle: {
     fontSize: 15,

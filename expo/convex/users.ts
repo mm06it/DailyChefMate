@@ -16,6 +16,20 @@ export const current = query({
   },
 });
 
+// Whether an account already exists for `email` (case-insensitive). The
+// sign-in / sign-up form uses this to show a precise "not registered" vs
+// "already registered" message, since Convex Auth deliberately returns an
+// opaque error for both. Small user table, so a scan is fine.
+export const emailRegistered = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const target = email.trim().toLowerCase();
+    if (target.length === 0) return false;
+    const users = await ctx.db.query("users").collect();
+    return users.some((u) => (u.email ?? "").trim().toLowerCase() === target);
+  },
+});
+
 // Whether `username` is free for the signed-in user to take (normalized to
 // lowercase first). Returns false for a value that can't be a username at
 // all, so the caller can treat that the same as "not available".
