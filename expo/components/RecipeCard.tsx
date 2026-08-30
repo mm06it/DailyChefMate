@@ -15,7 +15,7 @@ interface RecipeCardProps {
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
   const { toggleFavorite } = useDailyChefMateStore();
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
 
   const fallbackImage = "https://images.unsplash.com/photo-1546548970-71785318a17b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80";
@@ -72,7 +72,16 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             numberOfLines={2}
             testID={`recipe-card-${recipe.id}-used`}
           >
-            {recipe.usedIngredients.join(' · ')}
+            {(t('recipeUses') || 'Vorhanden')}: {recipe.usedIngredients.join(' · ')}
+          </Text>
+        )}
+        {recipe.missedIngredients && recipe.missedIngredients.length > 0 && (
+          <Text
+            style={styles.missedIngredients}
+            numberOfLines={2}
+            testID={`recipe-card-${recipe.id}-missed`}
+          >
+            {(t('recipeMissing') || 'Fehlt noch')}: {recipe.missedIngredients.join(' · ')}
           </Text>
         )}
         <View style={styles.header}>
@@ -161,6 +170,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     color: Colors.success,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  missedIngredients: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textLight,
     lineHeight: 16,
     marginBottom: 2,
   },

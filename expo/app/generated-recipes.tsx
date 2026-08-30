@@ -133,14 +133,9 @@ export default function GeneratedRecipesScreen() {
   })();
   const renderItem = ({ item }: { item: Recipe }) => (
     <View style={columns > 1 ? { width: itemWidth } : undefined}>
+      {/* "Vorhanden:" / "Fehlt noch:" lines are rendered inside RecipeCard,
+          stacked above the recipe name. */}
       <RecipeCard recipe={item} />
-      {item.missedIngredients?.length ? (
-        <View style={styles.matchInfo}>
-          <Text style={styles.matchNeed} numberOfLines={2}>
-            {(t('recipeMissing') || 'Fehlt noch')}: {item.missedIngredients.join(', ')}
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
   
@@ -315,16 +310,6 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     gap: 16,
-  },
-  matchInfo: {
-    marginTop: 6,
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  matchNeed: {
-    fontSize: 12,
-    color: Colors.textLight,
-    lineHeight: 16,
   },
   emptyContainer: {
     flex: 1,
