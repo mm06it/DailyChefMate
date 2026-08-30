@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogOut, User, Globe, Info, Pencil } from 'lucide-react-native';
 import { Stack } from 'expo-router';
-import { useMutation } from 'convex/react';
+import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { confirmAsync } from '@/lib/confirm';
@@ -29,6 +29,7 @@ type Feedback = { type: 'error' | 'success'; text: string } | null;
 export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const convex = useConvex();
   const updateUsername = useMutation(api.users.updateUsername);
 
   const currentUsername = user?.username ?? '';
@@ -65,7 +66,7 @@ export default function SettingsScreen() {
   const saveUsername = useCallback(async () => {
     const next = draft.trim().toLowerCase();
 
-    if (next.length === 0) {
+    if (next.length === 0 || !USERNAME_PATTERN.test(next)) {
       setFeedback({ type: 'error', text: t('usernameInvalid') });
       return;
     }
@@ -73,14 +74,18 @@ export default function SettingsScreen() {
       cancelEditing();
       return;
     }
-    if (!USERNAME_PATTERN.test(next)) {
-      setFeedback({ type: 'error', text: t('usernameInvalid') });
-      return;
-    }
 
     setSaving(true);
     setFeedback(null);
     try {
+      // Convex Auth's prod deployment redacts the mutation's error text, so
+      // check availability up front to give a precise "taken" message.
+      const available = await convex.query(api.users.usernameAvailable, { username: next });
+      if (available === false) {
+        setFeedback({ type: 'error', text: t('usernameTaken') });
+        return;
+      }
+
       await updateUsername({ username: next });
       setEditing(false);
       setDraft('');
@@ -89,21 +94,18 @@ export default function SettingsScreen() {
       successTimer.current = setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      let text: string;
       if (message.includes('USERNAME_TAKEN')) {
-        text = t('usernameTaken');
+        setFeedback({ type: 'error', text: t('usernameTaken') });
       } else if (message.includes('INVALID_USERNAME')) {
-        text = t('usernameInvalid');
+        setFeedback({ type: 'error', text: t('usernameInvalid') });
       } else {
-        // Surface the raw reason so an unexpected failure is at least visible.
-        text = `${t('usernameUpdateFailed')} (${message})`;
         console.error('updateUsername failed', e);
+        setFeedback({ type: 'error', text: t('usernameUpdateFailed') });
       }
-      setFeedback({ type: 'error', text });
     } finally {
       setSaving(false);
     }
-  }, [draft, currentUsername, cancelEditing, updateUsername, t]);
+  }, [draft, currentUsername, cancelEditing, convex, updateUsername, t]);
 
   return (
     <SafeAreaView style={styles.container}>
