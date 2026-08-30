@@ -1,5 +1,6 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Analytics } from "@vercel/analytics/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
@@ -75,20 +76,25 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <LanguageContext>
-            <AuthProvider>
-              <FridgyContext>
-                <GestureHandlerRootView style={{ flex: 1 }}>
-                  <RootLayoutNav />
-                </GestureHandlerRootView>
-              </FridgyContext>
-            </AuthProvider>
-          </LanguageContext>
-        </QueryClientProvider>
-      </trpc.Provider>
-    </ConvexAuthProvider>
+    <>
+      <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            <LanguageContext>
+              <AuthProvider>
+                <FridgyContext>
+                  <GestureHandlerRootView style={{ flex: 1 }}>
+                    <RootLayoutNav />
+                  </GestureHandlerRootView>
+                </FridgyContext>
+              </AuthProvider>
+            </LanguageContext>
+          </QueryClientProvider>
+        </trpc.Provider>
+      </ConvexAuthProvider>
+      {/* Vercel Web Analytics — web only; the component touches `document`,
+          which doesn't exist on native. */}
+      {Platform.OS === "web" && <Analytics />}
+    </>
   );
 }
