@@ -1,5 +1,5 @@
 import createContextHook from "@nkzw/create-context-hook";
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { useAction, useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "@/convex/_generated/api";
@@ -50,6 +50,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
 
   const recordViewMutation = useMutation(api.userStats.recordView);
   const recordGeneratedMutation = useMutation(api.userStats.recordGenerated);
+  const findByIngredientsAction = useAction(api.recipes.findByIngredients);
 
   // Seed a brand-new account's fridge once, right after we can see (while
   // actually authenticated) that it's empty. Gated on isAuthenticated rather
@@ -305,24 +306,12 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     }
 
     try {
-      console.log(
-        "Generating recipes from selected ingredients:",
-        selectedIngredients.map((i) => i.name)
-      );
+      const names = selectedIngredients.map((i) => i.name);
+      console.log("Searching recipes for ingredients:", names);
 
-      const mainIngredient = selectedIngredients[0].name;
-      const onlineRecipes = await themealdb.getMealsByIngredient(mainIngredient);
-
-      const matchingRecipes = onlineRecipes.filter((recipe) => {
-        const recipeIngredientNames = recipe.ingredients.map((ing) => ing.name.toLowerCase());
-        const selectedNames = selectedIngredients.map((ing) => ing.name.toLowerCase());
-
-        const matches = selectedNames.filter((name) =>
-          recipeIngredientNames.some((recipeIng) => recipeIng.includes(name) || name.includes(recipeIng))
-        );
-
-        return matches.length >= Math.min(2, selectedIngredients.length);
-      });
+      // Convex action: Spoonacular (cached) with a TheMealDB fallback.
+      const found = await findByIngredientsAction({ ingredients: names });
+      const matchingRecipes: Recipe[] = found.map((r) => ({ ...r, isFavorite: false }));
 
       const existingIds = new Set(recipes.map((r) => r.id));
       const existingNames = new Set(recipes.map((r) => r.name.toLowerCase()));
@@ -338,7 +327,13 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       return addUniqueRecipes(matchingRecipes);
     } catch (error) {
       console.error("Error generating recipes from ingredients:", error);
-      return [];
+      // Last-ditch: hit TheMealDB straight from the client with the first ingredient.
+      try {
+        const fallback = await themealdb.getMealsByIngredient(selectedIngredients[0].name);
+        return addUniqueRecipes(fallback);
+      } catch {
+        return [];
+      }
     }
   };
 

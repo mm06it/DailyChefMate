@@ -14,6 +14,10 @@ export interface Recipe {
   ovenHeat?: string;
   ovenTime?: string;
   totalTime?: string;
+  // Set only on results from the ingredient search: which of the picked
+  // ingredients this recipe uses, and which it still needs.
+  usedIngredients?: string[];
+  missedIngredients?: string[];
 }
 
 export interface Ingredient {

@@ -25,6 +25,15 @@ const recipeFields = {
   totalTime: v.optional(v.string()),
 };
 
+// A recipe from the ingredient search (convex/recipes.ts) with per-search
+// match info attached. Also the shape stored in recipeCache below.
+export const searchResultRecipe = v.object({
+  id: v.string(),
+  ...recipeFields,
+  usedIngredients: v.array(v.string()),
+  missedIngredients: v.array(v.string()),
+});
+
 export default defineSchema({
   // Provided by @convex-dev/auth — sessions, auth accounts, etc.
   ...authTables,
@@ -91,4 +100,15 @@ export default defineSchema({
     viewedRecipeIds: v.array(v.string()),
     generatedCount: v.number(),
   }).index("by_user", ["userId"]),
+
+  // Shared cache for the ingredient recipe search so repeat queries don't
+  // burn the Spoonacular free-tier quota. `key` is the sorted, lowercased
+  // ingredient list; entries are refreshed after a few days (see
+  // convex/recipes.ts).
+  recipeCache: defineTable({
+    key: v.string(),
+    source: v.string(),
+    recipes: v.array(searchResultRecipe),
+    createdAt: v.number(),
+  }).index("by_key", ["key"]),
 });
