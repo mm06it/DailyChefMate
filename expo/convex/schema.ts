@@ -23,6 +23,8 @@ const recipeFields = {
   ovenHeat: v.optional(v.string()),
   ovenTime: v.optional(v.string()),
   totalTime: v.optional(v.string()),
+  mode: v.optional(v.string()),
+  ovenMode: v.optional(v.string()),
 };
 
 // A recipe from the ingredient search (convex/recipes.ts) with per-search

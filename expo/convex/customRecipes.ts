@@ -24,6 +24,8 @@ const recipeArgs = {
   ovenHeat: v.optional(v.string()),
   ovenTime: v.optional(v.string()),
   totalTime: v.optional(v.string()),
+  mode: v.optional(v.string()),
+  ovenMode: v.optional(v.string()),
 };
 
 async function requireOwnRecipe(ctx: MutationCtx, id: Id<"customRecipes">) {

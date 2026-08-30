@@ -14,6 +14,10 @@ export interface Recipe {
   ovenHeat?: string;
   ovenTime?: string;
   totalTime?: string;
+  // Custom recipes only: 'cooking' or 'baking' — drives which fields the
+  // Add Recipe form shows. `ovenMode` is the oven setting for baking recipes.
+  mode?: string;
+  ovenMode?: string;
   // Set only on results from the ingredient search: which of the picked
   // ingredients this recipe uses, and which it still needs.
   usedIngredients?: string[];

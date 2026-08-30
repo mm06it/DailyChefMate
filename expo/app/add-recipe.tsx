@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -15,18 +14,23 @@ import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
 
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { alertMessage } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 
+type RecipeMode = "cooking" | "baking";
+
 interface RecipeFormData {
   name: string;
-  cookTime: string;
-  servings: string;
+  mode: RecipeMode | null;
+  prepTime: string; // Vorbereitungszeit — both modes
+  cookTime: string; // Kochzeit — cooking only
+  ovenTime: string; // Zeit im Backrohr — baking only
+  ovenHeat: string; // Hitze °C — baking only
+  ovenMode: string; // Ofenmodus — baking only
+  servings: string; // Portionen — cooking only
   category: string;
-  ovenHeat: string;
-  ovenTime: string;
-  totalTime: string;
   ingredients: { name: string; amount: string }[];
   steps: string[];
 }
@@ -36,98 +40,125 @@ const RECIPE_CATEGORIES = [
   'Main Course', 'Side Dish', 'Soup', 'Salad', 'Beverage', 'Other'
 ];
 
+const OVEN_MODES = [
+  'Ober-/Unterhitze',
+  'Umluft',
+  'Heißluft',
+  'Grill',
+  'Umluftgrill',
+];
+
+const num = (v: string) => parseInt((v ?? '').replace(/[^0-9]/g, '') || '0', 10) || 0;
+
 export default function AddRecipeScreen() {
   const { t } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
-  
+
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
+    mode: null,
+    prepTime: "0",
     cookTime: "0",
+    ovenTime: "0",
+    ovenHeat: "",
+    ovenMode: "",
     servings: "",
     category: "",
-    ovenHeat: "",
-    ovenTime: "0",
-    totalTime: "0",
     ingredients: [{ name: "", amount: "" }],
     steps: [""],
   });
 
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
+  const [showOvenModePicker, setShowOvenModePicker] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isEditing = !!editId;
 
   const isEmpty = useCallback((v: string) => (v ?? '').trim().length === 0, []);
 
-  const invalid = useMemo(() => ({
-    name: isEmpty(formData.name),
-    cookTime: isEmpty(formData.cookTime),
-    ovenTime: isEmpty(formData.ovenTime),
-    ovenHeat: isEmpty(formData.ovenHeat),
-    servings: isEmpty(formData.servings),
-    category: isEmpty(formData.category),
-    ingredients: formData.ingredients.some(ing => isEmpty(ing.name) || isEmpty(ing.amount)),
-    steps: formData.steps.some(step => isEmpty(step)),
-  }), [formData, isEmpty]);
+  // Only the fields relevant to the chosen mode are validated — that keeps
+  // the asterisks (and the save gate) honest about what's actually needed.
+  const invalid = useMemo(() => {
+    const base = {
+      name: isEmpty(formData.name),
+      mode: formData.mode === null,
+      category: isEmpty(formData.category),
+      ingredients: formData.ingredients.some((ing) => isEmpty(ing.name) || isEmpty(ing.amount)),
+      steps: formData.steps.some((step) => isEmpty(step)),
+      cookTime: false,
+      ovenTime: false,
+      ovenHeat: false,
+      ovenMode: false,
+      servings: false,
+    };
+    if (formData.mode === 'cooking') {
+      base.cookTime = num(formData.cookTime) <= 0;
+      base.servings = isEmpty(formData.servings) || num(formData.servings) <= 0;
+    } else if (formData.mode === 'baking') {
+      base.ovenTime = num(formData.ovenTime) <= 0;
+      base.ovenHeat = isEmpty(formData.ovenHeat) || num(formData.ovenHeat) <= 0;
+      base.ovenMode = isEmpty(formData.ovenMode);
+    }
+    return base;
+  }, [formData, isEmpty]);
+
+  const hasErrors = useMemo(() => Object.values(invalid).some(Boolean), [invalid]);
+
+  const mainTime = formData.mode === 'baking' ? num(formData.ovenTime) : num(formData.cookTime);
+  const totalMinutes = num(formData.prepTime) + mainTime;
 
   // Load recipe data if editing
   useEffect(() => {
     if (isEditing && editId) {
       const recipe = getCustomRecipe(editId);
       if (recipe) {
+        const inferredMode: RecipeMode =
+          recipe.mode === 'baking' || recipe.mode === 'cooking'
+            ? recipe.mode
+            : recipe.ovenMode || (recipe.ovenHeat && !/^0\s*°/.test(recipe.ovenHeat))
+              ? 'baking'
+              : 'cooking';
         setFormData({
           name: recipe.name,
-          cookTime: (recipe.prepTime?.replace(' min', '') || recipe.cookTime.replace(' min', '')),
-          servings: recipe.servings.toString(),
+          mode: inferredMode,
+          prepTime: recipe.prepTime?.replace(/[^0-9]/g, '') || '0',
+          cookTime: recipe.cookTime?.replace(/[^0-9]/g, '') || '0',
+          ovenTime: recipe.ovenTime?.replace(/[^0-9]/g, '') || '0',
+          ovenHeat: recipe.ovenHeat?.replace(/[^0-9]/g, '') ?? '',
+          ovenMode: recipe.ovenMode ?? '',
+          servings: recipe.servings ? String(recipe.servings) : '',
           category: recipe.category,
-          ovenHeat: recipe.ovenHeat?.replace(' °C', '') ?? "",
-          ovenTime: recipe.ovenTime?.replace(' min', '') ?? "",
-          totalTime: recipe.totalTime?.replace(' min', '') ?? "",
-          ingredients: recipe.ingredients.map(ing => ({ name: ing.name, amount: ing.amount })),
-          steps: recipe.steps,
+          ingredients: recipe.ingredients.map((ing) => ({ name: ing.name, amount: ing.amount })),
+          steps: recipe.steps.length ? recipe.steps : [''],
         });
       }
     }
   }, [isEditing, editId, getCustomRecipe]);
 
-  useEffect(() => {
-    const total = (parseInt(formData.cookTime || '0', 10) || 0) + (parseInt(formData.ovenTime || '0', 10) || 0);
-    setFormData(prev => ({ ...prev, totalTime: String(total) }));
-  }, [formData.cookTime, formData.ovenTime]);
-
   const handleSave = () => {
-    const missingBasic = !formData.name.trim()
-      || !formData.cookTime.trim()
-      || !formData.servings.trim()
-      || !formData.category.trim()
-      || !formData.ovenHeat.trim()
-      || !formData.ovenTime.trim();
-
-    const hasEmptyIngredient = formData.ingredients.some(ing => !ing.name.trim() || !ing.amount.trim());
-    const hasEmptyStep = formData.steps.some(step => !step.trim());
-
-    if (missingBasic || hasEmptyIngredient || hasEmptyStep) {
-      setErrorMessage(t('fillAllFields'));
-      try {
-        Alert.alert(t('required'), t('fillAllFields'));
-      } catch (e) {
-        console.log('Alert not available, falling back to inline error.');
-      }
+    if (hasErrors) {
+      setErrorMessage(t('fillHighlightedFields'));
+      alertMessage(t('required'), t('fillHighlightedFields'));
       return;
     }
+    setErrorMessage(null);
 
-    const totalMinutes = (parseInt(formData.cookTime || '0', 10) || 0) + (parseInt(formData.ovenTime || '0', 10) || 0);
+    const mode = formData.mode as RecipeMode;
+    const main = mode === 'baking' ? num(formData.ovenTime) : num(formData.cookTime);
+    const total = num(formData.prepTime) + main;
 
     const recipeData: Omit<Recipe, 'id'> = {
       name: formData.name.trim(),
       image: "",
       rating: 0,
-      cookTime: `${formData.cookTime.trim()} min`,
-      prepTime: `${formData.cookTime.trim()} min`,
-      ovenHeat: `${formData.ovenHeat.trim()} °C`,
-      ovenTime: `${formData.ovenTime.trim()} min`,
-      totalTime: `${String(totalMinutes)} min`,
-      servings: parseInt(formData.servings.trim()),
+      mode,
+      cookTime: `${main} min`,
+      prepTime: `${num(formData.prepTime)} min`,
+      totalTime: `${total} min`,
+      ovenHeat: mode === 'baking' ? `${num(formData.ovenHeat)} °C` : undefined,
+      ovenTime: mode === 'baking' ? `${num(formData.ovenTime)} min` : undefined,
+      ovenMode: mode === 'baking' ? formData.ovenMode : undefined,
+      servings: mode === 'cooking' ? num(formData.servings) : 1,
       category: formData.category,
       ingredients: formData.ingredients.map((ing, index) => ({
         id: `ingredient_${index}`,
@@ -135,36 +166,33 @@ export default function AddRecipeScreen() {
         amount: ing.amount.trim(),
         category: 'Custom',
       })),
-      steps: formData.steps.map(step => step.trim()),
+      steps: formData.steps.map((step) => step.trim()),
       isFavorite: false,
     };
 
     try {
       if (isEditing && editId) {
         updateCustomRecipe(editId, recipeData);
-        try { Alert.alert(t('recipeUpdated')); } catch (e) { console.log('Alert not available'); }
+        alertMessage(t('recipeUpdated'));
       } else {
         addCustomRecipe(recipeData);
-        try { Alert.alert(t('recipeCreated')); } catch (e) { console.log('Alert not available'); }
+        alertMessage(t('recipeCreated'));
       }
       router.back();
     } catch (error) {
       console.error('Error saving recipe:', error);
-      try { Alert.alert('Error', 'Failed to save recipe'); } catch (e2) { console.log('Save error'); }
+      alertMessage('Error', 'Failed to save recipe');
       setErrorMessage('Failed to save recipe');
     }
   };
 
   const addIngredient = () => {
-    setFormData(prev => ({
-      ...prev,
-      ingredients: [...prev.ingredients, { name: "", amount: "" }],
-    }));
+    setFormData((prev) => ({ ...prev, ingredients: [...prev.ingredients, { name: "", amount: "" }] }));
   };
 
   const removeIngredient = (index: number) => {
     if (formData.ingredients.length > 1) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         ingredients: prev.ingredients.filter((_, i) => i !== index),
       }));
@@ -172,40 +200,73 @@ export default function AddRecipeScreen() {
   };
 
   const updateIngredient = (index: number, field: 'name' | 'amount', value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      ingredients: prev.ingredients.map((ing, i) =>
-        i === index ? { ...ing, [field]: value } : ing
-      ),
+      ingredients: prev.ingredients.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)),
     }));
   };
 
   const addStep = () => {
-    setFormData(prev => ({
-      ...prev,
-      steps: [...prev.steps, ""],
-    }));
+    setFormData((prev) => ({ ...prev, steps: [...prev.steps, ""] }));
   };
 
   const removeStep = (index: number) => {
     if (formData.steps.length > 1) {
-      setFormData(prev => ({
-        ...prev,
-        steps: prev.steps.filter((_, i) => i !== index),
-      }));
+      setFormData((prev) => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) }));
     }
   };
 
   const updateStep = (index: number, value: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       steps: prev.steps.map((step, i) => (i === index ? value : step)),
     }));
   };
 
+  const stepTime = (key: 'prepTime' | 'cookTime' | 'ovenTime', delta: number) => {
+    setFormData((prev) => ({ ...prev, [key]: String(Math.max(0, num(prev[key]) + delta)) }));
+  };
+
+  const renderTimeField = (
+    key: 'prepTime' | 'cookTime' | 'ovenTime',
+    label: string,
+    placeholder: string,
+    showError: boolean,
+  ) => (
+    <View style={[styles.section, styles.sectionDense]}>
+      <View style={[styles.labelContainer, styles.labelContainerDense]}>
+        <Text style={styles.label} numberOfLines={2}>
+          {label} {showError && <Text style={styles.required}>*</Text>}
+        </Text>
+      </View>
+      <View style={styles.timeRowWrap}>
+        <View style={styles.timeRow}>
+          <Pressable testID={`${key}-decrement`} onPress={() => stepTime(key, -5)} style={styles.timeButton}>
+            <Minus size={18} color={Colors.text} />
+          </Pressable>
+          <View style={styles.timeValueBox}>
+            <Text testID={`${key}-value`} style={styles.timeValueText}>{num(formData[key])} min</Text>
+          </View>
+          <Pressable testID={`${key}-increment`} onPress={() => stepTime(key, 5)} style={styles.timeButton}>
+            <Plus size={18} color={Colors.text} />
+          </Pressable>
+        </View>
+        <TextInput
+          testID={`${key}-input`}
+          style={[styles.input, styles.inputDense, styles.manualInput]}
+          value={formData[key]}
+          onChangeText={(text) => setFormData((prev) => ({ ...prev, [key]: text.replace(/[^0-9]/g, '') }))}
+          placeholder={placeholder}
+          placeholderTextColor={Colors.textLight}
+          keyboardType="numeric"
+        />
+      </View>
+    </View>
+  );
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Stack.Screen
@@ -226,7 +287,7 @@ export default function AddRecipeScreen() {
           ),
         }}
       />
-      
+
       {errorMessage && (
         <View style={styles.fixedBannerContainer}>
           <View testID="validation-banner" style={styles.errorBanner}>
@@ -243,7 +304,7 @@ export default function AddRecipeScreen() {
         </View>
       )}
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <ResponsiveContainer maxWidth={640}>
         <View style={styles.form}>
 
@@ -256,295 +317,254 @@ export default function AddRecipeScreen() {
               testID="input-recipe-name"
               style={styles.input}
               value={formData.name}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, name: text }))}
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
               placeholder={t('enterRecipeName')}
               placeholderTextColor={Colors.textLight}
             />
           </View>
 
-
-          {/* Preparation Time, Oven Time, then Total Time (stacked) */}
-          <View style={[styles.section, styles.sectionDense]}>
-            <View style={[styles.labelContainer, styles.labelContainerDense]}>
-              <Text style={styles.label} numberOfLines={2}>
-                {t('preparationTime')} {invalid.cookTime && (<Text style={styles.required}>*</Text>)}
-              </Text>
-            </View>
-            <View style={styles.timeRowWrap}>
-              <View style={styles.timeRow}>
-                <Pressable
-                  testID="prep-decrement"
-                  onPress={() => {
-                    setFormData(prev => {
-                      const current = parseInt(prev.cookTime || '0', 10) || 0;
-                      const next = Math.max(0, current - 5);
-                      return { ...prev, cookTime: String(next) };
-                    });
-                  }}
-                  style={[styles.timeButton]}
-                >
-                  <Minus size={18} color={Colors.text} />
-                </Pressable>
-                <View style={styles.timeValueBox}>
-                  <Text testID="prep-time-value" style={styles.timeValueText}>
-                    {(parseInt(formData.cookTime || '0', 10) || 0)} min
-                  </Text>
-                </View>
-                <Pressable
-                  testID="prep-increment"
-                  onPress={() => {
-                    setFormData(prev => {
-                      const current = parseInt(prev.cookTime || '0', 10) || 0;
-                      const next = current + 5;
-                      return { ...prev, cookTime: String(next) };
-                    });
-                  }}
-                  style={[styles.timeButton]}
-                >
-                  <Plus size={18} color={Colors.text} />
-                </Pressable>
-              </View>
-              <TextInput
-                testID="input-prep-time"
-                style={[styles.input, styles.inputDense, styles.manualInput]}
-                value={formData.cookTime}
-                onChangeText={(text) => {
-                  const cleaned = text.replace(/[^0-9]/g, '');
-                  setFormData(prev => ({ ...prev, cookTime: cleaned }));
-                }}
-                placeholder={t('enterPreparationTime')}
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          <View style={[styles.section, styles.sectionDense]}>
-            <View style={[styles.labelContainer, styles.labelContainerDense]}>
-              <Text style={styles.label} numberOfLines={2}>
-                {t('ovenTime')} {invalid.ovenTime && (<Text style={styles.required}>*</Text>)}
-              </Text>
-            </View>
-            <View style={styles.timeRowWrap}>
-              <View style={styles.timeRow}>
-                <Pressable
-                  testID="oven-decrement"
-                  onPress={() => {
-                    setFormData(prev => {
-                      const current = parseInt(prev.ovenTime || '0', 10) || 0;
-                      const next = Math.max(0, current - 5);
-                      return { ...prev, ovenTime: String(next) };
-                    });
-                  }}
-                  style={[styles.timeButton]}
-                >
-                  <Minus size={18} color={Colors.text} />
-                </Pressable>
-                <View style={styles.timeValueBox}>
-                  <Text testID="oven-time-value" style={styles.timeValueText}>
-                    {(parseInt(formData.ovenTime || '0', 10) || 0)} min
-                  </Text>
-                </View>
-                <Pressable
-                  testID="oven-increment"
-                  onPress={() => {
-                    setFormData(prev => {
-                      const current = parseInt(prev.ovenTime || '0', 10) || 0;
-                      const next = current + 5;
-                      return { ...prev, ovenTime: String(next) };
-                    });
-                  }}
-                  style={[styles.timeButton]}
-                >
-                  <Plus size={18} color={Colors.text} />
-                </Pressable>
-              </View>
-              <TextInput
-                testID="input-oven-time"
-                style={[styles.input, styles.inputDense, styles.manualInput]}
-                value={formData.ovenTime}
-                onChangeText={(text) => {
-                  const cleaned = text.replace(/[^0-9]/g, '');
-                  setFormData(prev => ({ ...prev, ovenTime: cleaned }));
-                }}
-                placeholder={t('enterOvenTime')}
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          <View style={[styles.section, styles.sectionDense]}>
-            <Text style={styles.label}>
-              {t('totalTime')}
-            </Text>
-            <View style={[styles.input, styles.inputDense, styles.readonlyBox]}>
-              <Text testID="computed-total-time" style={[styles.timeValueText, styles.centerText]}>
-                {(parseInt(formData.cookTime || '0', 10) || 0) + (parseInt(formData.ovenTime || '0', 10) || 0)} min
-              </Text>
-            </View>
-          </View>
-
-          {/* Oven Heat and Servings */}
-          <View style={styles.row}>
-            <View style={[styles.section, styles.sectionDense, styles.halfWidth]}>
-              <View style={[styles.labelContainer, styles.labelContainerDense]}>
-                <Text style={styles.label} numberOfLines={2}>
-                  {t('ovenHeat')} {invalid.ovenHeat && (<Text style={styles.required}>*</Text>)}
-                </Text>
-              </View>
-              <TextInput
-                testID="input-oven-heat"
-                style={[styles.input, styles.inputDense]}
-                value={formData.ovenHeat}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, ovenHeat: text }))}
-                placeholder={t('enterOvenHeat')}
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={[styles.section, styles.sectionDense, styles.halfWidth]}>
-              <View style={[styles.labelContainer, styles.labelContainerDense]}>
-                <Text style={styles.label} numberOfLines={2}>
-                  {t('servingSize')} {invalid.servings && (<Text style={styles.required}>*</Text>)}
-                </Text>
-              </View>
-              <TextInput
-                testID="input-servings"
-                style={[styles.input, styles.inputDense]}
-                value={formData.servings}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, servings: text }))}
-                placeholder={t('enterServings')}
-                placeholderTextColor={Colors.textLight}
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          {/* Category */}
+          {/* Cooking vs. baking — nothing below shows until one is picked */}
           <View style={styles.section}>
             <Text style={styles.label}>
-              {t('recipeCategory')} {invalid.category && (<Text style={styles.required}>*</Text>)}
+              {t('chooseRecipeType')} {invalid.mode && (<Text style={styles.required}>*</Text>)}
             </Text>
-            <Pressable
-              testID="button-category"
-              style={[styles.input, styles.categoryButton]}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-            >
-              <Text style={[styles.categoryText, !formData.category && styles.placeholder]}>
-                {formData.category || t('selectCategory')}
-              </Text>
-            </Pressable>
-            
-            {showCategoryPicker && (
-              <View style={styles.categoryPicker}>
-                {RECIPE_CATEGORIES.map((category) => (
-                  <Pressable
-                    testID={`option-category-${category}`}
-                    key={category}
-                    style={styles.categoryOption}
-                    onPress={() => {
-                      setFormData(prev => ({ ...prev, category }));
-                      setShowCategoryPicker(false);
-                    }}
-                  >
-                    <Text style={styles.categoryOptionText}>{category}</Text>
+            <View style={styles.modeRow}>
+              <Pressable
+                testID="mode-cooking"
+                style={[styles.modeButton, formData.mode === 'cooking' && styles.modeButtonActive]}
+                onPress={() => setFormData((prev) => ({ ...prev, mode: 'cooking' }))}
+              >
+                <Text style={[styles.modeButtonText, formData.mode === 'cooking' && styles.modeButtonTextActive]}>
+                  {t('modeCooking')}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="mode-baking"
+                style={[styles.modeButton, formData.mode === 'baking' && styles.modeButtonActive]}
+                onPress={() => setFormData((prev) => ({ ...prev, mode: 'baking' }))}
+              >
+                <Text style={[styles.modeButtonText, formData.mode === 'baking' && styles.modeButtonTextActive]}>
+                  {t('modeBaking')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {formData.mode !== null && (
+            <>
+              {/* Times */}
+              {renderTimeField('prepTime', t('preparationTime'), t('enterPreparationTime'), false)}
+
+              {formData.mode === 'cooking'
+                ? renderTimeField('cookTime', t('cookingTime'), t('enterCookingTime'), invalid.cookTime)
+                : renderTimeField('ovenTime', t('ovenTime'), t('enterOvenTime'), invalid.ovenTime)}
+
+              <View style={[styles.section, styles.sectionDense]}>
+                <Text style={styles.label}>{t('totalTime')}</Text>
+                <View style={[styles.input, styles.inputDense, styles.readonlyBox]}>
+                  <Text testID="computed-total-time" style={[styles.timeValueText, styles.centerText]}>
+                    {totalMinutes} min
+                  </Text>
+                </View>
+              </View>
+
+              {/* Cooking: servings. Baking: oven heat + oven mode side by side. */}
+              {formData.mode === 'cooking' ? (
+                <View style={styles.section}>
+                  <Text style={styles.label}>
+                    {t('servingSize')} {invalid.servings && (<Text style={styles.required}>*</Text>)}
+                  </Text>
+                  <TextInput
+                    testID="input-servings"
+                    style={styles.input}
+                    value={formData.servings}
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, servings: text.replace(/[^0-9]/g, '') }))}
+                    placeholder={t('enterServings')}
+                    placeholderTextColor={Colors.textLight}
+                    keyboardType="numeric"
+                  />
+                </View>
+              ) : (
+                <View style={styles.section}>
+                  <View style={styles.row}>
+                    <View style={[styles.halfWidth]}>
+                      <Text style={styles.label} numberOfLines={2}>
+                        {t('ovenHeat')} {invalid.ovenHeat && (<Text style={styles.required}>*</Text>)}
+                      </Text>
+                      <TextInput
+                        testID="input-oven-heat"
+                        style={styles.input}
+                        value={formData.ovenHeat}
+                        onChangeText={(text) => setFormData((prev) => ({ ...prev, ovenHeat: text.replace(/[^0-9]/g, '') }))}
+                        placeholder={t('enterOvenHeat')}
+                        placeholderTextColor={Colors.textLight}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={[styles.halfWidth]}>
+                      <Text style={styles.label} numberOfLines={2}>
+                        {t('ovenMode')} {invalid.ovenMode && (<Text style={styles.required}>*</Text>)}
+                      </Text>
+                      <Pressable
+                        testID="button-oven-mode"
+                        style={[styles.input, styles.categoryButton]}
+                        onPress={() => setShowOvenModePicker(!showOvenModePicker)}
+                      >
+                        <Text
+                          style={[styles.categoryText, !formData.ovenMode && styles.placeholder]}
+                          numberOfLines={1}
+                        >
+                          {formData.ovenMode || t('selectOvenMode')}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                  {showOvenModePicker && (
+                    <View style={styles.categoryPicker}>
+                      {OVEN_MODES.map((m) => (
+                        <Pressable
+                          testID={`option-oven-mode-${m}`}
+                          key={m}
+                          style={styles.categoryOption}
+                          onPress={() => {
+                            setFormData((prev) => ({ ...prev, ovenMode: m }));
+                            setShowOvenModePicker(false);
+                          }}
+                        >
+                          <Text style={styles.categoryOptionText}>{m}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Category */}
+              <View style={styles.section}>
+                <Text style={styles.label}>
+                  {t('recipeCategory')} {invalid.category && (<Text style={styles.required}>*</Text>)}
+                </Text>
+                <Pressable
+                  testID="button-category"
+                  style={[styles.input, styles.categoryButton]}
+                  onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                >
+                  <Text style={[styles.categoryText, !formData.category && styles.placeholder]}>
+                    {formData.category || t('selectCategory')}
+                  </Text>
+                </Pressable>
+
+                {showCategoryPicker && (
+                  <View style={styles.categoryPicker}>
+                    {RECIPE_CATEGORIES.map((category) => (
+                      <Pressable
+                        testID={`option-category-${category}`}
+                        key={category}
+                        style={styles.categoryOption}
+                        onPress={() => {
+                          setFormData((prev) => ({ ...prev, category }));
+                          setShowCategoryPicker(false);
+                        }}
+                      >
+                        <Text style={styles.categoryOptionText}>{category}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Ingredients */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.label}>
+                    {t('recipeIngredients')} {invalid.ingredients && (<Text style={styles.required}>*</Text>)}
+                  </Text>
+                  <Pressable testID="button-add-ingredient" onPress={addIngredient} style={styles.addButton}>
+                    <Plus size={16} color={Colors.primary} />
+                    <Text style={styles.addButtonText}>{t('addIngredientToRecipe')}</Text>
                   </Pressable>
+                </View>
+
+                {formData.ingredients.map((ingredient, index) => (
+                  <View key={index} style={styles.ingredientRow}>
+                    <TextInput
+                      testID={`input-ingredient-name-${index}`}
+                      style={[styles.input, styles.ingredientNameInput]}
+                      value={ingredient.name}
+                      onChangeText={(text) => updateIngredient(index, 'name', text)}
+                      placeholder={t('enterIngredientName')}
+                      placeholderTextColor={Colors.textLight}
+                    />
+                    <TextInput
+                      testID={`input-ingredient-amount-${index}`}
+                      style={[styles.input, styles.ingredientAmountInput]}
+                      value={ingredient.amount}
+                      onChangeText={(text) => updateIngredient(index, 'amount', text)}
+                      placeholder={t('enterAmount')}
+                      placeholderTextColor={Colors.textLight}
+                    />
+                    {formData.ingredients.length > 1 && (
+                      <Pressable
+                        testID={`button-remove-ingredient-${index}`}
+                        onPress={() => removeIngredient(index)}
+                        style={styles.removeButton}
+                      >
+                        <Minus size={16} color="#ef4444" />
+                      </Pressable>
+                    )}
+                  </View>
                 ))}
               </View>
-            )}
-          </View>
 
-          {/* Ingredients */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.label}>
-                {t('recipeIngredients')} {invalid.ingredients && (<Text style={styles.required}>*</Text>)}
-              </Text>
-              <Pressable testID="button-add-ingredient" onPress={addIngredient} style={styles.addButton}>
-                <Plus size={16} color={Colors.primary} />
-                <Text style={styles.addButtonText}>{t('addIngredientToRecipe')}</Text>
-              </Pressable>
-            </View>
-            
-            {formData.ingredients.map((ingredient, index) => (
-              <View key={index} style={styles.ingredientRow}>
-                <TextInput
-                  testID={`input-ingredient-name-${index}`}
-                  style={[styles.input, styles.ingredientNameInput]}
-                  value={ingredient.name}
-                  onChangeText={(text) => updateIngredient(index, 'name', text)}
-                  placeholder={t('enterIngredientName')}
-                  placeholderTextColor={Colors.textLight}
-                />
-                <TextInput
-                  testID={`input-ingredient-amount-${index}`}
-                  style={[styles.input, styles.ingredientAmountInput]}
-                  value={ingredient.amount}
-                  onChangeText={(text) => updateIngredient(index, 'amount', text)}
-                  placeholder={t('enterAmount')}
-                  placeholderTextColor={Colors.textLight}
-                />
-                {formData.ingredients.length > 1 && (
-                  <Pressable
-                    testID={`button-remove-ingredient-${index}`}
-                    onPress={() => removeIngredient(index)}
-                    style={styles.removeButton}
-                  >
-                    <Minus size={16} color="#ef4444" />
+              {/* Steps */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.label}>
+                    {t('recipeSteps')} {invalid.steps && (<Text style={styles.required}>*</Text>)}
+                  </Text>
+                  <Pressable testID="button-add-step" onPress={addStep} style={styles.addButton}>
+                    <Plus size={16} color={Colors.primary} />
+                    <Text style={styles.addButtonText}>{t('addStep')}</Text>
                   </Pressable>
-                )}
-              </View>
-            ))}
-          </View>
+                </View>
 
-          {/* Steps */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.label}>
-                {t('recipeSteps')} {invalid.steps && (<Text style={styles.required}>*</Text>)}
-              </Text>
-              <Pressable testID="button-add-step" onPress={addStep} style={styles.addButton}>
-                <Plus size={16} color={Colors.primary} />
-                <Text style={styles.addButtonText}>{t('addStep')}</Text>
+                {formData.steps.map((step, index) => (
+                  <View key={index} style={styles.stepRow}>
+                    <Text style={styles.stepNumber}>{index + 1}.</Text>
+                    <TextInput
+                      testID={`input-step-${index}`}
+                      style={[styles.input, styles.stepInput]}
+                      value={step}
+                      onChangeText={(text) => updateStep(index, text)}
+                      placeholder={t('enterStepDescription')}
+                      placeholderTextColor={Colors.textLight}
+                      multiline
+                      numberOfLines={3}
+                    />
+                    {formData.steps.length > 1 && (
+                      <Pressable
+                        testID={`button-remove-step-${index}`}
+                        onPress={() => removeStep(index)}
+                        style={styles.removeButton}
+                      >
+                        <Minus size={16} color="#ef4444" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.bottomSpacer} />
+
+              <Pressable
+                testID="button-save-recipe-bottom"
+                onPress={handleSave}
+                style={styles.primarySaveButton}
+              >
+                <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
               </Pressable>
-            </View>
-            
-            {formData.steps.map((step, index) => (
-              <View key={index} style={styles.stepRow}>
-                <Text style={styles.stepNumber}>{index + 1}.</Text>
-                <TextInput
-                  testID={`input-step-${index}`}
-                  style={[styles.input, styles.stepInput]}
-                  value={step}
-                  onChangeText={(text) => updateStep(index, text)}
-                  placeholder={t('enterStepDescription')}
-                  placeholderTextColor={Colors.textLight}
-                  multiline
-                  numberOfLines={3}
-                />
-                {formData.steps.length > 1 && (
-                  <Pressable
-                    testID={`button-remove-step-${index}`}
-                    onPress={() => removeStep(index)}
-                    style={styles.removeButton}
-                  >
-                    <Minus size={16} color="#ef4444" />
-                  </Pressable>
-                )}
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.bottomSpacer} />
-
-          <Pressable
-            testID="button-save-recipe-bottom"
-            onPress={handleSave}
-            style={styles.primarySaveButton}
-          >
-            <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
-          </Pressable>
+            </>
+          )}
         </View>
         </ResponsiveContainer>
       </ScrollView>
@@ -557,9 +577,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  saveButton: {
-    padding: 8,
-  },
   headerSave: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -569,14 +586,6 @@ const styles = StyleSheet.create({
   headerCancel: {
     padding: 8,
     marginRight: 4,
-  },
-  headerSaveText: {
-    color: Colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerSaveIcon: {
-    marginLeft: 2,
   },
   primarySaveButton: {
     backgroundColor: Colors.primary,
@@ -628,10 +637,6 @@ const styles = StyleSheet.create({
   required: {
     color: '#ef4444',
   },
-  optional: {
-    color: Colors.textLight,
-    fontWeight: '400',
-  },
   input: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -653,6 +658,32 @@ const styles = StyleSheet.create({
   halfWidth: {
     flex: 1,
   },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  modeButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  modeButtonTextActive: {
+    color: '#ffffff',
+  },
   categoryButton: {
     justifyContent: 'center',
   },
@@ -669,7 +700,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 8,
     backgroundColor: Colors.card,
-    maxHeight: 200,
+    maxHeight: 240,
   },
   categoryOption: {
     paddingHorizontal: 12,
@@ -791,5 +822,5 @@ const styles = StyleSheet.create({
   },
   errorBannerClose: {
     padding: 6,
-  }
+  },
 });

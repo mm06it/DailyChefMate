@@ -127,6 +127,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       ovenHeat: r.ovenHeat,
       ovenTime: r.ovenTime,
       totalTime: r.totalTime,
+      mode: r.mode,
+      ovenMode: r.ovenMode,
     }));
   }, [convexCustomRecipes]);
 
@@ -397,6 +399,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       ovenHeat: recipe.ovenHeat,
       ovenTime: recipe.ovenTime,
       totalTime: recipe.totalTime,
+      mode: recipe.mode,
+      ovenMode: recipe.ovenMode,
     }).catch((e) => console.error("addCustomRecipe failed", e));
   };
 
@@ -416,6 +420,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       ovenHeat: updatedRecipe.ovenHeat,
       ovenTime: updatedRecipe.ovenTime,
       totalTime: updatedRecipe.totalTime,
+      mode: updatedRecipe.mode,
+      ovenMode: updatedRecipe.ovenMode,
     }).catch((e) => console.error("updateCustomRecipe failed", e));
   };
 
