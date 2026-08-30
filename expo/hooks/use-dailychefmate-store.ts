@@ -54,7 +54,6 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
   const markCookedMutation = useMutation(api.cooked.markCooked);
 
   const recordViewMutation = useMutation(api.userStats.recordView);
-  const recordGeneratedMutation = useMutation(api.userStats.recordGenerated);
   const findByIngredientsAction = useAction(api.recipes.findByIngredients);
 
   // Seed a brand-new account's fridge once, right after we can see (while
@@ -150,7 +149,6 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
   }, [convexCooked]);
 
   const viewedRecipesCount = convexUserStats?.viewedRecipeIds.length ?? 0;
-  const generatedRecipesCount = convexUserStats?.generatedCount ?? 0;
 
   const recordRecipeView = (recipeId: string) => {
     recordViewMutation({ recipeId }).catch((e) => console.error("recordRecipeView failed", e));
@@ -342,12 +340,6 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       const names = selectedIngredients.map((i) => i.name);
       console.log("Searching recipes for ingredients:", names);
 
-      // Count this as one generation run (regardless of how many recipes
-      // come back).
-      recordGeneratedMutation({}).catch((e) =>
-        console.error("recordGenerated failed", e)
-      );
-
       // Convex action: Spoonacular (cached) with a TheMealDB fallback.
       const found = await findByIngredientsAction({ ingredients: names });
       const matchingRecipes: Recipe[] = found.map((r) => ({ ...r, isFavorite: false }));
@@ -443,7 +435,6 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     isLoading: dataStillLoading,
     favorites: getFavoriteRecipes(),
     viewedRecipesCount,
-    generatedRecipesCount,
     recordRecipeView,
     toggleFavorite,
     getFavoriteRecipes,

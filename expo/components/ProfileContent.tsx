@@ -73,7 +73,7 @@ interface ProfileContentProps {
 export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount } = useDailyChefMateStore();
+  const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, customRecipes } = useDailyChefMateStore();
 
   const profileStats = useMemo(() => {
     const joinDate = user?.created_at ? new Date(user.created_at) : new Date();
@@ -87,11 +87,11 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
       lastActive,
       favoriteCount: favorites.length,
       recipesViewed: viewedRecipesCount,
-      recipesGenerated: generatedRecipesCount,
+      createdRecipes: customRecipes.length,
       cookedTotal,
       topCookedRecipes,
     };
-  }, [user, getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount]);
+  }, [user, getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, customRecipes]);
 
   if (!user) {
     return (
@@ -133,7 +133,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
           <StatCard
             icon={<ChefHat size={24} color={Colors.primary} />}
             title={t('recipesGenerated')}
-            value={profileStats.recipesGenerated}
+            value={profileStats.createdRecipes}
           />
           <StatCard
             icon={<Flame size={24} color={Colors.primary} />}
