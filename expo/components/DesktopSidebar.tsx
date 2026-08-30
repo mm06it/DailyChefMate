@@ -114,8 +114,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   logo: {
-    width: 150,
-    height: 95,
+    width: 116,
+    height: 74,
   },
   nav: {
     gap: 4,

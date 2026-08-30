@@ -320,7 +320,7 @@ export default function AuthScreen() {
 
           <View style={styles.logoContainer}>
             <Image
-              source={require('@/assets/images/logo.png')}
+              source={require('@/assets/images/icon.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -519,8 +519,8 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   logo: {
-    width: 240,
-    height: 152,
+    width: 96,
+    height: 96,
     marginBottom: 12,
   },
   title: {
