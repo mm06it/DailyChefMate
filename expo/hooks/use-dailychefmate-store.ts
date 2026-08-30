@@ -450,6 +450,9 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     searchRecipes,
     searchCustomRecipes,
     searchRecipesOnline,
+    // Register externally-fetched recipes (e.g. TheMealDB browse pages) into
+    // the shared cache so recipe-detail / favorites can resolve them by id.
+    cacheRecipes: addUniqueRecipes,
     generateRecipesFromIngredients,
     toggleIngredientSelection,
     selectIngredient,

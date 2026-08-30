@@ -17,10 +17,18 @@ const MAX_SERVINGS = 20;
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recipes, markRecipeAsCooked, recordRecipeView } = useDailyChefMateStore();
+  const { recipes, customRecipes, favorites, markRecipeAsCooked, recordRecipeView } = useDailyChefMateStore();
   const { currentLanguage } = useLanguage();
 
-  const recipe = recipes.find(r => r.id === id);
+  // Look across every source a recipe can come from: the browse cache
+  // (mocks + TheMealDB pages), the user's own recipes, and favorites.
+  const recipe = useMemo(
+    () =>
+      recipes.find((r) => r.id === id) ??
+      customRecipes.find((r) => r.id === id) ??
+      favorites.find((r) => r.id === id),
+    [recipes, customRecipes, favorites, id],
+  );
 
   useEffect(() => {
     if (recipe) {

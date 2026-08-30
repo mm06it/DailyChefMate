@@ -6,7 +6,7 @@ import { useScrollToTop } from "@react-navigation/native";
 
 import RecipeCard from "@/components/RecipeCard";
 import { onHeaderScroll } from "@/components/CollapsingTabHeader";
-import { useRecipes } from "@/hooks/use-dailychefmate-store";
+import { useRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
@@ -33,6 +33,7 @@ export default function AllRecipesScreen() {
   useScrollToTop(listRef);
   const { selectedCuisine, selectedCourse } = useRecipeFilters();
   const recipes = useRecipes("");
+  const { cacheRecipes } = useDailyChefMateStore();
   const { setProgress } = useCollapsibleHeader();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
@@ -74,6 +75,9 @@ export default function AllRecipesScreen() {
       }
 
       if (newRecipes.length > 0) {
+        // Put them in the shared cache so tapping a card / favouriting works
+        // (recipe-detail resolves recipes by id from the store).
+        cacheRecipes(newRecipes);
         setOnlineResults(prev => {
           const existingIds = new Set(prev.map(r => r.id));
           const uniqueNewRecipes = newRecipes.filter(r => !existingIds.has(r.id));
@@ -88,7 +92,7 @@ export default function AllRecipesScreen() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMoreRecipes, currentPage, recipeCategories, popularIngredients]);
+  }, [isLoadingMore, hasMoreRecipes, currentPage, recipeCategories, popularIngredients, cacheRecipes]);
 
   // Pull the first page from the API as soon as the tab mounts.
   useEffect(() => {
