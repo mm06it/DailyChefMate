@@ -9,7 +9,7 @@ import { searchResultRecipe } from "./schema";
 // this are re-fetched.
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 5;
 const RESULT_LIMIT = 8;
-const NO_INSTRUCTIONS = "Keine Anleitung verfügbar.";
+const NO_INSTRUCTIONS = "No instructions available.";
 
 type SearchRecipe = {
   id: string;

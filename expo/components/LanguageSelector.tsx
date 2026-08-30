@@ -7,7 +7,7 @@ import { LANGUAGES, LanguageCode } from '@/constants/languages';
 import { useLanguage } from '@/hooks/use-language';
 
 export const LanguageSelector: React.FC = () => {
-  const { currentLanguage, changeLanguage } = useLanguage();
+  const { currentLanguage, changeLanguage, t } = useLanguage();
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
 
   const handleLanguageSelect = (languageCode: LanguageCode) => {
@@ -35,7 +35,7 @@ export const LanguageSelector: React.FC = () => {
           onPress={() => setIsModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Sprache wählen</Text>
+            <Text style={styles.modalTitle}>{t('selectLanguage')}</Text>
             {Object.entries(LANGUAGES).map(([code, language]) => (
               <TouchableOpacity
                 key={code}

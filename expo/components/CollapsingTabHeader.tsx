@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
+import { useLanguage } from '@/hooks/use-language';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ProfileMenuButton from '@/components/ProfileMenuButton';
 
@@ -80,6 +81,7 @@ export function useHeaderContentPadding(): number {
 
 export default function CollapsingTabHeader({ showBack = false }: { showBack?: boolean }) {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
 
   useEffect(() => {
     fullHeight = insets.top + HEADER_BODY_HEIGHT;
@@ -103,7 +105,7 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
               hitSlop={12}
               testID="header-back"
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={t('back')}
             >
               <ChevronLeft size={28} color={Colors.text} />
             </Pressable>

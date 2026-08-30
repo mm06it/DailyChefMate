@@ -96,7 +96,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
   if (!user) {
     return (
       <View style={styles.centerContent}>
-        <Text style={styles.errorText}>User not found</Text>
+        <Text style={styles.errorText}>{t('userNotFound')}</Text>
       </View>
     );
   }
@@ -156,7 +156,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             <>
               <View style={styles.divider} />
               <InfoRow
-                label="Provider"
+                label={t('provider')}
                 value={user.user_metadata.provider.charAt(0).toUpperCase() + user.user_metadata.provider.slice(1)}
               />
             </>

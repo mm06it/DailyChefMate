@@ -14,6 +14,7 @@ import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
 
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { translateText } from "@/constants/translations";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
@@ -89,7 +90,7 @@ const pickModeSlice = (fd: RecipeFormData): ModeSlice => ({
 });
 
 export default function AddRecipeScreen() {
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
 
@@ -481,7 +482,9 @@ export default function AddRecipeScreen() {
                           style={[styles.categoryText, !formData.ovenMode && styles.placeholder]}
                           numberOfLines={1}
                         >
-                          {formData.ovenMode || t('selectOvenMode')}
+                          {formData.ovenMode
+                            ? translateText(currentLanguage, formData.ovenMode)
+                            : t('selectOvenMode')}
                         </Text>
                       </Pressable>
                     </View>
@@ -498,7 +501,7 @@ export default function AddRecipeScreen() {
                             setShowOvenModePicker(false);
                           }}
                         >
-                          <Text style={styles.categoryOptionText}>{m}</Text>
+                          <Text style={styles.categoryOptionText}>{translateText(currentLanguage, m)}</Text>
                         </Pressable>
                       ))}
                     </View>
@@ -517,7 +520,9 @@ export default function AddRecipeScreen() {
                   onPress={() => setShowCategoryPicker(!showCategoryPicker)}
                 >
                   <Text style={[styles.categoryText, !formData.category && styles.placeholder]}>
-                    {formData.category || t('selectCategory')}
+                    {formData.category
+                      ? translateText(currentLanguage, formData.category)
+                      : t('selectCategory')}
                   </Text>
                 </Pressable>
 
@@ -533,7 +538,7 @@ export default function AddRecipeScreen() {
                           setShowCategoryPicker(false);
                         }}
                       >
-                        <Text style={styles.categoryOptionText}>{category}</Text>
+                        <Text style={styles.categoryOptionText}>{translateText(currentLanguage, category)}</Text>
                       </Pressable>
                     ))}
                   </View>

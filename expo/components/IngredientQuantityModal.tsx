@@ -24,7 +24,7 @@ export default function IngredientQuantityModal({
 }: IngredientQuantityModalProps) {
   const [selectedUnit, setSelectedUnit] = useState<Unit>('g');
   const [selectedAmount, setSelectedAmount] = useState<number>(1);
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
 
   const defaultUnitFromIngredient = (ing: Ingredient | null): Unit => {
     const name = (ing?.name ?? '').toLowerCase().trim();
@@ -115,9 +115,7 @@ export default function IngredientQuantityModal({
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>
-              {translateText(currentLanguage, "Add Quantity") || "Menge hinzufügen"}
-            </Text>
+            <Text style={styles.title}>{t('addQuantity')}</Text>
             <Pressable onPress={handleClose} hitSlop={10} testID="quantity-close">
               <X size={24} color={Colors.text} />
             </Pressable>
@@ -129,9 +127,7 @@ export default function IngredientQuantityModal({
             </Text>
             
             <View style={styles.selectorContainer}>
-              <Text style={styles.label}>
-                {translateText(currentLanguage, "Unit") || "Einheit"}
-              </Text>
+              <Text style={styles.label}>{t('unitLabel')}</Text>
               <View style={styles.unitSelector}>
                 {units.map((unit) => (
                   <Pressable
@@ -150,7 +146,7 @@ export default function IngredientQuantityModal({
                       styles.unitButtonText,
                       selectedUnit === unit ? styles.unitButtonTextSelected : undefined
                     ]}>
-                      {unit}
+                      {translateText(currentLanguage, unit)}
                     </Text>
                   </Pressable>
                 ))}
@@ -158,9 +154,7 @@ export default function IngredientQuantityModal({
             </View>
 
             <View style={styles.selectorContainer}>
-              <Text style={styles.label}>
-                {translateText(currentLanguage, "Amount") || "Menge"}
-              </Text>
+              <Text style={styles.label}>{t('amountLabel')}</Text>
               <ScrollView 
                 style={styles.amountScrollView}
                 showsVerticalScrollIndicator={false}
@@ -192,9 +186,7 @@ export default function IngredientQuantityModal({
                 onPress={handleClose}
                 testID="quantity-cancel"
               >
-                <Text style={styles.cancelButtonText}>
-                  {translateText(currentLanguage, "Cancel") || "Abbrechen"}
-                </Text>
+                <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
               </Pressable>
               
               <Pressable 
@@ -202,9 +194,7 @@ export default function IngredientQuantityModal({
                 onPress={handleConfirm}
                 testID="quantity-confirm"
               >
-                <Text style={styles.confirmButtonText}>
-                  {translateText(currentLanguage, "Add") || "Hinzufügen"}
-                </Text>
+                <Text style={styles.confirmButtonText}>{t('addBtn')}</Text>
               </Pressable>
             </View>
           </View>

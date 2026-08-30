@@ -200,7 +200,7 @@ export default function RefrigeratorScreen() {
             />
             {ingredient.isOnlineResult && (
               <View style={styles.onlineIndicator}>
-                <Text style={styles.onlineText}>Online</Text>
+                <Text style={styles.onlineText}>{t('online')}</Text>
               </View>
             )}
           </View>

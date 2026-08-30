@@ -277,7 +277,7 @@ export default function GeneratedRecipesScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: "Generated Recipes",
+          title: t('generatedRecipesTitle'),
           headerTitleStyle: styles.headerTitle,
           headerShown: isDesktop,
         }}

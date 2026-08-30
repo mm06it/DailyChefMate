@@ -150,7 +150,7 @@ export default function SettingsScreen() {
             <View style={styles.settingRow}>
               <View style={styles.settingLeft}>
                 <User size={20} color={Colors.textLight} />
-                <Text style={styles.settingLabel}>Username</Text>
+                <Text style={styles.settingLabel}>{t('username')}</Text>
               </View>
               {editing ? (
                 <TextInput
@@ -164,7 +164,7 @@ export default function SettingsScreen() {
                   editable={!saving}
                   onSubmitEditing={saveUsername}
                   returnKeyType="done"
-                  placeholder="username"
+                  placeholder={t('username')}
                   placeholderTextColor={Colors.textLight}
                   testID="settings-username-input"
                 />
@@ -221,7 +221,7 @@ export default function SettingsScreen() {
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <User size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>Email</Text>
+              <Text style={styles.settingLabel}>{t('email')}</Text>
             </View>
             <Text style={styles.settingValue}>{user?.email}</Text>
           </View>

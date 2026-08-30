@@ -3,8 +3,10 @@ import React, { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Colors from "@/constants/colors";
+import { translateText } from "@/constants/translations";
 import { categories } from "@/mocks/categories";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
+import { useLanguage } from "@/hooks/use-language";
 
 interface AddIngredientFormProps {
   isVisible: boolean;
@@ -18,6 +20,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
   const [showCategories, setShowCategories] = useState(false);
 
   const { addIngredient } = useDailyChefMateStore();
+  const { t, currentLanguage } = useLanguage();
 
   const handleSubmit = () => {
     if (name.trim() && category) {
@@ -59,7 +62,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>Add New Ingredient</Text>
+            <Text style={styles.title}>{t('addNewIngredient')}</Text>
             <Pressable onPress={handleClose} hitSlop={10}>
               <X size={24} color={Colors.text} />
             </Pressable>
@@ -67,35 +70,35 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Name</Text>
+              <Text style={styles.label}>{t('ingredientNameLabel')}</Text>
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="e.g., Tomatoes"
+                placeholder={t('egIngredientName')}
                 placeholderTextColor={Colors.textLight}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Amount (optional)</Text>
+              <Text style={styles.label}>{t('amountOptionalLabel')}</Text>
               <TextInput
                 style={styles.input}
                 value={amount}
                 onChangeText={setAmount}
-                placeholder="e.g., 500g, 2 pieces"
+                placeholder={t('egIngredientAmount')}
                 placeholderTextColor={Colors.textLight}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Category</Text>
-              <Pressable 
+              <Text style={styles.label}>{t('ingredientCategoryLabel')}</Text>
+              <Pressable
                 style={styles.categorySelector}
                 onPress={() => setShowCategories(!showCategories)}
               >
                 <Text style={category ? styles.input : styles.placeholderText}>
-                  {category || "Select a category"}
+                  {category ? translateText(currentLanguage, category) : t('selectCategory')}
                 </Text>
               </Pressable>
 
@@ -107,7 +110,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
                       style={styles.categoryItem}
                       onPress={() => selectCategory(cat.name)}
                     >
-                      <Text style={styles.categoryText}>{cat.name}</Text>
+                      <Text style={styles.categoryText}>{translateText(currentLanguage, cat.name)}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -123,7 +126,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
               disabled={!name.trim() || !category}
             >
               <Plus size={20} color="#FFF" />
-              <Text style={styles.addButtonText}>Add Ingredient</Text>
+              <Text style={styles.addButtonText}>{t('addIngredientButton')}</Text>
             </Pressable>
           </View>
         </View>

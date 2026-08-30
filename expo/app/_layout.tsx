@@ -9,7 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
-import { LanguageContext } from "@/hooks/use-language";
+import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { trpc, trpcClient } from "@/lib/trpc";
@@ -26,6 +26,7 @@ const queryClient = new QueryClient();
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const isDesktop = useIsDesktop();
+  const { t } = useLanguage();
 
   if (loading) {
     return (
@@ -42,8 +43,8 @@ function RootLayoutNav() {
   const stack = (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="recipe-detail" options={{ title: "Recipe" }} />
-      <Stack.Screen name="generated-recipes" options={{ title: "Generated Recipes" }} />
+      <Stack.Screen name="recipe-detail" options={{ title: t('recipeDetail') }} />
+      <Stack.Screen name="generated-recipes" options={{ title: t('generatedRecipesTitle') }} />
       <Stack.Screen name="auth" options={{ headerShown: false }} />
     </Stack>
   );

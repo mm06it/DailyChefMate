@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import Colors from '@/constants/colors';
+import { translateText } from '@/constants/translations';
 import { CUISINE_FILTERS, COURSE_FILTERS } from '@/constants/recipe-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
 import { useLanguage } from '@/hooks/use-language';
@@ -27,6 +28,7 @@ function FilterMenu({
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
+  const { currentLanguage } = useLanguage();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.menuBackdrop} onPress={onClose}>
@@ -43,7 +45,7 @@ function FilterMenu({
                   testID={`filter-option-${opt.id}`}
                 >
                   <Text style={[styles.menuOptionText, active && styles.menuOptionTextActive]}>
-                    {opt.name}
+                    {translateText(currentLanguage, opt.name)}
                   </Text>
                 </Pressable>
               );
@@ -60,7 +62,7 @@ function FilterMenu({
 // away as the list scrolls. The chips only show on "Alle Rezepte".
 export default function RecipeFilterBar({ showFilters }: { showFilters: boolean }) {
   const { progress } = useCollapsibleHeader();
-  const { t: translate } = useLanguage();
+  const { t: translate, currentLanguage } = useLanguage();
   const {
     search,
     setSearch,
@@ -76,14 +78,16 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
   const t = clamp(progress);
   const collapsed = t > 0.98;
 
+  const cuisineName = CUISINE_FILTERS.find((c) => c.id === selectedCuisine)?.name;
   const cuisineLabel =
-    selectedCuisine === 'all'
-      ? 'Küche'
-      : CUISINE_FILTERS.find((c) => c.id === selectedCuisine)?.name ?? 'Küche';
+    selectedCuisine === 'all' || !cuisineName
+      ? translate('cuisine')
+      : translateText(currentLanguage, cuisineName);
+  const courseName = COURSE_FILTERS.find((c) => c.id === selectedCourse)?.name;
   const courseLabel =
-    selectedCourse === 'all'
-      ? 'Kurs-Art'
-      : COURSE_FILTERS.find((c) => c.id === selectedCourse)?.name ?? 'Kurs-Art';
+    selectedCourse === 'all' || !courseName
+      ? translate('courseType')
+      : translateText(currentLanguage, courseName);
 
   // "Alle Rezepte": icon that expands into the field. Other tab: field always.
   const fieldMode = searchOpen || !showFilters;
@@ -131,7 +135,7 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
                     style={[styles.pillMini, selectedCuisine !== 'all' && styles.pillActive]}
                     onPress={() => setMenu('cuisine')}
                     testID="filter-cuisine-button"
-                    accessibilityLabel="Küche"
+                    accessibilityLabel={translate('cuisine')}
                   >
                     <Globe size={16} color={selectedCuisine !== 'all' ? Colors.white : Colors.textLight} />
                   </Pressable>
@@ -139,7 +143,7 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
                     style={[styles.pillMini, selectedCourse !== 'all' && styles.pillActive]}
                     onPress={() => setMenu('course')}
                     testID="filter-course-button"
-                    accessibilityLabel="Kurs-Art"
+                    accessibilityLabel={translate('courseType')}
                   >
                     <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? Colors.white : Colors.textLight} />
                   </Pressable>
@@ -197,7 +201,7 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
 
       <FilterMenu
         visible={menu === 'cuisine'}
-        title="Küche"
+        title={translate('cuisine')}
         options={CUISINE_FILTERS}
         selected={selectedCuisine}
         onSelect={(id) => {
@@ -208,7 +212,7 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
       />
       <FilterMenu
         visible={menu === 'course'}
-        title="Kurs-Art"
+        title={translate('courseType')}
         options={COURSE_FILTERS}
         selected={selectedCourse}
         onSelect={(id) => {
