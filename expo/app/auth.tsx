@@ -374,9 +374,7 @@ export default function AuthScreen() {
             style={styles.topBarIcon}
             resizeMode="contain"
           />
-          <View style={styles.topBarLang}>
-            <LanguageSelector />
-          </View>
+          <LanguageSelector />
         </View>
       )}
 
@@ -401,9 +399,7 @@ export default function AuthScreen() {
                 style={styles.topBarIcon}
                 resizeMode="contain"
               />
-              <View style={styles.topBarLangMobile}>
-                <LanguageSelector />
-              </View>
+              <LanguageSelector />
             </View>
           )}
           <View style={styles.logoContainer}>
@@ -597,26 +593,21 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
   },
   topBarMobile: {
-    width: '100%',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
     marginBottom: 12,
   },
   topBarIcon: {
     width: 76,
     height: 76,
-  },
-  topBarLang: {
-    position: 'absolute',
-    top: 8,
-    right: 20,
-  },
-  topBarLangMobile: {
-    position: 'absolute',
-    top: 6,
-    right: 0,
   },
   logoContainer: {
     alignItems: 'center',
