@@ -9,7 +9,7 @@ export const TRANSLATIONS = {
     
     // Recipe Tabs
     allRecipes: 'Alle Rezepte',
-    homemadeRecipes: 'Selbstgemachte Rezepte',
+    homemadeRecipes: 'Selbsterstellte Rezepte',
     addRecipe: 'Rezept hinzufügen',
     createRecipe: 'Rezept erstellen',
     recipeName: 'Rezeptname',
@@ -28,7 +28,7 @@ export const TRANSLATIONS = {
     ingredientName: 'Zutat',
     ingredientAmount: 'Menge',
     stepDescription: 'Schritt Beschreibung',
-    noHomemadeRecipes: 'Noch keine selbstgemachten Rezepte',
+    noHomemadeRecipes: 'Noch keine selbsterstellten Rezepte',
     createFirstRecipe: 'Erstelle dein erstes eigenes Rezept!',
     recipeCreated: 'Rezept erfolgreich erstellt!',
     recipeUpdated: 'Rezept erfolgreich aktualisiert!',
