@@ -1,15 +1,21 @@
-import { Stack } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Recipe } from "@/types/recipe";
-import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable } from "react-native";
+import { Animated, FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { RefreshCw, ChefHat } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
+import CollapsingTabHeader, {
+  headerTranslateY,
+  onHeaderScroll,
+  resetHeader,
+  useHeaderContentPadding,
+} from "@/components/CollapsingTabHeader";
 import Colors from "@/constants/colors";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import themealdb from "@/lib/themealdb";
-import { useGridLayout } from "@/hooks/use-responsive";
+import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
   const { t } = useLanguage();
@@ -21,6 +27,12 @@ export default function GeneratedRecipesScreen() {
   const [currentPage, setCurrentPage] = useState<number>(0);
   const selectedIngredients = getSelectedIngredients();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
+  const isDesktop = useIsDesktop();
+  const topPad = useHeaderContentPadding();
+
+  // Keep the shared collapsing header from staying stuck-hidden when this
+  // screen gains focus with a non-zero scroll position.
+  useFocusEffect(useCallback(() => resetHeader(), []));
   
   // Categories to cycle through for endless recipes
   const recipeCategories = useMemo(() => [
@@ -181,15 +193,15 @@ export default function GeneratedRecipesScreen() {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          title: "Generated Recipes",
-          headerTitleStyle: styles.headerTitle,
-        }} 
-      />
-      
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!isDesktop) onHeaderScroll(e);
+    },
+    [isDesktop],
+  );
+
+  const content = (
+    <>
       {selectedIngredients.length > 0 && (
         <View style={styles.ingredientsInfo}>
           <Text style={styles.ingredientsText}>
@@ -232,6 +244,8 @@ export default function GeneratedRecipesScreen() {
           testID="generated-recipes-list"
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.3}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           ListFooterComponent={renderFooter}
           removeClippedSubviews={true}
           maxToRenderPerBatch={10}
@@ -240,7 +254,7 @@ export default function GeneratedRecipesScreen() {
       ) : (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>
-            {selectedIngredients.length === 0 
+            {selectedIngredients.length === 0
               ? (t('selectIngredients') || 'Select ingredients from your refrigerator')
               : (t('noMatchingRecipes') || 'No matching recipes found')
             }
@@ -253,6 +267,34 @@ export default function GeneratedRecipesScreen() {
           </Text>
         </View>
       )}
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: "Generated Recipes",
+          headerTitleStyle: styles.headerTitle,
+          headerShown: isDesktop,
+        }}
+      />
+
+      {!isDesktop && <CollapsingTabHeader showBack />}
+
+      {isDesktop ? (
+        <View style={styles.body}>{content}</View>
+      ) : (
+        // Ride the content up with the header as it collapses on scroll-down.
+        <Animated.View
+          style={[
+            styles.body,
+            { paddingTop: topPad, marginBottom: -topPad, transform: [{ translateY: headerTranslateY }] },
+          ]}
+        >
+          {content}
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -261,6 +303,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  body: {
+    flex: 1,
   },
   headerTitle: {
     fontWeight: "600",

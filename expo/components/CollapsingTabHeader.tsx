@@ -1,9 +1,12 @@
+import { router } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import {
   Animated,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   StyleSheet,
   View,
 } from 'react-native';
@@ -75,7 +78,7 @@ export function useHeaderContentPadding(): number {
   return insets.top + HEADER_BODY_HEIGHT;
 }
 
-export default function CollapsingTabHeader() {
+export default function CollapsingTabHeader({ showBack = false }: { showBack?: boolean }) {
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -92,7 +95,21 @@ export default function CollapsingTabHeader() {
     >
       <View style={styles.body}>
         <View style={styles.side}>
-          <LanguageSelector />
+          {showBack ? (
+            <Pressable
+              onPress={() =>
+                router.canGoBack() ? router.back() : router.replace('/(tabs)/refrigerator')
+              }
+              hitSlop={12}
+              testID="header-back"
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <ChevronLeft size={28} color={Colors.text} />
+            </Pressable>
+          ) : (
+            <LanguageSelector />
+          )}
         </View>
         <Image
           source={require('@/assets/images/logo.png')}
