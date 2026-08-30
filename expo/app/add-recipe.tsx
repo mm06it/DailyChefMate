@@ -191,8 +191,8 @@ export default function AddRecipeScreen() {
 
   const handleSave = () => {
     if (hasErrors) {
+      // Inline banner + the red asterisks only — no blocking popup.
       setErrorMessage(t('fillHighlightedFields'));
-      alertMessage(t('required'), t('fillHighlightedFields'));
       return;
     }
     setErrorMessage(null);
