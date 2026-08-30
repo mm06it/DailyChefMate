@@ -10,7 +10,7 @@ import GenerateRecipesButton from "@/components/GenerateRecipesButton";
 import SearchBar from "@/components/SearchBar";
 import Colors from "@/constants/colors";
 
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { translateText } from "@/constants/translations";
 import { Ingredient } from "@/types/recipe";
@@ -25,7 +25,7 @@ export default function RefrigeratorScreen() {
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [onlineResults, setOnlineResults] = useState<Ingredient[]>([]);
-  const { refrigeratorItems, updateIngredientAmount, addIngredient } = useFridgyStore();
+  const { refrigeratorItems, updateIngredientAmount, addIngredient } = useDailyChefMateStore();
 
   const toggleAddForm = () => {
     setShowAddForm(!showAddForm);

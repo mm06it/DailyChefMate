@@ -7,7 +7,7 @@ import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
 import Colors from "@/constants/colors";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { scaleAmount } from "@/lib/scale-amount";
@@ -17,7 +17,7 @@ const MAX_SERVINGS = 20;
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recipes, markRecipeAsCooked, recordRecipeView } = useFridgyStore();
+  const { recipes, markRecipeAsCooked, recordRecipeView } = useDailyChefMateStore();
   const { currentLanguage } = useLanguage();
 
   const recipe = recipes.find(r => r.id === id);

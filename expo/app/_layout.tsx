@@ -7,7 +7,7 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 
-import { FridgyContext } from "@/hooks/use-fridgy-store";
+import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
 import { LanguageContext } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
@@ -82,11 +82,11 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <LanguageContext>
               <AuthProvider>
-                <FridgyContext>
+                <DailyChefMateContext>
                   <GestureHandlerRootView style={{ flex: 1 }}>
                     <RootLayoutNav />
                   </GestureHandlerRootView>
-                </FridgyContext>
+                </DailyChefMateContext>
               </AuthProvider>
             </LanguageContext>
           </QueryClientProvider>

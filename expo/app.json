@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Fridgy",
-    "slug": "fridgy",
+    "name": "DailyChefMate",
+    "slug": "dailychefmate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "fridgy",
+    "scheme": "dailychefmate",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fridgy.app"
+      "bundleIdentifier": "com.dailychefmate.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.fridgy.app"
+      "package": "com.dailychefmate.app"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -31,7 +31,7 @@
       [
         "expo-router",
         {
-          "origin": "https://fridgy-psi.vercel.app/"
+          "origin": "https://www.dailychefmate.com/"
         }
       ]
     ],

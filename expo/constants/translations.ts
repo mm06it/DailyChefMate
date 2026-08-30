@@ -103,7 +103,7 @@ export const TRANSLATIONS = {
     refreshRecipes: 'Rezepte aktualisieren',
     
     // Auth
-    welcome: 'Willkommen bei Fridgy',
+    welcome: 'Willkommen bei DailyChefMate',
     signIn: 'Anmelden',
     signUp: 'Registrieren',
     email: 'E-Mail',
@@ -616,7 +616,7 @@ export const TRANSLATIONS = {
     refreshRecipes: 'Refresh Recipes',
     
     // Auth
-    welcome: 'Welcome to Fridgy',
+    welcome: 'Welcome to DailyChefMate',
     signIn: 'Sign In',
     signUp: 'Sign Up',
     email: 'Email',

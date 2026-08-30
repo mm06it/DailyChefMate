@@ -4,7 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 
 import Colors from "@/constants/colors";
 import { categories } from "@/mocks/categories";
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 
 interface AddIngredientFormProps {
   isVisible: boolean;
@@ -17,7 +17,7 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
   const [category, setCategory] = useState("");
   const [showCategories, setShowCategories] = useState(false);
 
-  const { addIngredient } = useFridgyStore();
+  const { addIngredient } = useDailyChefMateStore();
 
   const handleSubmit = () => {
     if (name.trim() && category) {

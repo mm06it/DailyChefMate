@@ -34,11 +34,11 @@ export const ResendOTP = Email({
   }) {
     const resend = new ResendAPI(provider.apiKey);
     const { error } = await resend.emails.send({
-      from: process.env.AUTH_EMAIL_FROM ?? "Fridgy <onboarding@resend.dev>",
+      from: process.env.AUTH_EMAIL_FROM ?? "DailyChefMate <onboarding@resend.dev>",
       to: [email],
-      subject: "Dein Fridgy-Bestätigungscode",
+      subject: "Dein DailyChefMate-Bestätigungscode",
       text:
-        `Willkommen bei Fridgy!\n\n` +
+        `Willkommen bei DailyChefMate!\n\n` +
         `Dein Bestätigungscode lautet: ${token}\n\n` +
         `Der Code ist 15 Minuten gültig. Wenn du das nicht warst, ` +
         `kannst du diese E-Mail ignorieren.`,

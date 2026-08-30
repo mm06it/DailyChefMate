@@ -6,7 +6,7 @@ import { Search, ChefHat, Filter } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
-import { useRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import themealdb from "@/lib/themealdb";
@@ -25,7 +25,7 @@ export default function AllRecipesScreen() {
   const [selectedCuisine, setSelectedCuisine] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
   const recipes = useRecipes(searchQuery);
-  const { searchRecipesOnline } = useFridgyStore();
+  const { searchRecipesOnline } = useDailyChefMateStore();
   const { setProgress, progress } = useCollapsibleHeader();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 

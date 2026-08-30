@@ -5,7 +5,7 @@ import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { Recipe } from "@/types/recipe";
 
@@ -14,7 +14,7 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
-  const { toggleFavorite } = useFridgyStore();
+  const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
 

@@ -5,7 +5,7 @@ import { router } from "expo-router";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
-import { useCustomRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { confirmAsync } from "@/lib/confirm";
 import Colors from "@/constants/colors";
@@ -16,7 +16,7 @@ export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const customRecipes = useCustomRecipes(searchQuery);
-  const { deleteCustomRecipe } = useFridgyStore();
+  const { deleteCustomRecipe } = useDailyChefMateStore();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
 
   const handleAddRecipe = () => {

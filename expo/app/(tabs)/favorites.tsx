@@ -3,7 +3,7 @@ import React from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import RecipeCard from "@/components/RecipeCard";
-import { useFavoriteRecipes } from "@/hooks/use-fridgy-store";
+import { useFavoriteRecipes } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useGridLayout } from "@/hooks/use-responsive";
 import { Recipe } from "@/types/recipe";

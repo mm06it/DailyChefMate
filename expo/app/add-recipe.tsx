@@ -13,7 +13,7 @@ import {
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
 
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
@@ -39,7 +39,7 @@ const RECIPE_CATEGORIES = [
 export default function AddRecipeScreen() {
   const { t } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
-  const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useFridgyStore();
+  const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
   
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",

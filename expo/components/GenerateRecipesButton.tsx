@@ -4,13 +4,13 @@ import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import Colors from "@/constants/colors";
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 
 export default function GenerateRecipesButton() {
   const { t } = useLanguage();
   const navigation = useNavigation();
-  const { getSelectedIngredients } = useFridgyStore();
+  const { getSelectedIngredients } = useDailyChefMateStore();
   const selectedIngredients = getSelectedIngredients();
   const isDisabled = selectedIngredients.length < 2;
 

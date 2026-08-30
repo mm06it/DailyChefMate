@@ -10,7 +10,7 @@ import { Recipe, Ingredient } from "@/types/recipe";
 import themealdb from "@/lib/themealdb";
 import { trpcClient } from "@/lib/trpc";
 
-export const [FridgyContext, useFridgyStore] = createContextHook(() => {
+export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook(() => {
   // Transient browse/search cache (mock catalog + TheMealDB/AI results).
   // This is *not* persisted anywhere — only whether one of these recipes is
   // favorited is real, durable data, tracked in Convex (favoriteRecipes).
@@ -443,22 +443,22 @@ export const [FridgyContext, useFridgyStore] = createContextHook(() => {
 
 // Custom hooks for specific use cases
 export function useRecipes(searchQuery: string = "") {
-  const { recipes, searchRecipes } = useFridgyStore();
+  const { recipes, searchRecipes } = useDailyChefMateStore();
   return searchQuery ? searchRecipes(searchQuery) : recipes;
 }
 
 export function useCustomRecipes(searchQuery: string = "") {
-  const { customRecipes, searchCustomRecipes } = useFridgyStore();
+  const { customRecipes, searchCustomRecipes } = useDailyChefMateStore();
   return searchQuery ? searchCustomRecipes(searchQuery) : customRecipes;
 }
 
 export function useFavoriteRecipes() {
-  const { getFavoriteRecipes } = useFridgyStore();
+  const { getFavoriteRecipes } = useDailyChefMateStore();
   return getFavoriteRecipes();
 }
 
 export function useRefrigeratorItems(searchQuery: string = "", categoryFilter: string = "") {
-  const { refrigeratorItems, searchRefrigeratorItems } = useFridgyStore();
+  const { refrigeratorItems, searchRefrigeratorItems } = useDailyChefMateStore();
   const filteredBySearch = searchQuery ? searchRefrigeratorItems(searchQuery) : refrigeratorItems;
 
   return categoryFilter
@@ -467,6 +467,6 @@ export function useRefrigeratorItems(searchQuery: string = "", categoryFilter: s
 }
 
 export function useGeneratedRecipes() {
-  const { generateRecipes } = useFridgyStore();
+  const { generateRecipes } = useDailyChefMateStore();
   return generateRecipes();
 }

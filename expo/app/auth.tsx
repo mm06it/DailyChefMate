@@ -154,7 +154,7 @@ export default function AuthScreen() {
     if (email.toLowerCase() === 'admin' && password === 'admin') {
       setLoading(true);
       try {
-        const adminEmail = 'admin@fridgy.app';
+        const adminEmail = 'admin@dailychefmate.app';
         const adminPassword = 'admin123456';
         const { error: signInError } = await signIn(adminEmail, adminPassword);
         if (signInError) {

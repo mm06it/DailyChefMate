@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
-import { useRefrigeratorItems } from "@/hooks/use-fridgy-store";
+import { useRefrigeratorItems } from "@/hooks/use-dailychefmate-store";
 import IngredientItem from "./IngredientItem";
 
 interface CategorySectionProps {

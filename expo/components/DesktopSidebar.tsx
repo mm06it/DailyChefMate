@@ -55,7 +55,7 @@ export default function DesktopSidebar() {
     <View style={styles.sidebar}>
       <Pressable style={styles.brand} onPress={() => router.push('/(tabs)/(recipes)/all')}>
         <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
-        <Text style={styles.brandText}>Fridgy</Text>
+        <Text style={styles.brandText}>DailyChefMate</Text>
       </Pressable>
 
       <View style={styles.nav}>

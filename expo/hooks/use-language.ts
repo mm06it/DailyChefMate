@@ -6,7 +6,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { DEFAULT_LANGUAGE, LanguageCode } from '@/constants/languages';
 import { getTranslation } from '@/constants/translations';
 
-const LANGUAGE_STORAGE_KEY = 'fridgy_language';
+const LANGUAGE_STORAGE_KEY = 'dailychefmate_language';
 
 export const [LanguageContext, useLanguage] = createContextHook(() => {
   const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(DEFAULT_LANGUAGE);

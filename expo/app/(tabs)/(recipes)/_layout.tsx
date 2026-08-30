@@ -19,7 +19,7 @@ const HeaderTitle = () => (
       source={require('@/assets/images/logo.png')}
       style={styles.logo}
     />
-    <Text style={styles.fridgyTitle}>Fridgy</Text>
+    <Text style={styles.brandTitle}>DailyChefMate</Text>
   </View>
 );
 
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginRight: 8,
   },
-  fridgyTitle: {
+  brandTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: Colors.primary,

@@ -6,7 +6,7 @@ import { RefreshCw, ChefHat } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
 import Colors from "@/constants/colors";
-import { useGeneratedRecipes, useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useGeneratedRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import themealdb from "@/lib/themealdb";
 import { useGridLayout } from "@/hooks/use-responsive";
@@ -14,7 +14,7 @@ import { useGridLayout } from "@/hooks/use-responsive";
 export default function GeneratedRecipesScreen() {
   const { t } = useLanguage();
   const generatedRecipes = useGeneratedRecipes();
-  const { generateRecipesFromIngredients, getSelectedIngredients } = useFridgyStore();
+  const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);

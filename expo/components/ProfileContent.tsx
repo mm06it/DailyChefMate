@@ -6,7 +6,7 @@ import { UserCircle, Heart, ChefHat, Eye, Flame, Trophy } from 'lucide-react-nat
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
-import { useFridgyStore } from '@/hooks/use-fridgy-store';
+import { useDailyChefMateStore } from '@/hooks/use-dailychefmate-store';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -73,7 +73,7 @@ interface ProfileContentProps {
 export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount } = useFridgyStore();
+  const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, generatedRecipesCount } = useDailyChefMateStore();
 
   const profileStats = useMemo(() => {
     const joinDate = user?.created_at ? new Date(user.created_at) : new Date();

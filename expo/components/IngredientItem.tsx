@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
-import { useFridgyStore } from "@/hooks/use-fridgy-store";
+import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { Ingredient } from "@/types/recipe";
 
@@ -16,7 +16,7 @@ interface IngredientItemProps {
 }
 
 export default function IngredientItem({ ingredient, showRemove = false, onSelect, onEditQuantity }: IngredientItemProps) {
-  const { toggleIngredientSelection, selectIngredient } = useFridgyStore();
+  const { toggleIngredientSelection, selectIngredient } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
   const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
   const [confirmConfig, setConfirmConfig] = React.useState<{ title: string; message: string; onConfirm: () => void; confirmLabel?: string } | null>(null);
