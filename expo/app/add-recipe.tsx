@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -35,10 +35,10 @@ interface RecipeFormData {
   steps: string[];
 }
 
-const RECIPE_CATEGORIES = [
-  'Breakfast', 'Lunch', 'Dinner', 'Dessert', 'Snack', 'Appetizer',
-  'Main Course', 'Side Dish', 'Soup', 'Salad', 'Beverage', 'Other'
-];
+const CATEGORIES_BY_MODE: Record<RecipeMode, string[]> = {
+  cooking: ['Hauptspeise', 'Vorspeise', 'Dessert', 'Snack', 'Suppe', 'Salat'],
+  baking: ['Vorspeise', 'Hauptspeise', 'Dessert', 'Snack'],
+};
 
 const OVEN_MODES = [
   'Ober-/Unterhitze',
@@ -49,6 +49,45 @@ const OVEN_MODES = [
 ];
 
 const num = (v: string) => parseInt((v ?? '').replace(/[^0-9]/g, '') || '0', 10) || 0;
+
+// Everything below the name/mode row is per-mode: what you type under
+// "Kochen" is kept apart from "Backen" and vice versa.
+type ModeSlice = Pick<
+  RecipeFormData,
+  | 'prepTime'
+  | 'cookTime'
+  | 'ovenTime'
+  | 'ovenHeat'
+  | 'ovenMode'
+  | 'servings'
+  | 'category'
+  | 'ingredients'
+  | 'steps'
+>;
+
+const freshModeSlice = (): ModeSlice => ({
+  prepTime: '0',
+  cookTime: '0',
+  ovenTime: '0',
+  ovenHeat: '',
+  ovenMode: '',
+  servings: '',
+  category: '',
+  ingredients: [{ name: '', amount: '' }],
+  steps: [''],
+});
+
+const pickModeSlice = (fd: RecipeFormData): ModeSlice => ({
+  prepTime: fd.prepTime,
+  cookTime: fd.cookTime,
+  ovenTime: fd.ovenTime,
+  ovenHeat: fd.ovenHeat,
+  ovenMode: fd.ovenMode,
+  servings: fd.servings,
+  category: fd.category,
+  ingredients: fd.ingredients,
+  steps: fd.steps,
+});
 
 export default function AddRecipeScreen() {
   const { t } = useLanguage();
@@ -73,6 +112,21 @@ export default function AddRecipeScreen() {
   const [showOvenModePicker, setShowOvenModePicker] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isEditing = !!editId;
+
+  // Per-mode field snapshots, so toggling Kochen/Backen keeps each side's
+  // data to itself instead of bleeding across.
+  const savedByMode = useRef<{ cooking?: ModeSlice; baking?: ModeSlice }>({});
+
+  const selectMode = (next: RecipeMode) => {
+    setShowCategoryPicker(false);
+    setShowOvenModePicker(false);
+    setFormData((prev) => {
+      if (prev.mode === next) return prev;
+      if (prev.mode) savedByMode.current[prev.mode] = pickModeSlice(prev);
+      const restored = savedByMode.current[next] ?? freshModeSlice();
+      return { name: prev.name, mode: next, ...restored };
+    });
+  };
 
   const isEmpty = useCallback((v: string) => (v ?? '').trim().length === 0, []);
 
@@ -332,7 +386,7 @@ export default function AddRecipeScreen() {
               <Pressable
                 testID="mode-cooking"
                 style={[styles.modeButton, formData.mode === 'cooking' && styles.modeButtonActive]}
-                onPress={() => setFormData((prev) => ({ ...prev, mode: 'cooking' }))}
+                onPress={() => selectMode('cooking')}
               >
                 <Text style={[styles.modeButtonText, formData.mode === 'cooking' && styles.modeButtonTextActive]}>
                   {t('modeCooking')}
@@ -341,7 +395,7 @@ export default function AddRecipeScreen() {
               <Pressable
                 testID="mode-baking"
                 style={[styles.modeButton, formData.mode === 'baking' && styles.modeButtonActive]}
-                onPress={() => setFormData((prev) => ({ ...prev, mode: 'baking' }))}
+                onPress={() => selectMode('baking')}
               >
                 <Text style={[styles.modeButtonText, formData.mode === 'baking' && styles.modeButtonTextActive]}>
                   {t('modeBaking')}
@@ -456,7 +510,7 @@ export default function AddRecipeScreen() {
 
                 {showCategoryPicker && (
                   <View style={styles.categoryPicker}>
-                    {RECIPE_CATEGORIES.map((category) => (
+                    {(formData.mode ? CATEGORIES_BY_MODE[formData.mode] : []).map((category) => (
                       <Pressable
                         testID={`option-category-${category}`}
                         key={category}
