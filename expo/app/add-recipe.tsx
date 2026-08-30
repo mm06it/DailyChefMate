@@ -14,7 +14,6 @@ import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
 
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
-import { alertMessage } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
@@ -111,7 +110,13 @@ export default function AddRecipeScreen() {
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
   const [showOvenModePicker, setShowOvenModePicker] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isEditing = !!editId;
+
+  useEffect(() => () => {
+    if (navTimer.current) clearTimeout(navTimer.current);
+  }, []);
 
   // Per-mode field snapshots, so toggling Kochen/Backen keeps each side's
   // data to itself instead of bleeding across.
@@ -227,15 +232,15 @@ export default function AddRecipeScreen() {
     try {
       if (isEditing && editId) {
         updateCustomRecipe(editId, recipeData);
-        alertMessage(t('recipeUpdated'));
+        setSuccessMessage(t('recipeUpdated'));
       } else {
         addCustomRecipe(recipeData);
-        alertMessage(t('recipeCreated'));
+        setSuccessMessage(t('recipeCreated'));
       }
-      router.back();
+      // Let the green confirmation show for a beat, then go back.
+      navTimer.current = setTimeout(() => router.back(), 1200);
     } catch (error) {
       console.error('Error saving recipe:', error);
-      alertMessage('Error', 'Failed to save recipe');
       setErrorMessage('Failed to save recipe');
     }
   };
@@ -354,6 +359,14 @@ export default function AddRecipeScreen() {
             >
               <XIcon size={16} color="#fff" />
             </Pressable>
+          </View>
+        </View>
+      )}
+
+      {successMessage && (
+        <View style={styles.fixedBannerContainer}>
+          <View testID="success-banner" style={styles.successBanner}>
+            <Text style={styles.successBannerText}>{successMessage}</Text>
           </View>
         </View>
       )}
@@ -876,5 +889,17 @@ const styles = StyleSheet.create({
   },
   errorBannerClose: {
     padding: 6,
+  },
+  successBanner: {
+    backgroundColor: Colors.success,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  successBannerText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
