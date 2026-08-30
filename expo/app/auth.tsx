@@ -10,12 +10,12 @@ import {
   ScrollView,
   Image,
   Animated,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useConvex } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
-import { useIsDesktop } from '@/hooks/use-responsive';
 import { getTranslation } from '@/constants/translations';
 import { api } from '@/convex/_generated/api';
 import { LanguageSelector } from '@/components/LanguageSelector';
@@ -49,7 +49,59 @@ export default function AuthScreen() {
 
   const { signIn, signUp, verifyEmail, resendVerificationCode } = useAuth();
   const { language } = useLanguage();
-  const isDesktop = useIsDesktop();
+
+  const scrollRef = useRef<ScrollView>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // "Pull up / scroll past the top" reloads the page.
+  const reloadApp = useCallback(() => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') window.location.reload();
+      return;
+    }
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 600);
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node: HTMLElement | undefined = (scrollRef.current as any)?.getScrollableNode?.();
+    if (!node) return;
+
+    let wheelAccum = 0;
+    let wheelTimer: ReturnType<typeof setTimeout> | undefined;
+    let touchStartY = 0;
+    let pulling = false;
+
+    const atTop = () => node.scrollTop <= 0;
+
+    const onWheel = (e: WheelEvent) => {
+      if (!atTop() || e.deltaY >= 0) { wheelAccum = 0; return; }
+      wheelAccum += -e.deltaY;
+      if (wheelTimer) clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelAccum = 0; }, 300);
+      if (wheelAccum > 220) { wheelAccum = 0; reloadApp(); }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      pulling = atTop();
+      touchStartY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!pulling) return;
+      const dy = (e.touches[0]?.clientY ?? 0) - touchStartY;
+      if (dy > 90) { pulling = false; reloadApp(); }
+    };
+
+    node.addEventListener('wheel', onWheel, { passive: true });
+    node.addEventListener('touchstart', onTouchStart, { passive: true });
+    node.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      node.removeEventListener('wheel', onWheel);
+      node.removeEventListener('touchstart', onTouchStart);
+      node.removeEventListener('touchmove', onTouchMove);
+      if (wheelTimer) clearTimeout(wheelTimer);
+    };
+  }, [reloadApp]);
   const convex = useConvex();
 
   const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
@@ -310,22 +362,33 @@ export default function AuthScreen() {
         </Animated.View>
       )}
 
+      {/* Pinned to the top of the screen, independent of the centered form. */}
+      <View style={styles.topBar} pointerEvents="box-none">
+        <Image
+          source={require('@/assets/images/icon.png')}
+          style={styles.topBarIcon}
+          resizeMode="contain"
+        />
+        <View style={styles.topBarLang}>
+          <LanguageSelector />
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={[styles.scrollContent, isDesktop ? styles.scrollContentDesktop : styles.scrollContentMobile]}>
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            Platform.OS === 'web'
+              ? undefined
+              : <RefreshControl refreshing={refreshing} onRefresh={reloadApp} />
+          }
+        >
           <ResponsiveContainer maxWidth={480}>
-          <View style={styles.header}>
-            <LanguageSelector />
-          </View>
-
           <View style={styles.logoContainer}>
-            <Image
-              source={require('@/assets/images/icon.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
             <Text style={styles.title}>
               {verificationEmail
                 ? getTranslation(language, 'verifyEmailTitle')
@@ -507,32 +570,30 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-  },
-  scrollContentMobile: {
-    paddingTop: 20,
-    paddingBottom: 20,
-  },
-  scrollContentDesktop: {
     justifyContent: 'center',
-    paddingTop: 40,
-    paddingBottom: 180,
+    padding: 20,
   },
-  header: {
+  topBar: {
     position: 'absolute',
-    top: 6,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+  topBarIcon: {
+    width: 76,
+    height: 76,
+  },
+  topBarLang: {
+    position: 'absolute',
+    top: 8,
     right: 20,
-    zIndex: 1,
   },
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
-  },
-  logo: {
-    width: 96,
-    height: 96,
-    marginBottom: 12,
   },
   title: {
     fontSize: 28,
