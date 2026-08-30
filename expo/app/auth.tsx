@@ -364,17 +364,22 @@ export default function AuthScreen() {
         </Animated.View>
       )}
 
-      {/* Desktop: icon + language selector sit between the top edge and the
-          (centered) welcome text. Mobile: they ride with the centered
-          content — see below. */}
+      {/* Desktop: the icon sits between the top edge and the (centered)
+          welcome text; the language selector is pinned to the top-right of
+          the content column, level with the top of the icon. Mobile: the
+          same bar rides with the centered content — see below. */}
       {isDesktop && (
         <View style={styles.topBarDesktop} pointerEvents="box-none">
-          <Image
-            source={require('@/assets/images/icon.png')}
-            style={styles.topBarIcon}
-            resizeMode="contain"
-          />
-          <LanguageSelector />
+          <View style={styles.topBarInner}>
+            <Image
+              source={require('@/assets/images/icon.png')}
+              style={[styles.topBarIcon, styles.topBarIconDesktop]}
+              resizeMode="contain"
+            />
+            <View style={styles.langSlot}>
+              <LanguageSelector />
+            </View>
+          </View>
         </View>
       )}
 
@@ -399,7 +404,9 @@ export default function AuthScreen() {
                 style={styles.topBarIcon}
                 resizeMode="contain"
               />
-              <LanguageSelector />
+              <View style={styles.langSlot}>
+                <LanguageSelector />
+              </View>
             </View>
           )}
           <View style={styles.logoContainer}>
@@ -593,21 +600,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
+  },
+  topBarInner: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
   },
   topBarMobile: {
-    flexDirection: 'row',
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
     marginBottom: 12,
+  },
+  langSlot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
   },
   topBarIcon: {
     width: 76,
     height: 76,
+  },
+  topBarIconDesktop: {
+    width: 92,
+    height: 92,
   },
   logoContainer: {
     alignItems: 'center',
