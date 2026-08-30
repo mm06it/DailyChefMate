@@ -5,10 +5,10 @@ import { router } from "expo-router";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
+import InlineConfirm from "@/components/InlineConfirm";
 import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
-import { confirmAsync } from "@/lib/confirm";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
 import { useGridLayout } from "@/hooks/use-responsive";
@@ -16,6 +16,7 @@ import { useGridLayout } from "@/hooks/use-responsive";
 export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const customRecipes = useCustomRecipes(searchQuery);
   const { deleteCustomRecipe } = useDailyChefMateStore();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
@@ -31,33 +32,41 @@ export default function HomemadeRecipesScreen() {
     });
   };
 
-  const handleDeleteRecipe = async (recipe: Recipe) => {
-    const confirmed = await confirmAsync(t('deleteRecipe'), t('confirmDelete'), t('delete'), t('cancel'));
-    if (confirmed) {
-      deleteCustomRecipe(recipe.id);
-    }
-  };
-
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
       <View style={[styles.recipeContainer, columns > 1 && { width: itemWidth }]}>
         <RecipeCard recipe={item} />
-        <View style={styles.actionButtons}>
-          <Pressable
-            style={[styles.actionButton, styles.editButton]}
-            onPress={() => handleEditRecipe(item)}
-          >
-            <Edit size={16} color={Colors.white} />
-            <Text style={styles.actionButtonText}>{t('edit')}</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDeleteRecipe(item)}
-          >
-            <Trash2 size={16} color={Colors.white} />
-            <Text style={styles.actionButtonText}>{t('delete')}</Text>
-          </Pressable>
-        </View>
+        {confirmingDeleteId === item.id ? (
+          <InlineConfirm
+            style={styles.deleteConfirm}
+            question={t('confirmDelete')}
+            confirmLabel={t('delete')}
+            destructive
+            onConfirm={() => {
+              deleteCustomRecipe(item.id);
+              setConfirmingDeleteId(null);
+            }}
+            onCancel={() => setConfirmingDeleteId(null)}
+            testID={`delete-confirm-${item.id}`}
+          />
+        ) : (
+          <View style={styles.actionButtons}>
+            <Pressable
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEditRecipe(item)}
+            >
+              <Edit size={16} color={Colors.white} />
+              <Text style={styles.actionButtonText}>{t('edit')}</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => setConfirmingDeleteId(item.id)}
+            >
+              <Trash2 size={16} color={Colors.white} />
+              <Text style={styles.actionButtonText}>{t('delete')}</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   };
@@ -162,6 +171,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 8,
     gap: 8,
+  },
+  deleteConfirm: {
+    marginTop: 8,
   },
   actionButton: {
     flex: 1,

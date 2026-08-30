@@ -1,12 +1,12 @@
 import { router, usePathname } from 'expo-router';
 import { BookOpen, LogOut, Refrigerator, Settings, Star, UserCircle } from 'lucide-react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
-import { confirmAsync } from '@/lib/confirm';
+import InlineConfirm from '@/components/InlineConfirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
 interface NavItem {
@@ -21,6 +21,7 @@ export default function DesktopSidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
 
   const navItems: NavItem[] = [
     {
@@ -47,8 +48,8 @@ export default function DesktopSidebar() {
   ];
 
   const handleSignOut = async () => {
-    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
-    if (confirmed) await signOut();
+    setConfirmingSignOut(false);
+    await signOut();
   };
 
   return (
@@ -90,10 +91,21 @@ export default function DesktopSidebar() {
           <Text style={styles.navLabel}>{t('settings')}</Text>
         </Pressable>
 
-        <Pressable style={styles.navItem} onPress={handleSignOut}>
-          <LogOut size={20} color={Colors.error} />
-          <Text style={[styles.navLabel, styles.signOutText]}>{t('signOut')}</Text>
-        </Pressable>
+        {confirmingSignOut ? (
+          <InlineConfirm
+            style={styles.signOutConfirm}
+            question={t('signOutConfirmation')}
+            confirmLabel={t('signOut')}
+            destructive
+            onConfirm={handleSignOut}
+            onCancel={() => setConfirmingSignOut(false)}
+          />
+        ) : (
+          <Pressable style={styles.navItem} onPress={() => setConfirmingSignOut(true)}>
+            <LogOut size={20} color={Colors.error} />
+            <Text style={[styles.navLabel, styles.signOutText]}>{t('signOut')}</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -154,5 +166,9 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     color: Colors.error,
+  },
+  signOutConfirm: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
 });

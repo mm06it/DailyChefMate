@@ -5,17 +5,17 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
-import { confirmAsync } from '@/lib/confirm';
+import InlineConfirm from '@/components/InlineConfirm';
 import ProfileContent from '@/components/ProfileContent';
 
 export default function ProfileMenuButton() {
   const { signOut } = useAuth();
   const { t } = useLanguage();
   const [isVisible, setIsVisible] = useState<boolean>(false);
+  const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
 
   const handleSignOut = async () => {
-    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
-    if (!confirmed) return;
+    setConfirmingSignOut(false);
     setIsVisible(false);
     await signOut();
   };
@@ -24,7 +24,10 @@ export default function ProfileMenuButton() {
     <>
       <TouchableOpacity
         style={styles.headerButton}
-        onPress={() => setIsVisible(true)}
+        onPress={() => {
+          setConfirmingSignOut(false);
+          setIsVisible(true);
+        }}
         testID="profile-menu-button"
       >
         <UserCircle size={24} color={Colors.primary} />
@@ -51,10 +54,25 @@ export default function ProfileMenuButton() {
               <ProfileContent onBeforeNavigate={() => setIsVisible(false)} />
 
               <View style={styles.footer}>
-                <TouchableOpacity style={styles.footerRow} onPress={handleSignOut} testID="profile-sheet-sign-out">
-                  <LogOut size={20} color={Colors.error} />
-                  <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>
-                </TouchableOpacity>
+                {confirmingSignOut ? (
+                  <InlineConfirm
+                    style={styles.signOutConfirm}
+                    question={t('signOutConfirmation')}
+                    confirmLabel={t('signOut')}
+                    destructive
+                    onConfirm={handleSignOut}
+                    onCancel={() => setConfirmingSignOut(false)}
+                  />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.footerRow}
+                    onPress={() => setConfirmingSignOut(true)}
+                    testID="profile-sheet-sign-out"
+                  >
+                    <LogOut size={20} color={Colors.error} />
+                    <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>
+                  </TouchableOpacity>
+                )}
 
                 <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
               </View>
@@ -119,6 +137,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
+  },
+  signOutConfirm: {
+    paddingVertical: 12,
   },
   footerText: {
     fontSize: 16,

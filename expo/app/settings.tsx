@@ -15,7 +15,7 @@ import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useIsDesktop } from '@/hooks/use-responsive';
-import { confirmAsync } from '@/lib/confirm';
+import InlineConfirm from '@/components/InlineConfirm';
 import CollapsingTabHeader, {
   resetHeader,
   useHeaderContentPadding,
@@ -47,6 +47,7 @@ export default function SettingsScreen() {
   const [draft, setDraft] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -56,8 +57,8 @@ export default function SettingsScreen() {
   }, []);
 
   const handleSignOut = async () => {
-    const confirmed = await confirmAsync(t('signOut'), t('signOutConfirmation'), t('signOut'), t('cancel'));
-    if (confirmed) await signOut();
+    setConfirmingSignOut(false);
+    await signOut();
   };
 
   const startEditing = useCallback(() => {
@@ -250,10 +251,26 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <LogOut size={20} color="#ef4444" />
-          <Text style={styles.signOutText}>{t('signOut')}</Text>
-        </TouchableOpacity>
+        {confirmingSignOut ? (
+          <InlineConfirm
+            style={styles.signOutConfirm}
+            question={t('signOutConfirmation')}
+            confirmLabel={t('signOut')}
+            destructive
+            onConfirm={handleSignOut}
+            onCancel={() => setConfirmingSignOut(false)}
+            testID="settings-sign-out-confirm"
+          />
+        ) : (
+          <TouchableOpacity
+            style={styles.signOutButton}
+            onPress={() => setConfirmingSignOut(true)}
+            testID="settings-sign-out"
+          >
+            <LogOut size={20} color="#ef4444" />
+            <Text style={styles.signOutText}>{t('signOut')}</Text>
+          </TouchableOpacity>
+        )}
         </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
@@ -376,6 +393,9 @@ const styles = StyleSheet.create({
     borderColor: '#fecaca',
     borderRadius: 12,
     padding: 16,
+    marginTop: 32,
+  },
+  signOutConfirm: {
     marginTop: 32,
   },
   signOutText: {
