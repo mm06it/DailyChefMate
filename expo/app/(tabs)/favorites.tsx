@@ -1,17 +1,26 @@
-import { Stack } from "expo-router";
-import React from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
+import CollapsingTabHeader, {
+  onHeaderScroll,
+  resetHeader,
+  useHeaderContentPadding,
+} from "@/components/CollapsingTabHeader";
 import RecipeCard from "@/components/RecipeCard";
 import { useFavoriteRecipes } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
-import { useGridLayout } from "@/hooks/use-responsive";
+import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 import { Recipe } from "@/types/recipe";
 
 export default function FavoritesScreen() {
   const { t } = useLanguage();
   const favoriteRecipes = useFavoriteRecipes();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
+  const isDesktop = useIsDesktop();
+  const topPad = useHeaderContentPadding();
+
+  useFocusEffect(useCallback(() => resetHeader(), []));
 
   const renderItem = ({ item }: { item: Recipe }) => (
     <View style={columns > 1 ? { width: itemWidth } : undefined}>
@@ -21,12 +30,7 @@ export default function FavoritesScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          title: "Favorites",
-          headerTitleStyle: styles.headerTitle,
-        }}
-      />
+      {!isDesktop && <CollapsingTabHeader />}
 
       {favoriteRecipes.length > 0 ? (
         <FlatList
@@ -36,12 +40,17 @@ export default function FavoritesScreen() {
           keyExtractor={(item) => item.id}
           numColumns={columns}
           columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            !isDesktop && { paddingTop: topPad + 16 },
+          ]}
           showsVerticalScrollIndicator={false}
+          onScroll={isDesktop ? undefined : onHeaderScroll}
+          scrollEventThrottle={16}
           testID="favorites-list"
         />
       ) : (
-        <View style={styles.emptyContainer}>
+        <View style={[styles.emptyContainer, !isDesktop && { paddingTop: topPad }]}>
           <Text style={styles.emptyText}>{t('noFavorites')}</Text>
         </View>
       )}
@@ -53,10 +62,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-  },
-  headerTitle: {
-    fontWeight: "600",
-    fontSize: 18,
   },
   listContent: {
     padding: 16,

@@ -1,27 +1,20 @@
-import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import React, { useCallback } from 'react';
+import { Animated, View, StyleSheet } from 'react-native';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { withLayoutContext } from 'expo-router';
+import { useFocusEffect, withLayoutContext } from 'expo-router';
 import { useLanguage } from '@/hooks/use-language';
-import { LanguageSelector } from '@/components/LanguageSelector';
-import ProfileMenuButton from '@/components/ProfileMenuButton';
+import CollapsingTabHeader, {
+  headerTranslateY,
+  resetHeader,
+  useHeaderContentPadding,
+} from '@/components/CollapsingTabHeader';
 import Colors from '@/constants/colors';
-import { CollapsibleHeaderProvider, useCollapsibleHeader } from '@/hooks/use-collapsible-header';
+import { CollapsibleHeaderProvider } from '@/hooks/use-collapsible-header';
 import { useIsDesktop } from '@/hooks/use-responsive';
 
 const { Navigator } = createMaterialTopTabNavigator();
 
 export const MaterialTopTabs = withLayoutContext(Navigator);
-
-const HeaderTitle = () => (
-  <View style={styles.headerContainer}>
-    <Image
-      source={require('@/assets/images/logo.png')}
-      style={styles.logo}
-      resizeMode="contain"
-    />
-  </View>
-);
 
 function TabsWithCollapsibleBar() {
   const { t } = useLanguage();
@@ -72,22 +65,32 @@ function TabsWithCollapsibleBar() {
 
 export default function RecipesLayout() {
   const isDesktop = useIsDesktop();
+  const topPad = useHeaderContentPadding();
+
+  useFocusEffect(useCallback(() => resetHeader(), []));
+
+  if (isDesktop) {
+    return (
+      <CollapsibleHeaderProvider>
+        <View style={styles.container}>
+          <TabsWithCollapsibleBar />
+        </View>
+      </CollapsibleHeaderProvider>
+    );
+  }
 
   return (
     <CollapsibleHeaderProvider>
       <View style={styles.container}>
-        {!isDesktop && (
-          <View style={styles.header}>
-            <View style={styles.headerSide}>
-              <LanguageSelector />
-            </View>
-            <HeaderTitle />
-            <View style={styles.headerSide}>
-              <ProfileMenuButton />
-            </View>
-          </View>
-        )}
-        <TabsWithCollapsibleBar />
+        <CollapsingTabHeader />
+        <Animated.View
+          style={[
+            styles.tabsWrap,
+            { paddingTop: topPad, marginBottom: -topPad, transform: [{ translateY: headerTranslateY }] },
+          ]}
+        >
+          <TabsWithCollapsibleBar />
+        </Animated.View>
       </View>
     </CollapsibleHeaderProvider>
   );
@@ -98,29 +101,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 45,
-    paddingBottom: 10,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  tabsWrap: {
     flex: 1,
-  },
-  headerSide: {
-    minWidth: 40,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 84,
-    height: 52,
   },
 });

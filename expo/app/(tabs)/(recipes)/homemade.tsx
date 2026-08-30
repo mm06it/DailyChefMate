@@ -5,6 +5,7 @@ import { router } from "expo-router";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
+import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { confirmAsync } from "@/lib/confirm";
@@ -94,6 +95,8 @@ export default function HomemadeRecipesScreen() {
             columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            onScroll={onHeaderScroll}
+            scrollEventThrottle={16}
             testID="custom-recipes-list"
           />
           <View style={styles.bottomButtonContainer}>

@@ -6,6 +6,7 @@ import { Search, ChefHat, Filter } from "lucide-react-native";
 
 import RecipeCard from "@/components/RecipeCard";
 import SearchBar from "@/components/SearchBar";
+import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import Colors from "@/constants/colors";
@@ -311,6 +312,7 @@ export default function AllRecipesScreen() {
     const threshold = 220;
     const p = Math.max(0, Math.min(1, y / threshold));
     setProgress(p);
+    onHeaderScroll(e);
   }, [setProgress]);
 
   return (

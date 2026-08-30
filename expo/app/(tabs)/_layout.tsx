@@ -1,37 +1,14 @@
 import { Tabs } from "expo-router";
 import { BookOpen, Refrigerator, Settings, Star } from "lucide-react-native";
 import React from "react";
-import { StyleSheet, View, Image } from "react-native";
+import { StyleSheet } from "react-native";
 
-import { LanguageSelector } from "@/components/LanguageSelector";
-import ProfileMenuButton from "@/components/ProfileMenuButton";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
 import { useIsDesktop } from "@/hooks/use-responsive";
 
-const HeaderTitle = () => (
-  <View style={styles.headerContainer}>
-    <Image
-      source={require('@/assets/images/logo.png')}
-      style={styles.logo}
-      resizeMode="contain"
-    />
-  </View>
-);
-
-const HeaderLeft = () => (
-  <View style={styles.headerSide}>
-    <LanguageSelector />
-  </View>
-);
-
-const HeaderRight = () => (
-  <View style={styles.headerSide}>
-    <ProfileMenuButton />
-  </View>
-);
-
-
+// The header is rendered per-screen as <CollapsingTabHeader /> (mobile) so
+// it can hide on scroll — the built-in tab header is off everywhere.
 export default function TabLayout() {
   const { t } = useLanguage();
   const isDesktop = useIsDesktop();
@@ -43,13 +20,7 @@ export default function TabLayout() {
         tabBarInactiveTintColor: Colors.textLight,
         tabBarStyle: isDesktop ? styles.tabBarHidden : styles.tabBar,
         tabBarLabelStyle: styles.tabLabel,
-        headerShown: !isDesktop,
-        headerStyle: styles.header,
-        headerTitle: () => <HeaderTitle />,
-        headerTitleAlign: 'center',
-        headerLeft: () => <HeaderLeft />,
-        headerRight: () => <HeaderRight />,
-        headerTintColor: Colors.text,
+        headerShown: false,
       }}
     >
       <Tabs.Screen
@@ -63,7 +34,6 @@ export default function TabLayout() {
         options={{
           title: t('recipes'),
           tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
-          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -118,28 +88,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  header: {
-    backgroundColor: Colors.background,
-    elevation: 2,
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    marginTop: 12,
-  },
-  logo: {
-    width: 84,
-    height: 52,
-  },
-  headerSide: {
-    marginTop: 12,
-  }
 });

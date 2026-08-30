@@ -10,11 +10,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogOut, User, Globe, Info, Pencil } from 'lucide-react-native';
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useIsDesktop } from '@/hooks/use-responsive';
 import { confirmAsync } from '@/lib/confirm';
+import CollapsingTabHeader, {
+  onHeaderScroll,
+  resetHeader,
+  useHeaderContentPadding,
+} from '@/components/CollapsingTabHeader';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 import Colors from '@/constants/colors';
@@ -27,6 +33,10 @@ const USERNAME_PATTERN = /^[a-z0-9_-]{3,20}$/;
 type Feedback = { type: 'error' | 'success'; text: string } | null;
 
 export default function SettingsScreen() {
+  const isDesktop = useIsDesktop();
+  const topPad = useHeaderContentPadding();
+  useFocusEffect(useCallback(() => resetHeader(), []));
+
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const convex = useConvex();
@@ -118,15 +128,21 @@ export default function SettingsScreen() {
   }, [draft, currentUsername, cancelEditing, convex, updateUsername, t]);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <Stack.Screen
         options={{
           title: t('settings'),
+          headerShown: isDesktop,
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.text,
         }}
       />
-      <ScrollView contentContainerStyle={styles.content}>
+      {!isDesktop && <CollapsingTabHeader />}
+      <ScrollView
+        contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}
+        onScroll={isDesktop ? undefined : onHeaderScroll}
+        scrollEventThrottle={16}
+      >
         <ResponsiveContainer maxWidth={640}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('account')}</Text>

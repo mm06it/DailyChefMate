@@ -1,7 +1,13 @@
+import { useFocusEffect } from "expo-router";
 import { Plus, X } from "lucide-react-native";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Pressable, StyleSheet, View, FlatList, Text } from "react-native";
 
+import CollapsingTabHeader, {
+  onHeaderScroll,
+  resetHeader,
+  useHeaderContentPadding,
+} from "@/components/CollapsingTabHeader";
 import AddIngredientForm from "@/components/AddIngredientForm";
 import IngredientItem from "@/components/IngredientItem";
 import IngredientQuantityModal from "@/components/IngredientQuantityModal";
@@ -14,7 +20,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { translateText } from "@/constants/translations";
 import { Ingredient } from "@/types/recipe";
 import { searchIngredientsOnline } from "@/lib/ingredient-search";
-import { useGridLayout } from "@/hooks/use-responsive";
+import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
 export default function RefrigeratorScreen() {
   const { t, language } = useLanguage();
@@ -27,6 +33,9 @@ export default function RefrigeratorScreen() {
   const { refrigeratorItems, updateIngredientAmount, addIngredient, clearSelectedIngredients } =
     useDailyChefMateStore();
   const hasSelection = refrigeratorItems.some((i) => i.isSelected);
+  const isDesktop = useIsDesktop();
+  const topPad = useHeaderContentPadding();
+  useFocusEffect(useCallback(() => resetHeader(), []));
 
   const toggleAddForm = () => {
     setShowAddForm(!showAddForm);
@@ -130,9 +139,9 @@ export default function RefrigeratorScreen() {
     );
   };
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+  const listHeader = (
+    <>
+      <View style={styles.toolbar}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -155,6 +164,12 @@ export default function RefrigeratorScreen() {
           <X size={22} color={Colors.background} />
         </Pressable>
       </View>
+    </>
+  );
+
+  return (
+    <View style={styles.container}>
+      {!isDesktop && <CollapsingTabHeader />}
 
       <FlatList
         key={columns}
@@ -163,10 +178,16 @@ export default function RefrigeratorScreen() {
         keyExtractor={(item) => item.id}
         numColumns={columns}
         columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-        contentContainerStyle={styles.listContent}
+        ListHeaderComponent={listHeader}
+        contentContainerStyle={[
+          styles.listContent,
+          !isDesktop && { paddingTop: topPad },
+        ]}
         showsVerticalScrollIndicator={false}
+        onScroll={isDesktop ? undefined : onHeaderScroll}
+        scrollEventThrottle={16}
       />
-      
+
       <AddIngredientForm 
         isVisible={showAddForm} 
         onClose={() => setShowAddForm(false)} 
@@ -190,7 +211,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
+  toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -198,6 +219,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+    marginHorizontal: -16,
+    marginBottom: 4,
   },
   addButton: {
     backgroundColor: Colors.primary,
@@ -214,7 +237,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 12,
-    marginHorizontal: 16,
     marginVertical: 16,
   },
   generateButton: {
