@@ -23,3 +23,15 @@ export function confirmAsync(
     ]);
   });
 }
+
+// Plain one-button notice. `Alert.alert` shows nothing on React Native Web,
+// so fall back to window.alert there.
+export function alertMessage(title: string, message?: string): void {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      window.alert(message ? `${title}\n\n${message}` : title);
+    }
+    return;
+  }
+  Alert.alert(title, message);
+}

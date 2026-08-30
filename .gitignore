@@ -2,3 +2,8 @@ node_modules
 .env
 .expo
 .DS_Store
+
+# Local notes / secrets that get dropped into the project folder — never commit
+*.rtf
+*API*Key*
+*api*key*

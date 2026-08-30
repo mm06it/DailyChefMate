@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { getTranslation } from '@/constants/translations';
+import { alertMessage } from '@/lib/confirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 
@@ -106,7 +106,7 @@ export default function AuthScreen() {
     setEmailError(null);
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Fehler', 'Bitte alle Felder ausfüllen');
+      alertMessage('Fehler', 'Bitte alle Felder ausfüllen');
       return;
     }
 
@@ -121,16 +121,16 @@ export default function AuthScreen() {
           console.log('Admin account does not exist, creating...');
           const { error: signUpError } = await signUp(adminEmail, adminPassword, 'admin');
           if (signUpError) {
-            Alert.alert('Error', 'Failed to create admin account: ' + (signUpError as any).message);
+            alertMessage('Error', 'Failed to create admin account: ' + (signUpError as any).message);
           } else {
-            Alert.alert('Success', 'Admin account created and signed in!');
+            alertMessage('Success', 'Admin account created and signed in!');
           }
         } else {
-          Alert.alert('Success', 'Signed in as admin!');
+          alertMessage('Success', 'Signed in as admin!');
         }
       } catch (err) {
         console.error('Admin auth error:', err);
-        Alert.alert('Error', 'Failed to authenticate as admin');
+        alertMessage('Error', 'Failed to authenticate as admin');
       } finally {
         setLoading(false);
       }
@@ -175,7 +175,7 @@ export default function AuthScreen() {
           } else if (lowerMsg.includes('invalid password')) {
             setPasswordError(getTranslation(language, 'passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
           } else {
-            Alert.alert('Fehler', msg || 'Registrierung fehlgeschlagen');
+            alertMessage('Fehler', msg || 'Registrierung fehlgeschlagen');
           }
         } else if (pendingVerification) {
           setCode('');
@@ -193,9 +193,9 @@ export default function AuthScreen() {
           const msg = (error as any)?.message ?? '';
           const lowerMsg = typeof msg === 'string' ? msg.toLowerCase() : '';
           if (lowerMsg.includes('invalidaccountid') || lowerMsg.includes('invalid password')) {
-            Alert.alert('Fehler', 'E-Mail oder Passwort ist falsch');
+            alertMessage('Fehler', 'E-Mail oder Passwort ist falsch');
           } else {
-            Alert.alert('Fehler', msg || 'Anmeldung fehlgeschlagen');
+            alertMessage('Fehler', msg || 'Anmeldung fehlgeschlagen');
           }
         } else if (pendingVerification) {
           // Account exists but its email was never verified.
@@ -206,7 +206,7 @@ export default function AuthScreen() {
       }
     } catch (err) {
       console.error('Auth error:', err);
-      Alert.alert('Error', 'An unexpected error occurred');
+      alertMessage('Error', 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
