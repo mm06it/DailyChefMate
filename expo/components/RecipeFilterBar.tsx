@@ -251,8 +251,8 @@ const styles = StyleSheet.create({
   inputSearch: {
     flexGrow: 1,
     flexShrink: 1,
-    minWidth: 80,
-    maxWidth: 240,
+    minWidth: 60,
+    maxWidth: 170,
     fontSize: 15,
     color: Colors.text,
     paddingVertical: 6,
@@ -260,7 +260,6 @@ const styles = StyleSheet.create({
   miniGroup: {
     flexDirection: 'row',
     gap: 8,
-    marginLeft: 'auto',
   },
   pillMini: {
     width: 38,
