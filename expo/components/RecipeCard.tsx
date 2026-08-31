@@ -8,6 +8,7 @@ import Colors from "@/constants/colors";
 import { translateText, translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
@@ -16,13 +17,25 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
-  const { toggleFavorite } = useDailyChefMateStore();
+  const { toggleFavorite, favorites } = useDailyChefMateStore();
+  const { entries: planEntries } = useMealPlan();
   const { currentLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [imageError, setImageError] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const [justPlanned, setJustPlanned] = useState<boolean>(false);
   const planPulse = useRef(new Animated.Value(1)).current;
+
+  // Live state (don't trust the prop's isFavorite — browse-tab cards carry a
+  // stale flag): the star and the plan icon reflect the real data.
+  const favorited = useMemo(
+    () => recipe.isFavorite || favorites.some((f) => f.id === recipe.id),
+    [recipe.isFavorite, recipe.id, favorites],
+  );
+  const inPlan = useMemo(
+    () => planEntries.some((e) => e.recipe.id === recipe.id),
+    [planEntries, recipe.id],
+  );
 
   useEffect(() => {
     if (!justPlanned) return;
@@ -39,7 +52,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   };
 
   const handleFavoritePress = () => {
-    const wasFav = recipe.isFavorite;
+    const wasFav = favorited;
     toggleFavorite(recipe.id);
     showToast(
       wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
@@ -129,7 +142,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
               accessibilityLabel={t('addToWeekPlan')}
             >
               <Animated.View style={{ transform: [{ scale: planPulse }] }}>
-                {justPlanned ? (
+                {justPlanned || inPlan ? (
                   <CalendarCheck size={22} color={Colors.success} />
                 ) : (
                   <CalendarPlus size={22} color={Colors.textLight} />
@@ -144,8 +157,8 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             >
               <Star
                 size={22}
-                color={recipe.isFavorite ? Colors.star : Colors.textLight}
-                fill={recipe.isFavorite ? Colors.star : "none"}
+                color={favorited ? Colors.star : Colors.textLight}
+                fill={favorited ? Colors.star : "none"}
               />
             </Pressable>
           </View>

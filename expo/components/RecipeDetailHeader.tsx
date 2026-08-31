@@ -6,6 +6,7 @@ import Colors from "@/constants/colors";
 import { getTranslation, translateText } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
@@ -17,14 +18,24 @@ interface RecipeDetailHeaderProps {
 }
 
 export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justPlanned }: RecipeDetailHeaderProps) {
-  const { toggleFavorite } = useDailyChefMateStore();
+  const { toggleFavorite, favorites } = useDailyChefMateStore();
+  const { entries: planEntries } = useMealPlan();
   const { currentLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [imageError, setImageError] = useState<boolean>(false);
   const showImage = !!recipe.image && !imageError;
 
+  const favorited = useMemo(
+    () => recipe.isFavorite || favorites.some((f) => f.id === recipe.id),
+    [recipe.isFavorite, recipe.id, favorites],
+  );
+  const inPlan = useMemo(
+    () => planEntries.some((e) => e.recipe.id === recipe.id),
+    [planEntries, recipe.id],
+  );
+
   const handleFavoritePress = () => {
-    const wasFav = recipe.isFavorite;
+    const wasFav = favorited;
     toggleFavorite(recipe.id);
     showToast(
       wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
@@ -91,7 +102,7 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justP
             testID={`recipe-detail-${recipe.id}-plan`}
             accessibilityLabel={t('addToWeekPlan')}
           >
-            {justPlanned ? (
+            {justPlanned || inPlan ? (
               <CalendarCheck size={22} color={Colors.success} />
             ) : (
               <CalendarPlus size={22} color={Colors.text} />
@@ -106,8 +117,8 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justP
         >
           <Star
             size={24}
-            color={recipe.isFavorite ? Colors.star : Colors.text}
-            fill={recipe.isFavorite ? Colors.star : "none"}
+            color={favorited ? Colors.star : Colors.text}
+            fill={favorited ? Colors.star : "none"}
           />
         </Pressable>
       </View>
