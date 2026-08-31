@@ -114,6 +114,29 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_key", ["key"]),
 
+  // Recipes assigned to a day of a real calendar week (planner tab). The
+  // recipe is snapshotted in full (like favoriteRecipes) so external results
+  // survive. `day` is the ISO date (YYYY-MM-DD).
+  mealPlanEntries: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    recipe: v.object({ id: v.string(), ...recipeFields }),
+    addedAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_and_day", ["userId", "day"]),
+
+  // The user's shopping list. Filled by hand or aggregated from the ingredients
+  // of the week's planned recipes ("Fill from plan").
+  shoppingListItems: defineTable({
+    userId: v.id("users"),
+    name: v.string(),
+    amount: v.string(),
+    checked: v.boolean(),
+    source: v.string(), // "manual" | "plan"
+    addedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // Shared cache of machine translations for browse/search recipes so each
   // recipe is only ever sent to the LLM once per language. `key` is
   // `${lang}:${recipeId}`. See convex/translate.ts.

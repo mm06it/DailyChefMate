@@ -13,6 +13,7 @@ import type * as cooked from "../cooked.js";
 import type * as customRecipes from "../customRecipes.js";
 import type * as favorites from "../favorites.js";
 import type * as http from "../http.js";
+import type * as mealPlan from "../mealPlan.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as recipes from "../recipes.js";
 import type * as refrigerator from "../refrigerator.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   customRecipes: typeof customRecipes;
   favorites: typeof favorites;
   http: typeof http;
+  mealPlan: typeof mealPlan;
   "otp/ResendOTP": typeof otp_ResendOTP;
   recipes: typeof recipes;
   refrigerator: typeof refrigerator;

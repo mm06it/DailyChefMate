@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 
 import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
+import { MealPlanContext } from "@/hooks/use-meal-plan";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
@@ -85,9 +86,11 @@ export default function RootLayout() {
             <LanguageContext>
               <AuthProvider>
                 <DailyChefMateContext>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                  </GestureHandlerRootView>
+                  <MealPlanContext>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <RootLayoutNav />
+                    </GestureHandlerRootView>
+                  </MealPlanContext>
                 </DailyChefMateContext>
               </AuthProvider>
             </LanguageContext>

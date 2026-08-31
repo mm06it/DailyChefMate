@@ -1,8 +1,9 @@
 import { router } from "expo-router";
-import { Star, UtensilsCrossed } from "lucide-react-native";
+import { CalendarPlus, Star, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
+import AddToPlanModal from "@/components/AddToPlanModal";
 import Colors from "@/constants/colors";
 import { translateText, translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
@@ -17,6 +18,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
+  const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const showImage = !!recipe.image && !imageError;
 
   const handlePress = () => {
@@ -54,8 +56,9 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   }, [currentLanguage, recipe.category, recipe.course]);
 
   return (
-    <Pressable 
-      style={styles.container} 
+    <>
+    <Pressable
+      style={styles.container}
       onPress={handlePress}
       testID={`recipe-card-${recipe.id}`}
     >
@@ -99,18 +102,29 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
           <View style={styles.titleWithBadge}>
             <Text style={styles.name}>{translatedName}</Text>
           </View>
-          <Pressable 
-            onPress={handleFavoritePress} 
-            hitSlop={10}
-            style={styles.favoriteButton}
-            testID={`recipe-card-${recipe.id}-favorite`}
-          >
-            <Star
-              size={22}
-              color={recipe.isFavorite ? Colors.primary : Colors.textLight}
-              fill={recipe.isFavorite ? Colors.primary : "none"}
-            />
-          </Pressable>
+          <View style={styles.cardActions}>
+            <Pressable
+              onPress={() => setPlanModalVisible(true)}
+              hitSlop={10}
+              style={styles.favoriteButton}
+              testID={`recipe-card-${recipe.id}-plan`}
+              accessibilityLabel={t('addToWeekPlan')}
+            >
+              <CalendarPlus size={22} color={Colors.textLight} />
+            </Pressable>
+            <Pressable
+              onPress={handleFavoritePress}
+              hitSlop={10}
+              style={styles.favoriteButton}
+              testID={`recipe-card-${recipe.id}-favorite`}
+            >
+              <Star
+                size={22}
+                color={recipe.isFavorite ? Colors.primary : Colors.textLight}
+                fill={recipe.isFavorite ? Colors.primary : "none"}
+              />
+            </Pressable>
+          </View>
         </View>
         <View style={styles.details}>
           <View style={styles.ratingPill}>
@@ -130,6 +144,12 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
         </View>
       </View>
     </Pressable>
+    <AddToPlanModal
+      recipe={planModalVisible ? recipe : null}
+      visible={planModalVisible}
+      onClose={() => setPlanModalVisible(false)}
+    />
+    </>
   );
 }
 
@@ -216,6 +236,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.white,
     fontWeight: '600',
+  },
+  cardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
   favoriteButton: {
     padding: 6,

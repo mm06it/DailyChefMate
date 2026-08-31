@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BookOpen, Refrigerator, Settings, Star } from "lucide-react-native";
+import { BookOpen, CalendarDays, Refrigerator, Settings, Star } from "lucide-react-native";
 import React from "react";
 import { StyleSheet } from "react-native";
 
@@ -41,6 +41,13 @@ export default function TabLayout() {
         options={{
           title: t('refrigerator'),
           tabBarIcon: ({ color }) => <Refrigerator size={22} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="planner"
+        options={{
+          title: t('weekPlan'),
+          tabBarIcon: ({ color }) => <CalendarDays size={22} color={color} />,
         }}
       />
       <Tabs.Screen
