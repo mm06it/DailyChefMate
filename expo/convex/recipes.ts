@@ -6,8 +6,13 @@ import { searchResultRecipe } from "./schema";
 
 // Repeat searches for the same ingredient set are served from recipeCache
 // so the Spoonacular free tier (150 points/day) lasts. Entries older than
-// this are re-fetched.
-const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 5;
+// this are re-fetched on next access and pruned daily by a cron
+// (crons.ts -> pruneRecipeCache).
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 30;
+// Part of every cache key: bump it whenever the cached recipe shape or the
+// parsing/enrichment below changes, so a deploy transparently invalidates
+// every stale entry instead of serving an old shape for up to 30 days.
+const CACHE_VERSION = "v2";
 // How many recipes one "page" of results contains ("load more" fetches the
 // next page).
 const PAGE_SIZE = 8;
@@ -36,7 +41,7 @@ function normalize(ingredients: string[]): string[] {
 }
 
 function cacheKey(ingredients: string[]): string {
-  return normalize(ingredients).sort().join("|");
+  return `${CACHE_VERSION}:${normalize(ingredients).sort().join("|")}`;
 }
 
 function titleCase(s: string): string {
@@ -71,6 +76,42 @@ export const putCache = internalMutation({
       .first();
     if (existing) await ctx.db.delete(existing._id);
     await ctx.db.insert("recipeCache", { key, source, recipes, createdAt: Date.now() });
+  },
+});
+
+// Manual flush — internal, so only reachable from the Convex dashboard or CLI:
+//   npx convex run recipes:clearRecipeCache '{}'                (whole cache)
+//   npx convex run recipes:clearRecipeCache '{"key":"v2:egg|milk"}'  (one entry)
+export const clearRecipeCache = internalMutation({
+  args: { key: v.optional(v.string()) },
+  handler: async (ctx, { key }) => {
+    if (key) {
+      const row = await ctx.db
+        .query("recipeCache")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .first();
+      if (row) await ctx.db.delete(row._id);
+      return { deleted: row ? 1 : 0 };
+    }
+    const rows = await ctx.db.query("recipeCache").collect();
+    for (const r of rows) await ctx.db.delete(r._id);
+    return { deleted: rows.length };
+  },
+});
+
+// Daily cron (crons.ts): delete entries past the TTL so rarely-repeated
+// ingredient combos don't accumulate. The read path already ignores expired
+// rows; this just bounds table growth.
+export const pruneRecipeCache = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - CACHE_TTL_MS;
+    const stale = await ctx.db
+      .query("recipeCache")
+      .withIndex("by_createdAt", (q) => q.lt("createdAt", cutoff))
+      .collect();
+    for (const r of stale) await ctx.db.delete(r._id);
+    return { pruned: stale.length };
   },
 });
 

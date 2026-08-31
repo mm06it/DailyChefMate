@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as cooked from "../cooked.js";
+import type * as crons from "../crons.js";
 import type * as customRecipes from "../customRecipes.js";
 import type * as favorites from "../favorites.js";
 import type * as http from "../http.js";
@@ -32,6 +33,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   cooked: typeof cooked;
+  crons: typeof crons;
   customRecipes: typeof customRecipes;
   favorites: typeof favorites;
   http: typeof http;

@@ -125,7 +125,9 @@ export default defineSchema({
     source: v.string(),
     recipes: v.array(searchResultRecipe),
     createdAt: v.number(),
-  }).index("by_key", ["key"]),
+  })
+    .index("by_key", ["key"])
+    .index("by_createdAt", ["createdAt"]),
 
   // Recipes assigned to a day of a real calendar week (planner tab). The
   // recipe is snapshotted in full (like favoriteRecipes) so external results
