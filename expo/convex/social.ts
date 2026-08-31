@@ -168,6 +168,7 @@ export const myProfile = query({
       feedVisibility: user.feedVisibility ?? "friends",
       initials: initialsOf(user.displayName || user.username || "?"),
       isAdmin: admin?._id === userId,
+      adminId: admin && admin._id !== userId ? admin._id : null,
     };
   },
 });

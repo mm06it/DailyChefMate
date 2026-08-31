@@ -181,14 +181,16 @@ export default function SocialScreen() {
   );
 
   // ---- Friends ----
+  const adminId = myProfile?.adminId ?? null;
   const friendsData = useMemo(
     () => [
       { kind: "add" as const, key: "add" },
+      ...(adminId ? [{ kind: "admin" as const, key: "admin" }] : []),
       ...incoming.map((p) => ({ kind: "incoming" as const, key: `in-${p.id}`, profile: p })),
       ...outgoing.map((p) => ({ kind: "outgoing" as const, key: `out-${p.id}`, profile: p })),
       ...friends.map((p) => ({ kind: "friend" as const, key: `fr-${p.id}`, profile: p })),
     ],
-    [incoming, outgoing, friends],
+    [adminId, incoming, outgoing, friends],
   );
 
   const renderFriendRow = ({ item }: { item: (typeof friendsData)[number] }) => {
@@ -197,6 +199,18 @@ export default function SocialScreen() {
         <Pressable style={styles.addFriendBtn} onPress={() => setAddFriendOpen(true)} testID="friends-add">
           <UserPlus size={18} color={Colors.primary} />
           <Text style={styles.addFriendText}>{t("addFriend")}</Text>
+        </Pressable>
+      );
+    }
+    if (item.kind === "admin") {
+      return (
+        <Pressable
+          style={styles.adminContactBtn}
+          onPress={() => router.push(`/user/${adminId}` as any)}
+          testID="friends-message-admin"
+        >
+          <Info size={16} color={Colors.accent} />
+          <Text style={styles.adminContactText}>{t("messageAdmin")}</Text>
         </Pressable>
       );
     }
@@ -539,6 +553,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addFriendText: { fontSize: 15, fontWeight: "700", color: Colors.primary },
+  adminContactBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: Colors.cardSecondary,
+    marginBottom: 12,
+  },
+  adminContactText: { fontSize: 14, fontWeight: "600", color: Colors.text },
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
