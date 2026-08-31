@@ -56,6 +56,8 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const saveSharedMut = useMutation(api.social.saveSharedRecipe);
   const setProfileMut = useMutation(api.social.setSocialProfile);
   const sendAdminMessageMut = useMutation(api.social.sendAdminMessage);
+  const dismissFeedMut = useMutation(api.social.dismissFeedEvent);
+  const deleteInboxMut = useMutation(api.social.deleteInboxItem);
 
   const sendFriendRequest = useCallback(
     async (query: string) => {
@@ -115,6 +117,14 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   );
   const markInboxSeen = useCallback(() => markInboxSeenMut({}), [markInboxSeenMut]);
   const markFeedSeen = useCallback(() => markFeedSeenMut({}), [markFeedSeenMut]);
+  const dismissFeedEvent = useCallback(
+    (eventId: string) => dismissFeedMut({ eventId: eventId as Id<"activityEvents"> }),
+    [dismissFeedMut],
+  );
+  const deleteInboxItem = useCallback(
+    (kind: "share" | "notification", id: string) => deleteInboxMut({ kind, id }),
+    [deleteInboxMut],
+  );
   const saveSharedRecipe = useCallback(
     async (id: string) => {
       await saveSharedMut({ id: id as Id<"recipeShares"> });
@@ -164,6 +174,8 @@ export const [SocialContext, useSocial] = createContextHook(() => {
       shareRecipe,
       markInboxSeen,
       markFeedSeen,
+      dismissFeedEvent,
+      deleteInboxItem,
       saveSharedRecipe,
       setSocialProfile,
       sendAdminMessage,
@@ -183,6 +195,8 @@ export const [SocialContext, useSocial] = createContextHook(() => {
       shareRecipe,
       markInboxSeen,
       markFeedSeen,
+      dismissFeedEvent,
+      deleteInboxItem,
       saveSharedRecipe,
       setSocialProfile,
       sendAdminMessage,

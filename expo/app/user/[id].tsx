@@ -536,13 +536,22 @@ export default function UserProfileScreen() {
 
             {canSeeLists && (
               <Text style={styles.sectionTitle}>
-                {listMode === "created"
-                  ? t("createdRecipesCount")
-                  : listMode === "favorites"
-                    ? t("favoriteRecipesCount")
-                    : listMode === "cooked"
-                      ? t("cookedRecipesCount")
-                      : t("friendsCount")}
+                {listMode === "created" ? (
+                  <>
+                    {t("createdRecipesCount")}
+                    <Text style={styles.sectionTitleMuted}>
+                      {"  ("}
+                      {recipes.filter((r: any) => r.visibility !== "private").length} {t("publicWord")}
+                      {")"}
+                    </Text>
+                  </>
+                ) : listMode === "favorites" ? (
+                  t("favoriteRecipesCount")
+                ) : listMode === "cooked" ? (
+                  t("cookedRecipesCount")
+                ) : (
+                  t("friendsCount")
+                )}
               </Text>
             )}
           </View>
@@ -658,6 +667,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginTop: 24,
     marginBottom: 8,
+  },
+  sectionTitleMuted: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: Colors.textLight,
   },
 
   adminForm: { padding: 16 },

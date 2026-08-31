@@ -228,6 +228,14 @@ export default defineSchema({
     .index("by_blocker", ["blocker"])
     .index("by_pair", ["blocker", "blocked"]),
 
+  // A feed entry the user hid for themselves (activityEvents are shared across
+  // all friends, so we can't delete the row).
+  feedDismissals: defineTable({
+    userId: v.id("users"),
+    eventId: v.id("activityEvents"),
+    createdAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   // Inbox notifications that aren't recipe shares (friend-request accepted,
   // admin broadcasts, …). Recipe shares live in recipeShares and are merged
   // into the inbox at query time.

@@ -52,6 +52,16 @@ function CountBadge({ n }: { n: number }) {
   );
 }
 
+// Small "X" in the top-right corner of a feed/inbox card that opens a
+// confirm strip before the message is removed.
+function CardDeleteButton({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable style={styles.cardDelete} hitSlop={10} onPress={onPress} testID="message-delete">
+      <X size={15} color={Colors.textLight} />
+    </Pressable>
+  );
+}
+
 const CAT_COLOR: Record<string, string> = {
   feedback: "#3B82F6", // blue
   bug: "#EF4444", // red
@@ -218,6 +228,8 @@ export default function SocialScreen() {
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
+  // Key of the feed/inbox message currently showing its delete-confirm strip.
+  const [confirmDeleteMsg, setConfirmDeleteMsg] = useState<string | null>(null);
 
   const {
     friends,
@@ -231,6 +243,8 @@ export default function SocialScreen() {
     markInboxSeen,
     markFeedSeen,
     saveSharedRecipe,
+    dismissFeedEvent,
+    deleteInboxItem,
   } = useSocial();
   const { cacheRecipes } = useDailyChefMateStore();
 
@@ -287,8 +301,23 @@ export default function SocialScreen() {
         : item.type === "rated_recipe"
           ? t("feedRated")
           : t("feedShared");
+    const delKey = `feed:${item.id}`;
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, styles.cardDeletable]}>
+        <CardDeleteButton onPress={() => setConfirmDeleteMsg(delKey)} />
+        {confirmDeleteMsg === delKey && (
+          <InlineConfirm
+            style={styles.removeConfirm}
+            question={t("confirmDeleteMessage")}
+            confirmLabel={t("deleteMessage")}
+            destructive
+            onConfirm={() => {
+              dismissFeedEvent(item.id).catch(() => {});
+              setConfirmDeleteMsg(null);
+            }}
+            onCancel={() => setConfirmDeleteMsg(null)}
+          />
+        )}
         <View style={styles.cardHead}>
           <Avatar name={name} initials={item.actor.initials} size={36} />
           <Text style={styles.line} numberOfLines={2}>
@@ -484,10 +513,34 @@ export default function SocialScreen() {
 
   // ---- Inbox ----
   const renderInboxItem = ({ item }: { item: (typeof inbox)[number] }) => {
+    const delKey = `inbox:${item.kind}:${item.id}`;
+    const delKind = item.kind === "recipe_share" ? ("share" as const) : ("notification" as const);
+    return (
+      <View>
+        {confirmDeleteMsg === delKey && (
+          <InlineConfirm
+            style={styles.removeConfirm}
+            question={t("confirmDeleteMessage")}
+            confirmLabel={t("deleteMessage")}
+            destructive
+            onConfirm={() => {
+              deleteInboxItem(delKind, item.id).catch(() => {});
+              setConfirmDeleteMsg(null);
+            }}
+            onCancel={() => setConfirmDeleteMsg(null)}
+          />
+        )}
+        {renderInboxBody(item)}
+        <CardDeleteButton onPress={() => setConfirmDeleteMsg(delKey)} />
+      </View>
+    );
+  };
+
+  const renderInboxBody = (item: (typeof inbox)[number]) => {
     if (item.kind === "recipe_share") {
       const name = item.from?.displayName || item.from?.username || "?";
       return (
-        <View style={styles.card}>
+        <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
             <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
             <Text style={styles.line} numberOfLines={2}>
@@ -537,7 +590,7 @@ export default function SocialScreen() {
     if (item.kind === "friend_accepted") {
       const name = item.from?.displayName || "?";
       return (
-        <View style={styles.card}>
+        <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
             <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
             <Text style={styles.line} numberOfLines={2}>
@@ -561,7 +614,7 @@ export default function SocialScreen() {
       const name = item.from?.displayName || "?";
       const verb = item.kind === "recipe_favorited" ? t("feedFavorited") : t("feedCooked");
       return (
-        <View style={styles.card}>
+        <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
             <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
             <Text style={styles.line} numberOfLines={3}>
@@ -581,7 +634,7 @@ export default function SocialScreen() {
     if (item.kind === "recipe_rated") {
       const name = item.from?.displayName || "?";
       return (
-        <View style={styles.card}>
+        <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
             <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
             <Text style={styles.line} numberOfLines={3}>
@@ -601,7 +654,7 @@ export default function SocialScreen() {
 
     // info
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, styles.cardDeletable]}>
         <View style={styles.cardHead}>
           <Info size={20} color={Colors.accent} />
           <Text style={styles.line}>{item.message}</Text>
@@ -734,6 +787,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 12,
     marginBottom: 12,
+  },
+  // Extra right padding so the corner delete "X" never overlaps head content.
+  cardDeletable: { paddingRight: 34 },
+  cardDelete: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.cardSecondary,
   },
   cardHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   line: { flex: 1, fontSize: 14, color: Colors.textLight },

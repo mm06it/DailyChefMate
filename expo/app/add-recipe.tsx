@@ -554,6 +554,7 @@ export default function AddRecipeScreen() {
                   )}
                 </View>
               </View>
+              <Text style={styles.visibilityHint}>{t('photoRetryHint')}</Text>
             </View>
           )}
 

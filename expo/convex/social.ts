@@ -768,6 +768,15 @@ export const feed = query({
       .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "accepted"))
       .collect();
 
+    const dismissed = new Set(
+      (
+        await ctx.db
+          .query("feedDismissals")
+          .withIndex("by_user", (q) => q.eq("userId", me))
+          .collect()
+      ).map((d) => d.eventId as string),
+    );
+
     const profileCache = new Map<string, ReturnType<typeof miniProfile>>();
     const events = [];
 
@@ -784,6 +793,7 @@ export const feed = query({
         profileCache.set(row.other, actor);
       }
       for (const e of evs) {
+        if (dismissed.has(e._id as string)) continue;
         events.push({
           id: e._id,
           type: e.type,
@@ -797,6 +807,39 @@ export const feed = query({
 
     events.sort((a, b) => b.createdAt - a.createdAt);
     return events.slice(0, FEED_LIMIT);
+  },
+});
+
+// Hide one feed entry for the current user only.
+export const dismissFeedEvent = mutation({
+  args: { eventId: v.id("activityEvents") },
+  handler: async (ctx, { eventId }) => {
+    const me = await requireUserId(ctx);
+    const existing = await ctx.db
+      .query("feedDismissals")
+      .withIndex("by_user", (q) => q.eq("userId", me))
+      .collect();
+    if (existing.some((d) => d.eventId === eventId)) return;
+    await ctx.db.insert("feedDismissals", { userId: me, eventId, createdAt: Date.now() });
+  },
+});
+
+// Delete one inbox entry (recipe share or notification) — it belongs to the
+// current user, so a real delete is fine.
+export const deleteInboxItem = mutation({
+  args: {
+    kind: v.union(v.literal("share"), v.literal("notification")),
+    id: v.string(),
+  },
+  handler: async (ctx, { kind, id }) => {
+    const me = await requireUserId(ctx);
+    if (kind === "share") {
+      const row = await ctx.db.get(id as Id<"recipeShares">);
+      if (row && row.toUser === me) await ctx.db.delete(row._id);
+    } else {
+      const row = await ctx.db.get(id as Id<"notifications">);
+      if (row && row.userId === me) await ctx.db.delete(row._id);
+    }
   },
 });
 
