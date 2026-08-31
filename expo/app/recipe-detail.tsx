@@ -54,6 +54,7 @@ export default function RecipeDetailScreen() {
   const [isCooking, setIsCooking] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const [shareSheetVisible, setShareSheetVisible] = useState<boolean>(false);
+  const [justPlanned, setJustPlanned] = useState<boolean>(false);
 
   const servingsRatio = useMemo(() => {
     const base = recipe?.servings && recipe.servings > 0 ? recipe.servings : 1;
@@ -111,6 +112,7 @@ export default function RecipeDetailScreen() {
         recipe={displayRecipe}
         onAddToPlan={() => setPlanModalVisible(true)}
         onShare={() => setShareSheetVisible(true)}
+        justPlanned={justPlanned}
       />
 
       <ResponsiveContainer maxWidth={720}>
@@ -214,6 +216,10 @@ export default function RecipeDetailScreen() {
         recipe={planModalVisible ? displayRecipe : null}
         visible={planModalVisible}
         onClose={() => setPlanModalVisible(false)}
+        onAdded={() => {
+          setJustPlanned(true);
+          setTimeout(() => setJustPlanned(false), 2500);
+        }}
       />
 
       <ShareRecipeSheet

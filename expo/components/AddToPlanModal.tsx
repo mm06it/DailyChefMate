@@ -6,6 +6,7 @@ import Colors from "@/constants/colors";
 import { translateText } from "@/constants/translations";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
+import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 import {
   addWeeks,
@@ -20,6 +21,7 @@ interface AddToPlanModalProps {
   recipe: Recipe | null;
   visible: boolean;
   onClose: () => void;
+  onAdded?: () => void;
 }
 
 const MIN_SERVINGS = 1;
@@ -27,9 +29,10 @@ const MAX_SERVINGS = 20;
 
 // Shared day picker for "add this recipe to the week plan" — used from the
 // recipe card and the recipe detail screen.
-export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanModalProps) {
+export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: AddToPlanModalProps) {
   const { t, currentLanguage } = useLanguage();
   const { addToPlan, entriesByDay } = useMealPlan();
+  const { showToast } = useToast();
   const [monday, setMonday] = useState<string>(thisMondayIso());
   const [addedDay, setAddedDay] = useState<string | null>(null);
   const [servings, setServings] = useState<number>(2);
@@ -49,6 +52,8 @@ export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanMo
   const handlePick = (iso: string) => {
     addToPlan(recipe, iso, servings);
     setAddedDay(iso);
+    onAdded?.();
+    showToast(t("addedToWeekPlan"), { icon: "calendar" });
     setTimeout(onClose, 550);
   };
 

@@ -1,13 +1,14 @@
 import { router } from "expo-router";
-import { CalendarPlus, Star, UtensilsCrossed } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { CalendarCheck, CalendarPlus, Star, UtensilsCrossed } from "lucide-react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import AddToPlanModal from "@/components/AddToPlanModal";
 import Colors from "@/constants/colors";
 import { translateText, translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
 interface RecipeCardProps {
@@ -17,8 +18,20 @@ interface RecipeCardProps {
 export default function RecipeCard({ recipe }: RecipeCardProps) {
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
+  const { showToast } = useToast();
   const [imageError, setImageError] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
+  const [justPlanned, setJustPlanned] = useState<boolean>(false);
+  const planPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!justPlanned) return;
+    planPulse.setValue(0.6);
+    Animated.spring(planPulse, { toValue: 1, useNativeDriver: true, friction: 4 }).start();
+    const timer = setTimeout(() => setJustPlanned(false), 2200);
+    return () => clearTimeout(timer);
+  }, [justPlanned, planPulse]);
+
   const showImage = !!recipe.image && !imageError;
 
   const handlePress = () => {
@@ -26,7 +39,12 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   };
 
   const handleFavoritePress = () => {
+    const wasFav = recipe.isFavorite;
     toggleFavorite(recipe.id);
+    showToast(
+      wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
+      { icon: "star", variant: wasFav ? "info" : "success" },
+    );
   };
 
   const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
@@ -110,7 +128,13 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
               testID={`recipe-card-${recipe.id}-plan`}
               accessibilityLabel={t('addToWeekPlan')}
             >
-              <CalendarPlus size={22} color={Colors.textLight} />
+              <Animated.View style={{ transform: [{ scale: planPulse }] }}>
+                {justPlanned ? (
+                  <CalendarCheck size={22} color={Colors.success} />
+                ) : (
+                  <CalendarPlus size={22} color={Colors.textLight} />
+                )}
+              </Animated.View>
             </Pressable>
             <Pressable
               onPress={handleFavoritePress}
@@ -120,8 +144,8 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             >
               <Star
                 size={22}
-                color={recipe.isFavorite ? Colors.primary : Colors.textLight}
-                fill={recipe.isFavorite ? Colors.primary : "none"}
+                color={recipe.isFavorite ? Colors.star : Colors.textLight}
+                fill={recipe.isFavorite ? Colors.star : "none"}
               />
             </Pressable>
           </View>
@@ -148,6 +172,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
       recipe={planModalVisible ? recipe : null}
       visible={planModalVisible}
       onClose={() => setPlanModalVisible(false)}
+      onAdded={() => setJustPlanned(true)}
     />
     </>
   );

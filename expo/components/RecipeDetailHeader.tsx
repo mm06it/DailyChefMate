@@ -1,4 +1,4 @@
-import { CalendarPlus, Send, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Send, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -6,22 +6,30 @@ import Colors from "@/constants/colors";
 import { getTranslation, translateText } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
 interface RecipeDetailHeaderProps {
   recipe: Recipe;
   onAddToPlan?: () => void;
   onShare?: () => void;
+  justPlanned?: boolean;
 }
 
-export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare }: RecipeDetailHeaderProps) {
+export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justPlanned }: RecipeDetailHeaderProps) {
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
+  const { showToast } = useToast();
   const [imageError, setImageError] = useState<boolean>(false);
   const showImage = !!recipe.image && !imageError;
 
   const handleFavoritePress = () => {
+    const wasFav = recipe.isFavorite;
     toggleFavorite(recipe.id);
+    showToast(
+      wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
+      { icon: "star", variant: wasFav ? "info" : "success" },
+    );
   };
 
   const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
@@ -83,7 +91,11 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare }: Rec
             testID={`recipe-detail-${recipe.id}-plan`}
             accessibilityLabel={t('addToWeekPlan')}
           >
-            <CalendarPlus size={22} color={Colors.text} />
+            {justPlanned ? (
+              <CalendarCheck size={22} color={Colors.success} />
+            ) : (
+              <CalendarPlus size={22} color={Colors.text} />
+            )}
           </Pressable>
         )}
         <Pressable
@@ -94,8 +106,8 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare }: Rec
         >
           <Star
             size={24}
-            color={recipe.isFavorite ? Colors.primary : Colors.text}
-            fill={recipe.isFavorite ? Colors.primary : "none"}
+            color={recipe.isFavorite ? Colors.star : Colors.text}
+            fill={recipe.isFavorite ? Colors.star : "none"}
           />
         </Pressable>
       </View>

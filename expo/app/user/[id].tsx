@@ -17,6 +17,7 @@ import { Animated, FlatList, Pressable, StyleSheet, Text, TextInput, View } from
 import Avatar from "@/components/Avatar";
 import InlineConfirm from "@/components/InlineConfirm";
 import RecipeCard from "@/components/RecipeCard";
+import { useToast } from "@/components/Toast";
 import Colors from "@/constants/colors";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -40,6 +41,7 @@ export default function UserProfileScreen() {
     sendAdminMessage,
   } = useSocial();
   const { cacheRecipes } = useDailyChefMateStore();
+  const { showToast } = useToast();
 
   const [confirm, setConfirm] = useState<null | "remove" | "block" | "unblock">(null);
   const [reportOpen, setReportOpen] = useState(false);
@@ -57,7 +59,7 @@ export default function UserProfileScreen() {
   useEffect(() => {
     if (!adminSent) return;
     Animated.spring(checkAnim, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
-    const timer = setTimeout(() => router.back(), 1500);
+    const timer = setTimeout(() => router.back(), 3000);
     return () => clearTimeout(timer);
   }, [adminSent, checkAnim]);
 
@@ -468,6 +470,7 @@ export default function UserProfileScreen() {
                       setReportSent(true);
                       setReportReason("");
                       setReportOpen(false);
+                      showToast(t("reportSentThanks"), { icon: "flag" });
                     } catch (e) {
                       console.error("report failed", e);
                     }

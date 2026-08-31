@@ -11,6 +11,7 @@ import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
 import { MealPlanContext } from "@/hooks/use-meal-plan";
 import { SocialContext } from "@/hooks/use-social";
+import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
@@ -85,17 +86,19 @@ export default function RootLayout() {
         <trpc.Provider client={trpcClient} queryClient={queryClient}>
           <QueryClientProvider client={queryClient}>
             <LanguageContext>
-              <AuthProvider>
-                <DailyChefMateContext>
-                  <MealPlanContext>
-                    <SocialContext>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </SocialContext>
-                  </MealPlanContext>
-                </DailyChefMateContext>
-              </AuthProvider>
+              <ToastProvider>
+                <AuthProvider>
+                  <DailyChefMateContext>
+                    <MealPlanContext>
+                      <SocialContext>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </SocialContext>
+                    </MealPlanContext>
+                  </DailyChefMateContext>
+                </AuthProvider>
+              </ToastProvider>
             </LanguageContext>
           </QueryClientProvider>
         </trpc.Provider>

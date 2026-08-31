@@ -14,6 +14,7 @@ const Colors = {
   error: "#E53E3E",
   success: "#38A169",
   favorite: "#FF6B6B",
+  star: "#F5B301",
   rating: "#FFB86B",
   purple: "#A78BFA",
   orange: "#FF9F6E",

@@ -14,6 +14,7 @@ import Avatar from "@/components/Avatar";
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
+import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
 interface ShareRecipeSheetProps {
@@ -25,6 +26,7 @@ interface ShareRecipeSheetProps {
 export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareRecipeSheetProps) {
   const { t } = useLanguage();
   const { friends, shareRecipe } = useSocial();
+  const { showToast } = useToast();
   const [note, setNote] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
@@ -58,6 +60,7 @@ export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareReci
         await shareRecipe(id, recipe, note.trim() || undefined);
       }
       setDone(true);
+      showToast(t("recipeSharedToast"), { icon: "share" });
       setTimeout(onClose, 700);
     } catch (e) {
       console.error("shareRecipe failed", e);

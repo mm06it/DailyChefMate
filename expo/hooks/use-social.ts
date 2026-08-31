@@ -2,8 +2,11 @@ import createContextHook from "@nkzw/create-context-hook";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo } from "react";
 
+import { useToast } from "@/components/Toast";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { getTranslation } from "@/constants/translations";
+import { useLanguage } from "@/hooks/use-language";
 import { Recipe } from "@/types/recipe";
 
 export interface MiniProfile {
@@ -31,6 +34,9 @@ function toRecipeSnapshot(recipe: Recipe) {
 
 export const [SocialContext, useSocial] = createContextHook(() => {
   const { isAuthenticated } = useConvexAuth();
+  const { showToast } = useToast();
+  const { currentLanguage } = useLanguage();
+  const tr = useCallback((k: string) => getTranslation(currentLanguage, k), [currentLanguage]);
   const skip = isAuthenticated ? {} : "skip";
 
   const friendsQ = useQuery(api.social.friends, skip);
@@ -52,28 +58,55 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const sendAdminMessageMut = useMutation(api.social.sendAdminMessage);
 
   const sendFriendRequest = useCallback(
-    (query: string) => sendRequestMut({ query }),
-    [sendRequestMut],
+    async (query: string) => {
+      const res = await sendRequestMut({ query });
+      showToast(res?.status === "accepted" ? tr("nowFriendsToast") : tr("friendRequestSent"), {
+        icon: res?.status === "accepted" ? "userCheck" : "userPlus",
+      });
+      return res;
+    },
+    [sendRequestMut, showToast, tr],
   );
   const sendFriendRequestTo = useCallback(
-    (userId: string) => sendRequestToMut({ userId: userId as Id<"users"> }),
-    [sendRequestToMut],
+    async (userId: string) => {
+      const res = await sendRequestToMut({ userId: userId as Id<"users"> });
+      showToast(res?.status === "accepted" ? tr("nowFriendsToast") : tr("friendRequestSent"), {
+        icon: res?.status === "accepted" ? "userCheck" : "userPlus",
+      });
+      return res;
+    },
+    [sendRequestToMut, showToast, tr],
   );
   const respondFriendRequest = useCallback(
-    (userId: string, accept: boolean) => respondMut({ userId: userId as Id<"users">, accept }),
-    [respondMut],
+    async (userId: string, accept: boolean) => {
+      await respondMut({ userId: userId as Id<"users">, accept });
+      showToast(accept ? tr("nowFriendsToast") : tr("requestDeclinedToast"), {
+        icon: accept ? "userCheck" : "info",
+        variant: accept ? "success" : "info",
+      });
+    },
+    [respondMut, showToast, tr],
   );
   const removeFriend = useCallback(
-    (userId: string) => removeFriendMut({ userId: userId as Id<"users"> }),
-    [removeFriendMut],
+    async (userId: string) => {
+      await removeFriendMut({ userId: userId as Id<"users"> });
+      showToast(tr("friendRemovedToast"), { icon: "info", variant: "info" });
+    },
+    [removeFriendMut, showToast, tr],
   );
   const blockUser = useCallback(
-    (userId: string) => blockMut({ userId: userId as Id<"users"> }),
-    [blockMut],
+    async (userId: string) => {
+      await blockMut({ userId: userId as Id<"users"> });
+      showToast(tr("userBlockedToast"), { icon: "ban", variant: "info" });
+    },
+    [blockMut, showToast, tr],
   );
   const unblockUser = useCallback(
-    (userId: string) => unblockMut({ userId: userId as Id<"users"> }),
-    [unblockMut],
+    async (userId: string) => {
+      await unblockMut({ userId: userId as Id<"users"> });
+      showToast(tr("userUnblockedToast"), { icon: "info", variant: "info" });
+    },
+    [unblockMut, showToast, tr],
   );
   const shareRecipe = useCallback(
     (toUserId: string, recipe: Recipe, note?: string) =>
@@ -83,8 +116,11 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const markInboxSeen = useCallback(() => markInboxSeenMut({}), [markInboxSeenMut]);
   const markFeedSeen = useCallback(() => markFeedSeenMut({}), [markFeedSeenMut]);
   const saveSharedRecipe = useCallback(
-    (id: string) => saveSharedMut({ id: id as Id<"recipeShares"> }),
-    [saveSharedMut],
+    async (id: string) => {
+      await saveSharedMut({ id: id as Id<"recipeShares"> });
+      showToast(tr("savedToFavoritesToast"), { icon: "bookmark" });
+    },
+    [saveSharedMut, showToast, tr],
   );
   const setSocialProfile = useCallback(
     (args: {

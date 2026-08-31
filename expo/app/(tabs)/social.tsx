@@ -532,7 +532,7 @@ export default function SocialScreen() {
               {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
             </Text>
             {item.kind === "recipe_favorited" ? (
-              <Star size={18} color={Colors.primary} fill={Colors.primary} />
+              <Star size={18} color={Colors.star} fill={Colors.star} />
             ) : (
               <Flame size={18} color={Colors.orange} />
             )}
