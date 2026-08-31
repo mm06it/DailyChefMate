@@ -102,6 +102,8 @@ function AdminMessageCard({
           : t("statusNew");
   const currentIdx = ADMIN_STATUSES.indexOf(msg.status as any); // -1 for "new"
 
+  const progress = msg.status === "done" ? 3 : currentIdx + 1; // 0..3
+
   return (
     <Pressable
       style={[styles.adminMsg, { borderLeftColor: color }, msg.status === "done" && styles.adminMsgDone]}
@@ -113,11 +115,29 @@ function AdminMessageCard({
         </View>
         {msg.category === "bug" && <Text style={styles.prioHigh}>!!!</Text>}
         {msg.category === "report_user" && <Text style={styles.prioLow}>!!</Text>}
+        {msg.status === "done" && <Check size={16} color={Colors.success} />}
         <Text style={styles.adminDate}>{new Date(msg.createdAt).toLocaleDateString()}</Text>
       </View>
 
       <Text style={styles.adminText} numberOfLines={expanded ? undefined : 2}>
         {msg.message}
+      </Text>
+
+      {/* always-visible mini progress bar */}
+      <View style={styles.miniBar}>
+        {[0, 1, 2].map((i) => (
+          <View
+            key={i}
+            style={[
+              styles.miniBarSeg,
+              { backgroundColor: i < progress ? color : Colors.border },
+            ]}
+          />
+        ))}
+      </View>
+      <Text style={styles.adminHint}>
+        {statusLabel(msg.status)}
+        {!expanded ? ` · ${t("tapForDetails")}` : ""}
       </Text>
 
       {expanded && (
@@ -152,8 +172,6 @@ function AdminMessageCard({
           </View>
         </View>
       )}
-
-      {!expanded && <Text style={styles.adminHint}>{statusLabel(msg.status)} · {t("tapForDetails")}</Text>}
     </Pressable>
   );
 }
@@ -178,6 +196,7 @@ export default function SocialScreen() {
     outgoing,
     counts,
     myProfile,
+    sendFriendRequest,
     respondFriendRequest,
     removeFriend,
     markInboxSeen,
@@ -327,6 +346,7 @@ export default function SocialScreen() {
     const p = item.profile;
     const name = p.displayName || p.username;
     const removable = item.kind === "friend" || item.kind === "outgoing";
+    const declined = item.kind === "outgoing" && item.profile.status === "declined";
 
     return (
       <View>
@@ -342,12 +362,29 @@ export default function SocialScreen() {
                 {name}
               </Text>
               {item.kind === "incoming" && <Text style={styles.friendMeta}>{t("incomingRequests")}</Text>}
-              {item.kind === "outgoing" && <Text style={styles.friendMeta}>{t("pendingRequests")}</Text>}
+              {item.kind === "outgoing" && !declined && (
+                <Text style={styles.friendMeta}>{t("requestSentStatus")}</Text>
+              )}
+              {declined && (
+                <Text style={[styles.friendMeta, styles.friendMetaDeclined]}>
+                  {t("requestDeclinedStatus")}
+                </Text>
+              )}
               {item.kind === "friend" && !!p.username && (
                 <Text style={styles.friendMeta}>@{p.username}</Text>
               )}
             </View>
           </Pressable>
+
+          {declined && (
+            <Pressable
+              style={[styles.pillBtn, styles.pillPrimary]}
+              onPress={() => sendFriendRequest(p.username).catch(() => {})}
+              testID={`friend-resend-${p.id}`}
+            >
+              <UserPlus size={15} color={Colors.white} />
+            </Pressable>
+          )}
 
           {item.kind === "incoming" && (
             <View style={styles.rowActions}>
@@ -525,18 +562,35 @@ export default function SocialScreen() {
         adminInbox && adminInbox.length > 0 ? (
           <View style={styles.adminBox}>
             <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
-            {adminInbox.map((m) => (
-              <AdminMessageCard
-                key={m.id}
-                msg={m}
-                expanded={expandedMsg === m.id}
-                onToggle={() => setExpandedMsg((cur) => (cur === m.id ? null : m.id))}
-                onStatus={(s) =>
-                  setAdminMessageStatus({ id: m.id as Id<"adminMessages">, status: s })
-                }
-                t={t}
-              />
-            ))}
+            {(() => {
+              const open = adminInbox.filter((m) => m.status !== "done");
+              const done = adminInbox.filter((m) => m.status === "done");
+              const card = (m: (typeof adminInbox)[number]) => (
+                <AdminMessageCard
+                  key={m.id}
+                  msg={m}
+                  expanded={expandedMsg === m.id}
+                  onToggle={() => setExpandedMsg((cur) => (cur === m.id ? null : m.id))}
+                  onStatus={(s) =>
+                    setAdminMessageStatus({ id: m.id as Id<"adminMessages">, status: s })
+                  }
+                  t={t}
+                />
+              );
+              return (
+                <>
+                  {open.length > 0 && <Text style={styles.adminSubhead}>{t("openSection")}</Text>}
+                  {open.map(card)}
+                  {done.length > 0 && (
+                    <View style={styles.doneDivider}>
+                      <Check size={14} color={Colors.success} />
+                      <Text style={styles.adminSubhead}>{t("doneSection")}</Text>
+                    </View>
+                  )}
+                  {done.map(card)}
+                </>
+              );
+            })()}
           </View>
         ) : null
       }
@@ -690,6 +744,7 @@ const styles = StyleSheet.create({
   friendText: { flex: 1 },
   friendName: { fontSize: 15, fontWeight: "600", color: Colors.text },
   friendMeta: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  friendMetaDeclined: { color: Colors.error, fontWeight: "700" },
   rowActions: { flexDirection: "row", gap: 6 },
   pillBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   pillPrimary: { backgroundColor: Colors.primary },
@@ -698,6 +753,24 @@ const styles = StyleSheet.create({
 
   adminBox: { marginBottom: 16 },
   adminTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 10 },
+  adminSubhead: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textLight,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  doneDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: 10,
+  },
   adminMsg: {
     backgroundColor: Colors.card,
     borderWidth: 1,
@@ -715,7 +788,9 @@ const styles = StyleSheet.create({
   prioLow: { color: "#F59E0B", fontSize: 14, fontWeight: "900", letterSpacing: 1 },
   adminDate: { marginLeft: "auto", fontSize: 12, color: Colors.textLight },
   adminText: { fontSize: 14, color: Colors.text },
-  adminHint: { fontSize: 12, color: Colors.textLight, marginTop: 8 },
+  adminHint: { fontSize: 12, color: Colors.textLight, marginTop: 6 },
+  miniBar: { flexDirection: "row", gap: 4, marginTop: 10 },
+  miniBarSeg: { flex: 1, height: 5, borderRadius: 3 },
   adminDetails: { marginTop: 10, gap: 6 },
   adminDetailLine: { fontSize: 12, color: Colors.textLight },
   statusBar: { flexDirection: "row", gap: 6, marginTop: 6 },

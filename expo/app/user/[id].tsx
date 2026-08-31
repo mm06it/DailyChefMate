@@ -32,6 +32,7 @@ export default function UserProfileScreen() {
   const { t } = useLanguage();
   const {
     sendFriendRequest,
+    sendFriendRequestTo,
     respondFriendRequest,
     removeFriend,
     blockUser,
@@ -44,7 +45,7 @@ export default function UserProfileScreen() {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
-  const [listMode, setListMode] = useState<"created" | "favorites">("created");
+  const [listMode, setListMode] = useState<"created" | "favorites" | "cooked" | "friends">("created");
 
   // admin-message form
   const [adminCat, setAdminCat] = useState<AdminCategory>("feedback");
@@ -70,6 +71,11 @@ export default function UserProfileScreen() {
     () => (data?.favorites ?? []).map((r: any) => ({ ...r, isFavorite: false })),
     [data],
   );
+  const cooked: Recipe[] = useMemo(
+    () => (data?.cooked ?? []).map((r: any) => ({ ...r, isFavorite: false })),
+    [data],
+  );
+  const friendsList: any[] = useMemo(() => data?.friendsList ?? [], [data]);
 
   if (data === undefined) {
     return (
@@ -248,9 +254,14 @@ export default function UserProfileScreen() {
           onCancel={() => setConfirm(null)}
         />
       ) : (
-        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
-          <Text style={styles.statusMutedText}>{t("removeFriend")}</Text>
-        </Pressable>
+        <View style={styles.blockedWrap}>
+          <Text style={[styles.statusChip, styles.statusChipAccepted]}>
+            {t("requestAcceptedStatus")}
+          </Text>
+          <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
+            <Text style={styles.statusMutedText}>{t("removeFriend")}</Text>
+          </Pressable>
+        </View>
       );
     }
     if (data.status === "pending_out") {
@@ -266,9 +277,25 @@ export default function UserProfileScreen() {
           onCancel={() => setConfirm(null)}
         />
       ) : (
-        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
-          <Text style={styles.statusMutedText}>{t("cancelRequest")}</Text>
-        </Pressable>
+        <View style={styles.blockedWrap}>
+          <Text style={[styles.statusChip, styles.statusChipPending]}>{t("requestSentStatus")}</Text>
+          <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
+            <Text style={styles.statusMutedText}>{t("cancelRequest")}</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    if (data.status === "declined") {
+      return (
+        <View style={styles.blockedWrap}>
+          <Text style={[styles.statusChip, styles.statusChipDeclined]}>{t("requestDeclinedStatus")}</Text>
+          <Pressable
+            style={[styles.statusBtn, styles.statusPrimary]}
+            onPress={() => sendFriendRequest(data.username || "").catch(() => {})}
+          >
+            <Text style={styles.statusPrimaryText}>{t("resendRequest")}</Text>
+          </Pressable>
+        </View>
       );
     }
     if (data.status === "pending_in") {
@@ -294,7 +321,48 @@ export default function UserProfileScreen() {
   };
 
   const canSeeLists = data.isSelf || data.status === "accepted";
-  const listData = listMode === "created" ? recipes : favorites;
+  const recipeList =
+    listMode === "created" ? recipes : listMode === "favorites" ? favorites : cooked;
+  const showingFriends = listMode === "friends";
+  const listData: any[] = !canSeeLists ? [] : showingFriends ? friendsList : recipeList;
+
+  const friendStatusLabel = (s: string) =>
+    s === "accepted"
+      ? t("requestAcceptedStatus")
+      : s === "pending_out"
+        ? t("requestSentStatus")
+        : s === "pending_in"
+          ? t("incomingRequests")
+          : s === "declined"
+            ? t("requestDeclinedStatus")
+            : t("sendRequest");
+
+  const renderFriendListItem = (f: any) => (
+    <View style={styles.pfRow} key={f.id}>
+      <Pressable
+        style={styles.pfMain}
+        onPress={() => router.push(`/user/${f.id}` as any)}
+      >
+        <Avatar name={f.displayName || f.username} initials={f.initials} size={40} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.pfName} numberOfLines={1}>
+            {f.displayName || f.username}
+          </Text>
+          {!!f.username && <Text style={styles.pfHandle}>@{f.username}</Text>}
+        </View>
+      </Pressable>
+      {f.viewerStatus === "none" || f.viewerStatus === "declined" ? (
+        <Pressable
+          style={styles.pfAddBtn}
+          onPress={() => sendFriendRequestTo(f.id).catch(() => {})}
+        >
+          <Text style={styles.pfAddText}>{t("addFriend")}</Text>
+        </Pressable>
+      ) : (
+        <Text style={styles.pfStatus}>{friendStatusLabel(f.viewerStatus)}</Text>
+      )}
+    </View>
+  );
 
   const Stat = ({
     icon,
@@ -324,13 +392,17 @@ export default function UserProfileScreen() {
     <View style={styles.container}>
       <Stack.Screen options={{ title: name || t("friendProfile") }} />
       <FlatList
-        data={canSeeLists ? listData : []}
+        data={listData}
         keyExtractor={(r) => r.id}
-        renderItem={({ item }) => (
-          <Pressable onPress={() => openRecipe(item)}>
-            <RecipeCard recipe={item} />
-          </Pressable>
-        )}
+        renderItem={({ item }) =>
+          showingFriends ? (
+            renderFriendListItem(item)
+          ) : (
+            <Pressable onPress={() => openRecipe(item)}>
+              <RecipeCard recipe={item} />
+            </Pressable>
+          )
+        }
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
@@ -434,23 +506,37 @@ export default function UserProfileScreen() {
                 icon={<Flame size={20} color={Colors.primary} />}
                 label={t("cookedRecipesCount")}
                 value={data.stats.cookedCount}
+                active={canSeeLists && listMode === "cooked"}
+                onPress={canSeeLists ? () => setListMode("cooked") : undefined}
               />
               <Stat
                 icon={<UsersIcon size={20} color={Colors.primary} />}
                 label={t("friendsCount")}
                 value={data.stats.friendsCount}
+                active={canSeeLists && listMode === "friends"}
+                onPress={canSeeLists ? () => setListMode("friends") : undefined}
               />
             </View>
 
             {canSeeLists && (
               <Text style={styles.sectionTitle}>
-                {listMode === "created" ? t("createdRecipesCount") : t("favoriteRecipesCount")}
+                {listMode === "created"
+                  ? t("createdRecipesCount")
+                  : listMode === "favorites"
+                    ? t("favoriteRecipesCount")
+                    : listMode === "cooked"
+                      ? t("cookedRecipesCount")
+                      : t("friendsCount")}
               </Text>
             )}
           </View>
         }
         ListEmptyComponent={
-          canSeeLists ? <Text style={styles.muted}>{t("noHomemadeRecipes")}</Text> : null
+          canSeeLists ? (
+            <Text style={styles.muted}>
+              {showingFriends ? t("noFriendsYet") : t("noHomemadeRecipes")}
+            </Text>
+          ) : null
         }
       />
     </View>
@@ -474,6 +560,36 @@ const styles = StyleSheet.create({
   statusPrimary: { backgroundColor: Colors.primary },
   statusPrimaryText: { color: Colors.white, fontWeight: "700" },
   statusMuted: { backgroundColor: Colors.cardSecondary },
+  statusChip: {
+    fontSize: 13,
+    fontWeight: "800",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  statusChipPending: { backgroundColor: Colors.cardSecondary, color: Colors.textLight },
+  statusChipDeclined: { backgroundColor: "#FDECEC", color: Colors.error },
+  statusChipAccepted: { backgroundColor: "#E9F7EF", color: Colors.success },
+  pfRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  pfMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
+  pfName: { fontSize: 15, fontWeight: "600", color: Colors.text },
+  pfHandle: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  pfAddBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  pfAddText: { color: Colors.white, fontWeight: "700", fontSize: 12 },
+  pfStatus: { fontSize: 12, color: Colors.textLight, fontWeight: "600" },
   statusMutedText: { color: Colors.text, fontWeight: "600" },
 
   dangerRow: { flexDirection: "row", gap: 16, marginTop: 16 },

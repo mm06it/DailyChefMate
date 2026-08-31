@@ -39,6 +39,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const myProfileQ = useQuery(api.social.myProfile, skip);
 
   const sendRequestMut = useMutation(api.social.sendFriendRequest);
+  const sendRequestToMut = useMutation(api.social.sendFriendRequestTo);
   const respondMut = useMutation(api.social.respondFriendRequest);
   const removeFriendMut = useMutation(api.social.removeFriend);
   const blockMut = useMutation(api.social.block);
@@ -53,6 +54,10 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const sendFriendRequest = useCallback(
     (query: string) => sendRequestMut({ query }),
     [sendRequestMut],
+  );
+  const sendFriendRequestTo = useCallback(
+    (userId: string) => sendRequestToMut({ userId: userId as Id<"users"> }),
+    [sendRequestToMut],
   );
   const respondFriendRequest = useCallback(
     (userId: string, accept: boolean) => respondMut({ userId: userId as Id<"users">, accept }),
@@ -87,6 +92,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
       bio?: string;
       discoverable?: boolean;
       feedVisibility?: "friends" | "private";
+      friendListVisible?: boolean;
     }) => setProfileMut(args),
     [setProfileMut],
   );
@@ -107,11 +113,14 @@ export const [SocialContext, useSocial] = createContextHook(() => {
     () => ({
       friends: (friendsQ ?? []) as MiniProfile[],
       incoming: (requestsQ?.incoming ?? []) as MiniProfile[],
-      outgoing: (requestsQ?.outgoing ?? []) as MiniProfile[],
+      outgoing: (requestsQ?.outgoing ?? []) as (MiniProfile & {
+        status: "pending_out" | "declined";
+      })[],
       counts,
       badgeCount: counts.feed + counts.friends + counts.inbox,
       myProfile: myProfileQ ?? null,
       sendFriendRequest,
+      sendFriendRequestTo,
       respondFriendRequest,
       removeFriend,
       blockUser,
@@ -130,6 +139,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
       myProfileQ,
       counts,
       sendFriendRequest,
+      sendFriendRequestTo,
       respondFriendRequest,
       removeFriend,
       blockUser,

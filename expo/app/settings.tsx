@@ -299,6 +299,20 @@ export default function SettingsScreen() {
               testID="settings-show-activity"
             />
           </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <Users size={20} color={Colors.textLight} />
+              <Text style={styles.settingLabel}>{t('friendListVisible')}</Text>
+            </View>
+            <Switch
+              value={myProfile ? myProfile.friendListVisible : false}
+              onValueChange={(val) => {
+                setSocialProfile({ friendListVisible: val });
+              }}
+              testID="settings-friendlist-visible"
+            />
+          </View>
         </View>
 
         <View style={styles.section}>

@@ -109,7 +109,13 @@ async function blockState(ctx: QueryCtx | MutationCtx, me: Id<"users">, other: I
   return { iBlocked: !!iBlockedRow, blockedByThem: !!blockedByThemRow };
 }
 
-type FriendState = "none" | "pending_out" | "pending_in" | "accepted" | "blocked";
+type FriendState =
+  | "none"
+  | "pending_out"
+  | "pending_in"
+  | "accepted"
+  | "declined"
+  | "blocked";
 
 async function friendState(
   ctx: QueryCtx | MutationCtx,
@@ -191,6 +197,7 @@ export const myProfile = query({
       bio: user.bio ?? "",
       discoverable: user.discoverable !== false,
       feedVisibility: user.feedVisibility ?? "friends",
+      friendListVisible: user.friendListVisible === true,
       initials: initialsOf(user.displayName || user.username || "?"),
       isAdmin: admin?._id === userId,
       adminId: admin && admin._id !== userId ? admin._id : null,
@@ -204,6 +211,7 @@ export const setSocialProfile = mutation({
     bio: v.optional(v.string()),
     discoverable: v.optional(v.boolean()),
     feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
+    friendListVisible: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -212,6 +220,7 @@ export const setSocialProfile = mutation({
     if (args.bio !== undefined) patch.bio = args.bio.trim().slice(0, BIO_MAX);
     if (args.discoverable !== undefined) patch.discoverable = args.discoverable;
     if (args.feedVisibility !== undefined) patch.feedVisibility = args.feedVisibility;
+    if (args.friendListVisible !== undefined) patch.friendListVisible = args.friendListVisible;
     await ctx.db.patch(userId, patch);
   },
 });
@@ -248,15 +257,22 @@ export const friendRequests = query({
       .query("friendships")
       .withIndex("by_owner_status", (q) => q.eq("owner", userId).eq("status", "pending_in"))
       .collect();
-    const outgoingRows = await ctx.db
+    const pendingOutRows = await ctx.db
       .query("friendships")
       .withIndex("by_owner_status", (q) => q.eq("owner", userId).eq("status", "pending_out"))
+      .collect();
+    const declinedRows = await ctx.db
+      .query("friendships")
+      .withIndex("by_owner_status", (q) => q.eq("owner", userId).eq("status", "declined"))
       .collect();
 
     const incoming = [];
     for (const row of incomingRows) incoming.push(miniProfile(await ctx.db.get(row.other), row.other));
     const outgoing = [];
-    for (const row of outgoingRows) outgoing.push(miniProfile(await ctx.db.get(row.other), row.other));
+    for (const row of pendingOutRows)
+      outgoing.push({ ...miniProfile(await ctx.db.get(row.other), row.other), status: "pending_out" as const });
+    for (const row of declinedRows)
+      outgoing.push({ ...miniProfile(await ctx.db.get(row.other), row.other), status: "declined" as const });
     return { incoming, outgoing };
   },
 });
@@ -281,6 +297,55 @@ export const findUser = query({
   },
 });
 
+// Core request logic shared by the username/email path and the
+// friend-of-friend (by id) path.
+async function doSendRequest(ctx: MutationCtx, me: Id<"users">, other: Id<"users">) {
+  const { iBlocked, blockedByThem } = await blockState(ctx, me, other);
+  if (iBlocked || blockedByThem) throw new Error("BLOCKED");
+
+  const admin = await getAdminUser(ctx);
+  if (admin && other === admin._id) return { status: "accepted" as const };
+
+  const now = Date.now();
+  const mineRow = await pairRow(ctx, me, other);
+  const theirsRow = await pairRow(ctx, other, me);
+
+  if (mineRow?.status === "accepted") throw new Error("ALREADY_FRIENDS");
+  if (mineRow?.status === "pending_out") return { status: "pending_out" as const };
+
+  if (mineRow?.status === "pending_in") {
+    await ctx.db.patch(mineRow._id, { status: "accepted", updatedAt: now });
+    if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "accepted", updatedAt: now });
+    await notifyFriendAccepted(ctx, me, other);
+    return { status: "accepted" as const };
+  }
+
+  // Fresh request, or re-send after a previous decline.
+  if (mineRow && (mineRow.status === "declined")) {
+    await ctx.db.patch(mineRow._id, { status: "pending_out", updatedAt: now });
+  } else {
+    await ctx.db.insert("friendships", {
+      owner: me,
+      other,
+      status: "pending_out",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  if (theirsRow) {
+    await ctx.db.patch(theirsRow._id, { status: "pending_in", updatedAt: now });
+  } else {
+    await ctx.db.insert("friendships", {
+      owner: other,
+      other: me,
+      status: "pending_in",
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  return { status: "pending_out" as const };
+}
+
 export const sendFriendRequest = mutation({
   args: { query: v.string() },
   handler: async (ctx, { query: q }) => {
@@ -289,43 +354,25 @@ export const sendFriendRequest = mutation({
     if (!found) throw new Error("USER_NOT_FOUND");
     if (found._id === me) throw new Error("CANNOT_ADD_SELF");
     if (found.discoverable === false) throw new Error("USER_NOT_FOUND");
+    return doSendRequest(ctx, me, found._id);
+  },
+});
 
-    const { iBlocked, blockedByThem } = await blockState(ctx, me, found._id);
-    if (iBlocked || blockedByThem) throw new Error("BLOCKED");
-
-    const admin = await getAdminUser(ctx);
-    if (admin && found._id === admin._id) return { status: "accepted" as const };
-
-    const other = found._id;
-    const now = Date.now();
-    const mineRow = await pairRow(ctx, me, other);
-    const theirsRow = await pairRow(ctx, other, me);
-
-    if (mineRow?.status === "accepted") throw new Error("ALREADY_FRIENDS");
-    if (mineRow?.status === "pending_out") return { status: "pending_out" as const };
-
-    if (mineRow?.status === "pending_in") {
-      await ctx.db.patch(mineRow._id, { status: "accepted", updatedAt: now });
-      if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "accepted", updatedAt: now });
-      await notifyFriendAccepted(ctx, me, other);
-      return { status: "accepted" as const };
+// Friend-of-friend: send a request straight to a user id (from a friend's
+// visible friend list). Only allowed when the target opted in.
+export const sendFriendRequestTo = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId: other }) => {
+    const me = await requireUserId(ctx);
+    if (other === me) throw new Error("CANNOT_ADD_SELF");
+    const target = await ctx.db.get(other);
+    if (!target) throw new Error("USER_NOT_FOUND");
+    // This path is only reachable from a friend's visible friend list, so the
+    // target must have opted in — unless they're generally discoverable anyway.
+    if (target.friendListVisible !== true && target.discoverable === false) {
+      throw new Error("USER_NOT_FOUND");
     }
-
-    await ctx.db.insert("friendships", {
-      owner: me,
-      other,
-      status: "pending_out",
-      createdAt: now,
-      updatedAt: now,
-    });
-    await ctx.db.insert("friendships", {
-      owner: other,
-      other: me,
-      status: "pending_in",
-      createdAt: now,
-      updatedAt: now,
-    });
-    return { status: "pending_out" as const };
+    return doSendRequest(ctx, me, other);
   },
 });
 
@@ -356,8 +403,10 @@ export const respondFriendRequest = mutation({
       if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "accepted", updatedAt: now });
       await notifyFriendAccepted(ctx, me, other);
     } else {
+      // Keep a "declined" marker on the sender's row so they can see the
+      // outcome; drop my (recipient) row.
       await ctx.db.delete(mineRow._id);
-      if (theirsRow) await ctx.db.delete(theirsRow._id);
+      if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "declined", updatedAt: now });
     }
   },
 });
@@ -831,7 +880,8 @@ export const userPublic = query({
     const customFavs = customRecipes.filter((r) => r.isFavorite);
     const favoritesCount = favRows.length + customFavs.length;
     const cookedCount = cookedRows.reduce((sum, r) => sum + r.count, 0);
-    const friendsCount = friendRows.filter((r) => !admin || r.other !== admin._id).length;
+    const nonAdminFriendRows = friendRows.filter((r) => !admin || r.other !== admin._id);
+    const friendsCount = nonAdminFriendRows.length;
 
     const base = {
       ...miniProfile(doc, other),
@@ -851,15 +901,50 @@ export const userPublic = query({
     };
 
     if (!canSeeRecipes) {
-      return { ...base, recipes: [] as any[], favorites: [] as any[] };
+      return {
+        ...base,
+        recipes: [] as any[],
+        favorites: [] as any[],
+        cooked: [] as any[],
+        friendsList: [] as any[],
+      };
     }
+
+    // Cooked list: only the custom recipes we can resolve (external cooked
+    // recipes aren't snapshotted per user). Count stat stays the full total.
+    const customById = new Map(customRecipes.map((r) => [r._id as string, r]));
+    const cooked = cookedRows
+      .map((row) => {
+        const cr = customById.get(row.recipeId);
+        return cr ? { ...customToRecipe(cr), cookCount: row.count } : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Friend list: the owner's accepted friends. For a non-self viewer only
+    // friends who opted in (friendListVisible) are shown. Each carries the
+    // viewer's own status toward them so the client can show add / pending /
+    // friends.
+    const friendsList = [];
+    for (const row of nonAdminFriendRows) {
+      const fDoc = await ctx.db.get(row.other);
+      if (!fDoc) continue;
+      if (row.other === me) continue;
+      if (!isSelf && fDoc.friendListVisible !== true) continue;
+      const { iBlocked: fb1, blockedByThem: fb2 } = await blockState(ctx, me, row.other);
+      if (fb1 || fb2) continue;
+      friendsList.push({
+        ...miniProfile(fDoc, row.other),
+        viewerStatus: await friendState(ctx, me, row.other),
+      });
+    }
+    friendsList.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
     return {
       ...base,
       recipes: customRecipes.map(customToRecipe),
-      favorites: [
-        ...favRows.map((r) => r.recipe),
-        ...customFavs.map(customToRecipe),
-      ],
+      favorites: [...favRows.map((r) => r.recipe), ...customFavs.map(customToRecipe)],
+      cooked,
+      friendsList,
     };
   },
 });

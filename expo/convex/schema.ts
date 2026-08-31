@@ -60,6 +60,9 @@ export default defineSchema({
     feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
     isAdmin: v.optional(v.boolean()),
     feedSeenAt: v.optional(v.number()), // last time the user opened the feed
+    // When true, this user's accepted friends are shown on their profile to
+    // their other friends, and those friends-of-friends may send a request.
+    friendListVisible: v.optional(v.boolean()),
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -149,6 +152,7 @@ export default defineSchema({
       v.literal("pending_out"), // owner sent, awaiting `other`
       v.literal("pending_in"), // `other` sent, owner must respond
       v.literal("accepted"),
+      v.literal("declined"), // owner's request was declined by `other`
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
