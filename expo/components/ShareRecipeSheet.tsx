@@ -26,34 +26,66 @@ export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareReci
   const { t } = useLanguage();
   const { friends, shareRecipe } = useSocial();
   const [note, setNote] = useState("");
-  const [sentTo, setSentTo] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setNote("");
-      setSentTo(new Set());
+      setSelected(new Set());
+      setSending(false);
+      setDone(false);
     }
   }, [visible]);
 
   if (!recipe) return null;
 
-  const handleShare = async (friendId: string) => {
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleSend = async () => {
+    if (selected.size === 0 || sending) return;
+    setSending(true);
     try {
-      await shareRecipe(friendId, recipe, note.trim() || undefined);
-      setSentTo((prev) => new Set(prev).add(friendId));
+      for (const id of selected) {
+        await shareRecipe(id, recipe, note.trim() || undefined);
+      }
+      setDone(true);
+      setTimeout(onClose, 700);
     } catch (e) {
       console.error("shareRecipe failed", e);
+      setSending(false);
     }
   };
+
+  const canSend = selected.size > 0 && !sending;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t("shareRecipe")}</Text>
             <Pressable onPress={onClose} hitSlop={10} testID="share-recipe-close">
               <X size={24} color={Colors.text} />
+            </Pressable>
+            <Text style={styles.title}>{t("shareRecipe")}</Text>
+            <Pressable
+              onPress={handleSend}
+              disabled={!canSend}
+              hitSlop={10}
+              testID="share-recipe-send"
+            >
+              <Text style={[styles.sendTop, !canSend && styles.sendTopDisabled]}>
+                {done ? t("messageSent") : t("send")}
+                {selected.size > 0 ? ` (${selected.size})` : ""}
+              </Text>
             </Pressable>
           </View>
 
@@ -77,13 +109,12 @@ export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareReci
           ) : (
             <ScrollView style={styles.friendScroll} showsVerticalScrollIndicator={false}>
               {friends.map((f) => {
-                const done = sentTo.has(f.id);
+                const isSel = selected.has(f.id);
                 return (
                   <Pressable
                     key={f.id}
                     style={styles.friendRow}
-                    onPress={() => !done && handleShare(f.id)}
-                    disabled={done}
+                    onPress={() => toggle(f.id)}
                     testID={`share-recipe-friend-${f.id}`}
                   >
                     <Avatar name={f.displayName || f.username} initials={f.initials} size={40} />
@@ -93,11 +124,9 @@ export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareReci
                       </Text>
                       {!!f.username && <Text style={styles.friendHandle}>@{f.username}</Text>}
                     </View>
-                    {done ? (
-                      <Check size={20} color={Colors.success} />
-                    ) : (
-                      <Text style={styles.sendLabel}>{t("sendRequest")}</Text>
-                    )}
+                    <View style={[styles.checkCircle, isSel && styles.checkCircleOn]}>
+                      {isSel && <Check size={16} color={Colors.white} />}
+                    </View>
                   </Pressable>
                 );
               })}
@@ -121,7 +150,9 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   title: { fontSize: 18, fontWeight: "700", color: Colors.text },
-  recipeName: { fontSize: 14, color: Colors.textLight, marginTop: 4, marginBottom: 12 },
+  sendTop: { fontSize: 15, fontWeight: "800", color: Colors.primary },
+  sendTopDisabled: { color: Colors.textLight },
+  recipeName: { fontSize: 14, color: Colors.textLight, marginTop: 10, marginBottom: 12 },
   noteInput: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -147,5 +178,14 @@ const styles = StyleSheet.create({
   friendText: { flex: 1 },
   friendName: { fontSize: 15, fontWeight: "600", color: Colors.text },
   friendHandle: { fontSize: 13, color: Colors.textLight, marginTop: 2 },
-  sendLabel: { fontSize: 13, fontWeight: "700", color: Colors.primary },
+  checkCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: Colors.textLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkCircleOn: { backgroundColor: Colors.success, borderColor: Colors.success },
 });

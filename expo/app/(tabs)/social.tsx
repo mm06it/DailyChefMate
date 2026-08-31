@@ -1,7 +1,17 @@
 import { useScrollToTop } from "@react-navigation/native";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { router, useFocusEffect } from "expo-router";
-import { Bell, CalendarPlus, Check, ChefHat, UserPlus, Users, X } from "lucide-react-native";
+import {
+  Bell,
+  CalendarPlus,
+  Check,
+  ChefHat,
+  Info,
+  UserCheck,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -14,8 +24,10 @@ import CollapsingTabHeader, {
   resetHeader,
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
+import InlineConfirm from "@/components/InlineConfirm";
 import Colors from "@/constants/colors";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
@@ -26,6 +38,15 @@ type SocialView = "feed" | "friends" | "inbox";
 
 function toRecipe(snapshot: any): Recipe {
   return { ...snapshot, isFavorite: false } as Recipe;
+}
+
+function CountBadge({ n }: { n: number }) {
+  if (!n) return null;
+  return (
+    <View style={styles.countBadge}>
+      <Text style={styles.countBadgeText}>{n > 99 ? "99+" : n}</Text>
+    </View>
+  );
 }
 
 export default function SocialScreen() {
@@ -39,24 +60,33 @@ export default function SocialScreen() {
   const [view, setView] = useState<SocialView>("feed");
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const {
     friends,
     incoming,
     outgoing,
+    counts,
+    myProfile,
     respondFriendRequest,
     removeFriend,
-    markSharesSeen,
+    markInboxSeen,
+    markFeedSeen,
     saveSharedRecipe,
   } = useSocial();
   const { cacheRecipes } = useDailyChefMateStore();
 
   const feed = useQuery(api.social.feed) ?? [];
-  const inbox = useQuery(api.social.shareInbox) ?? [];
+  const inbox = useQuery(api.social.inbox) ?? [];
+  const adminInbox = useQuery(api.social.adminInbox) ?? null;
+  const resolveAdminMessage = useMutation(api.social.resolveAdminMessage);
 
   useEffect(() => {
-    if (view === "inbox") markSharesSeen().catch(() => {});
-  }, [view, inbox.length, markSharesSeen]);
+    if (view === "inbox") markInboxSeen().catch(() => {});
+  }, [view, inbox.length, markInboxSeen]);
+  useEffect(() => {
+    if (view === "feed") markFeedSeen().catch(() => {});
+  }, [view, feed.length, markFeedSeen]);
 
   const openRecipe = useCallback(
     (snapshot: any) => {
@@ -73,6 +103,7 @@ export default function SocialScreen() {
         const active = view === v;
         const Icon = v === "feed" ? ChefHat : v === "friends" ? Users : Bell;
         const label = v === "feed" ? t("feed") : v === "friends" ? t("friends") : t("inbox");
+        const n = v === "feed" ? counts.feed : v === "friends" ? counts.friends : counts.inbox;
         return (
           <Pressable
             key={v}
@@ -82,6 +113,7 @@ export default function SocialScreen() {
           >
             <Icon size={16} color={active ? Colors.white : Colors.textLight} />
             <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+            <CountBadge n={n} />
           </Pressable>
         );
       })}
@@ -93,11 +125,11 @@ export default function SocialScreen() {
     const name = item.actor.displayName || item.actor.username;
     const verb = item.type === "created_recipe" ? t("feedCreated") : t("feedShared");
     return (
-      <View style={styles.feedCard}>
-        <View style={styles.feedHead}>
+      <View style={styles.card}>
+        <View style={styles.cardHead}>
           <Avatar name={name} initials={item.actor.initials} size={36} />
-          <Text style={styles.feedLine} numberOfLines={2}>
-            <Text style={styles.feedName}>{name}</Text> {verb}
+          <Text style={styles.line} numberOfLines={2}>
+            <Text style={styles.name}>{name}</Text> {verb}
           </Text>
         </View>
         {item.recipe && (
@@ -170,53 +202,70 @@ export default function SocialScreen() {
     }
     const p = item.profile;
     const name = p.displayName || p.username;
-    return (
-      <View style={styles.friendRow}>
-        <Pressable
-          style={styles.friendMain}
-          onPress={() => router.push(`/user/${p.id}` as any)}
-          testID={`friend-${p.id}`}
-        >
-          <Avatar name={name} initials={p.initials} size={40} />
-          <View style={styles.friendText}>
-            <Text style={styles.friendName} numberOfLines={1}>
-              {name}
-            </Text>
-            {item.kind === "incoming" && <Text style={styles.friendMeta}>{t("incomingRequests")}</Text>}
-            {item.kind === "outgoing" && <Text style={styles.friendMeta}>{t("pendingRequests")}</Text>}
-            {item.kind === "friend" && !!p.username && (
-              <Text style={styles.friendMeta}>@{p.username}</Text>
-            )}
-          </View>
-        </Pressable>
+    const removable = item.kind === "friend" || item.kind === "outgoing";
 
-        {item.kind === "incoming" && (
-          <View style={styles.rowActions}>
-            <Pressable
-              style={[styles.pillBtn, styles.pillPrimary]}
-              onPress={() => respondFriendRequest(p.id, true)}
-              testID={`friend-accept-${p.id}`}
-            >
-              <Check size={16} color={Colors.white} />
-            </Pressable>
+    return (
+      <View>
+        <View style={styles.friendRow}>
+          <Pressable
+            style={styles.friendMain}
+            onPress={() => router.push(`/user/${p.id}` as any)}
+            testID={`friend-${p.id}`}
+          >
+            <Avatar name={name} initials={p.initials} size={40} />
+            <View style={styles.friendText}>
+              <Text style={styles.friendName} numberOfLines={1}>
+                {name}
+              </Text>
+              {item.kind === "incoming" && <Text style={styles.friendMeta}>{t("incomingRequests")}</Text>}
+              {item.kind === "outgoing" && <Text style={styles.friendMeta}>{t("pendingRequests")}</Text>}
+              {item.kind === "friend" && !!p.username && (
+                <Text style={styles.friendMeta}>@{p.username}</Text>
+              )}
+            </View>
+          </Pressable>
+
+          {item.kind === "incoming" && (
+            <View style={styles.rowActions}>
+              <Pressable
+                style={[styles.pillBtn, styles.pillPrimary]}
+                onPress={() => respondFriendRequest(p.id, true)}
+                testID={`friend-accept-${p.id}`}
+              >
+                <Check size={16} color={Colors.white} />
+              </Pressable>
+              <Pressable
+                style={[styles.pillBtn, styles.pillMuted]}
+                onPress={() => respondFriendRequest(p.id, false)}
+                testID={`friend-decline-${p.id}`}
+              >
+                <X size={16} color={Colors.text} />
+              </Pressable>
+            </View>
+          )}
+          {removable && (
             <Pressable
               style={[styles.pillBtn, styles.pillMuted]}
-              onPress={() => respondFriendRequest(p.id, false)}
-              testID={`friend-decline-${p.id}`}
+              onPress={() => setConfirmRemove(p.id)}
+              testID={`friend-remove-${p.id}`}
             >
               <X size={16} color={Colors.text} />
             </Pressable>
-          </View>
-        )}
-        {item.kind === "outgoing" && (
-          <Pressable style={[styles.pillBtn, styles.pillMuted]} onPress={() => removeFriend(p.id)}>
-            <X size={16} color={Colors.text} />
-          </Pressable>
-        )}
-        {item.kind === "friend" && (
-          <Pressable style={[styles.pillBtn, styles.pillMuted]} onPress={() => removeFriend(p.id)}>
-            <X size={16} color={Colors.text} />
-          </Pressable>
+          )}
+        </View>
+
+        {confirmRemove === p.id && (
+          <InlineConfirm
+            style={styles.removeConfirm}
+            question={item.kind === "outgoing" ? t("confirmCancelRequest") : t("confirmRemoveFriend")}
+            confirmLabel={item.kind === "outgoing" ? t("cancelRequest") : t("removeFriend")}
+            destructive
+            onConfirm={() => {
+              removeFriend(p.id);
+              setConfirmRemove(null);
+            }}
+            onCancel={() => setConfirmRemove(null)}
+          />
         )}
       </View>
     );
@@ -232,52 +281,90 @@ export default function SocialScreen() {
       showsVerticalScrollIndicator={false}
       onScroll={isDesktop ? undefined : onHeaderScroll}
       scrollEventThrottle={16}
-      ListEmptyComponent={<Text style={styles.emptyText}>{t("noFriendsYet")}</Text>}
     />
   );
 
   // ---- Inbox ----
   const renderInboxItem = ({ item }: { item: (typeof inbox)[number] }) => {
-    const name = item.from.displayName || item.from.username;
-    return (
-      <View style={styles.feedCard}>
-        <View style={styles.feedHead}>
-          <Avatar name={name} initials={item.from.initials} size={36} />
-          <Text style={styles.feedLine} numberOfLines={2}>
-            <Text style={styles.feedName}>{name}</Text> {t("sharedWithYou")}
-          </Text>
-        </View>
-        {!!item.note && <Text style={styles.note}>“{item.note}”</Text>}
-        <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
-          {item.recipe.image ? (
-            <Image source={{ uri: item.recipe.image }} style={styles.recipeThumb} />
-          ) : (
-            <View style={[styles.recipeThumb, styles.thumbFallback]}>
-              <ChefHat size={20} color={Colors.textLight} />
-            </View>
-          )}
-          <Text style={styles.recipeName} numberOfLines={2}>
-            {item.recipe.name}
-          </Text>
-        </Pressable>
-        <View style={styles.inboxActions}>
-          <Pressable
-            style={[styles.actionBtn, item.saved && styles.actionBtnDone]}
-            onPress={() => saveSharedRecipe(item.id)}
-            disabled={item.saved}
-            testID={`inbox-save-${item.id}`}
-          >
-            <Text style={[styles.actionText, item.saved && styles.actionTextDone]}>
-              {item.saved ? t("savedRecipeShare") : t("saveRecipeShare")}
+    if (item.kind === "recipe_share") {
+      const name = item.from?.displayName || item.from?.username || "?";
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Text style={styles.line} numberOfLines={2}>
+              <Text style={styles.name}>{name}</Text> {t("sharedWithYou")}
             </Text>
-          </Pressable>
-          <Pressable
-            style={styles.actionBtn}
-            onPress={() => setPlanRecipe(toRecipe(item.recipe))}
-            testID={`inbox-plan-${item.id}`}
-          >
-            <Text style={styles.actionText}>{t("addedToWeekPlanShort")}</Text>
-          </Pressable>
+          </View>
+          {!!item.note && <Text style={styles.note}>“{item.note}”</Text>}
+          {item.recipe && (
+            <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
+              {item.recipe.image ? (
+                <Image source={{ uri: item.recipe.image }} style={styles.recipeThumb} />
+              ) : (
+                <View style={[styles.recipeThumb, styles.thumbFallback]}>
+                  <ChefHat size={20} color={Colors.textLight} />
+                </View>
+              )}
+              <Text style={styles.recipeName} numberOfLines={2}>
+                {item.recipe.name}
+              </Text>
+            </Pressable>
+          )}
+          <View style={styles.inboxActions}>
+            <Pressable
+              style={[styles.actionBtn, item.saved && styles.actionBtnDone]}
+              onPress={() => saveSharedRecipe(item.id)}
+              disabled={item.saved}
+              testID={`inbox-save-${item.id}`}
+            >
+              <Text style={[styles.actionText, item.saved && styles.actionTextDone]}>
+                {item.saved ? t("savedRecipeShare") : t("saveRecipeShare")}
+              </Text>
+            </Pressable>
+            {item.recipe && (
+              <Pressable
+                style={styles.actionBtn}
+                onPress={() => setPlanRecipe(toRecipe(item.recipe))}
+                testID={`inbox-plan-${item.id}`}
+              >
+                <Text style={styles.actionText}>{t("addedToWeekPlanShort")}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      );
+    }
+
+    if (item.kind === "friend_accepted") {
+      const name = item.from?.displayName || "?";
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Text style={styles.line} numberOfLines={2}>
+              <Text style={styles.name}>{name}</Text> {t("friendAcceptedYou")}
+            </Text>
+            <UserCheck size={18} color={Colors.success} />
+          </View>
+          {item.from?.id && (
+            <Pressable
+              style={styles.actionBtn}
+              onPress={() => router.push(`/user/${item.from!.id}` as any)}
+            >
+              <Text style={styles.actionText}>{t("friendProfile")}</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
+
+    // info
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHead}>
+          <Info size={20} color={Colors.accent} />
+          <Text style={styles.line}>{item.message}</Text>
         </View>
       </View>
     );
@@ -287,13 +374,53 @@ export default function SocialScreen() {
     <FlatList
       ref={listRef}
       data={inbox}
-      keyExtractor={(s) => s.id}
+      keyExtractor={(s) => `${s.kind}-${s.id}`}
       renderItem={renderInboxItem}
+      ListHeaderComponent={
+        adminInbox && adminInbox.length > 0 ? (
+          <View style={styles.adminBox}>
+            <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
+            {adminInbox.map((m) => (
+              <View key={m.id} style={[styles.adminMsg, m.resolved && styles.adminMsgResolved]}>
+                <Text style={styles.adminCat}>
+                  {m.category === "report_user"
+                    ? t("adminCatReport")
+                    : m.category === "bug"
+                      ? t("adminCatBug")
+                      : m.category === "feedback"
+                        ? t("adminCatFeedback")
+                        : t("adminCatOther")}
+                  {"  ·  "}
+                  {m.from.username || m.from.email}
+                </Text>
+                <Text style={styles.adminText}>{m.message}</Text>
+                {m.reported && (
+                  <Text style={styles.adminReported}>
+                    {t("reportedUserLabel")}: {m.reported.username} ({m.reported.email})
+                  </Text>
+                )}
+                {!m.resolved && (
+                  <Pressable
+                    style={styles.adminResolve}
+                    onPress={() => resolveAdminMessage({ id: m.id as Id<"adminMessages"> })}
+                  >
+                    <Text style={styles.adminResolveText}>{t("markResolved")}</Text>
+                  </Pressable>
+                )}
+              </View>
+            ))}
+          </View>
+        ) : null
+      }
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
       onScroll={isDesktop ? undefined : onHeaderScroll}
       scrollEventThrottle={16}
-      ListEmptyComponent={<Text style={styles.emptyText}>{t("inboxEmpty")}</Text>}
+      ListEmptyComponent={
+        !adminInbox || adminInbox.length === 0 ? (
+          <Text style={styles.emptyText}>{t("inboxEmpty")}</Text>
+        ) : null
+      }
     />
   );
 
@@ -347,9 +474,19 @@ const styles = StyleSheet.create({
   segmentBtnActive: { backgroundColor: Colors.primary },
   segmentText: { fontSize: 13, fontWeight: "700", color: Colors.textLight },
   segmentTextActive: { color: Colors.white },
+  countBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: Colors.error,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  countBadgeText: { color: Colors.white, fontSize: 11, fontWeight: "800" },
   listContent: { padding: 16, paddingBottom: 48 },
 
-  feedCard: {
+  card: {
     backgroundColor: Colors.card,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -357,9 +494,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
-  feedHead: { flexDirection: "row", alignItems: "center", gap: 10 },
-  feedLine: { flex: 1, fontSize: 14, color: Colors.textLight },
-  feedName: { fontWeight: "700", color: Colors.text },
+  cardHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  line: { flex: 1, fontSize: 14, color: Colors.textLight },
+  name: { fontWeight: "700", color: Colors.text },
   note: { marginTop: 8, fontSize: 14, color: Colors.text, fontStyle: "italic" },
   recipeRow: {
     flexDirection: "row",
@@ -382,6 +519,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primary,
     backgroundColor: Colors.cardSecondary,
+    alignSelf: "flex-start",
+    marginTop: 8,
   },
   actionBtnDone: { borderColor: Colors.border, backgroundColor: Colors.card },
   actionText: { fontSize: 13, fontWeight: "700", color: Colors.primary },
@@ -416,6 +555,33 @@ const styles = StyleSheet.create({
   pillBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   pillPrimary: { backgroundColor: Colors.primary },
   pillMuted: { backgroundColor: Colors.cardSecondary },
+  removeConfirm: { paddingVertical: 12 },
+
+  adminBox: { marginBottom: 16 },
+  adminTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 10 },
+  adminMsg: {
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#FFE4CC",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  adminMsgResolved: { opacity: 0.5 },
+  adminCat: { fontSize: 12, fontWeight: "800", color: Colors.orange, marginBottom: 4 },
+  adminText: { fontSize: 14, color: Colors.text },
+  adminReported: { fontSize: 12, color: Colors.textLight, marginTop: 6 },
+  adminResolve: {
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  adminResolveText: { fontSize: 12, fontWeight: "700", color: Colors.text },
 
   emptyWrap: { alignItems: "center", marginTop: 40, gap: 16 },
   emptyText: { textAlign: "center", color: Colors.textLight, marginTop: 32, fontSize: 15 },

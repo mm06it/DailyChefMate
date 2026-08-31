@@ -11,7 +11,10 @@ export interface MiniProfile {
   username: string;
   displayName: string;
   initials: string;
+  isAdmin?: boolean;
 }
+
+export type AdminCategory = "feedback" | "bug" | "report_user" | "other";
 
 // Strip runtime-only browse fields before snapshotting a recipe — same as
 // use-meal-plan's toRecipeSnapshot.
@@ -32,7 +35,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
 
   const friendsQ = useQuery(api.social.friends, skip);
   const requestsQ = useQuery(api.social.friendRequests, skip);
-  const badgeQ = useQuery(api.social.badgeCount, skip);
+  const countsQ = useQuery(api.social.socialCounts, skip);
   const myProfileQ = useQuery(api.social.myProfile, skip);
 
   const sendRequestMut = useMutation(api.social.sendFriendRequest);
@@ -40,11 +43,12 @@ export const [SocialContext, useSocial] = createContextHook(() => {
   const removeFriendMut = useMutation(api.social.removeFriend);
   const blockMut = useMutation(api.social.block);
   const unblockMut = useMutation(api.social.unblock);
-  const reportMut = useMutation(api.social.report);
   const shareRecipeMut = useMutation(api.social.shareRecipe);
-  const markSharesSeenMut = useMutation(api.social.markAllSharesSeen);
+  const markInboxSeenMut = useMutation(api.social.markInboxSeen);
+  const markFeedSeenMut = useMutation(api.social.markFeedSeen);
   const saveSharedMut = useMutation(api.social.saveSharedRecipe);
   const setProfileMut = useMutation(api.social.setSocialProfile);
+  const sendAdminMessageMut = useMutation(api.social.sendAdminMessage);
 
   const sendFriendRequest = useCallback(
     (query: string) => sendRequestMut({ query }),
@@ -66,17 +70,13 @@ export const [SocialContext, useSocial] = createContextHook(() => {
     (userId: string) => unblockMut({ userId: userId as Id<"users"> }),
     [unblockMut],
   );
-  const reportUser = useCallback(
-    (targetUserId: string, context: string, reason: string, refId?: string) =>
-      reportMut({ targetUserId: targetUserId as Id<"users">, context, reason, refId }),
-    [reportMut],
-  );
   const shareRecipe = useCallback(
     (toUserId: string, recipe: Recipe, note?: string) =>
       shareRecipeMut({ toUserId: toUserId as Id<"users">, recipe: toRecipeSnapshot(recipe), note }),
     [shareRecipeMut],
   );
-  const markSharesSeen = useCallback(() => markSharesSeenMut({}), [markSharesSeenMut]);
+  const markInboxSeen = useCallback(() => markInboxSeenMut({}), [markInboxSeenMut]);
+  const markFeedSeen = useCallback(() => markFeedSeenMut({}), [markFeedSeenMut]);
   const saveSharedRecipe = useCallback(
     (id: string) => saveSharedMut({ id: id as Id<"recipeShares"> }),
     [saveSharedMut],
@@ -90,40 +90,56 @@ export const [SocialContext, useSocial] = createContextHook(() => {
     }) => setProfileMut(args),
     [setProfileMut],
   );
+  const sendAdminMessage = useCallback(
+    (args: { category: AdminCategory; message: string; reportedUserId?: string; reportedQuery?: string }) =>
+      sendAdminMessageMut({
+        category: args.category,
+        message: args.message,
+        reportedUserId: args.reportedUserId as Id<"users"> | undefined,
+        reportedQuery: args.reportedQuery,
+      }),
+    [sendAdminMessageMut],
+  );
+
+  const counts = countsQ ?? { feed: 0, friends: 0, inbox: 0 };
 
   return useMemo(
     () => ({
       friends: (friendsQ ?? []) as MiniProfile[],
       incoming: (requestsQ?.incoming ?? []) as MiniProfile[],
       outgoing: (requestsQ?.outgoing ?? []) as MiniProfile[],
-      badgeCount: (badgeQ ?? 0) as number,
+      counts,
+      badgeCount: counts.feed + counts.friends + counts.inbox,
       myProfile: myProfileQ ?? null,
       sendFriendRequest,
       respondFriendRequest,
       removeFriend,
       blockUser,
       unblockUser,
-      reportUser,
       shareRecipe,
-      markSharesSeen,
+      markInboxSeen,
+      markFeedSeen,
       saveSharedRecipe,
       setSocialProfile,
+      sendAdminMessage,
     }),
     [
       friendsQ,
       requestsQ,
-      badgeQ,
+      countsQ,
       myProfileQ,
+      counts,
       sendFriendRequest,
       respondFriendRequest,
       removeFriend,
       blockUser,
       unblockUser,
-      reportUser,
       shareRecipe,
-      markSharesSeen,
+      markInboxSeen,
+      markFeedSeen,
       saveSharedRecipe,
       setSocialProfile,
+      sendAdminMessage,
     ],
   );
 });

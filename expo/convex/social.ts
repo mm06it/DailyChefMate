@@ -1,6 +1,14 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { createAccount, getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import {
+  internalAction,
+  internalMutation,
+  mutation,
+  query,
+  type MutationCtx,
+  type QueryCtx,
+} from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
@@ -12,8 +20,10 @@ async function requireUserId(ctx: QueryCtx | MutationCtx) {
 const NOTE_MAX = 500;
 const DISPLAY_NAME_MAX = 40;
 const BIO_MAX = 200;
+const MSG_MAX = 2000;
 const FEED_LIMIT = 50;
 const PER_FRIEND = 20;
+const COUNT_CAP = 99;
 
 const ingredientValidator = v.object({
   id: v.string(),
@@ -59,7 +69,25 @@ function miniProfile(user: Doc<"users"> | null, id: Id<"users">) {
     username,
     displayName,
     initials: initialsOf(displayName || username || "?"),
+    isAdmin: user?.isAdmin === true,
   };
+}
+
+function adminEmail(): string | null {
+  const e = process.env.ADMIN_EMAIL;
+  return e ? e.trim().toLowerCase() : null;
+}
+
+async function getAdminUser(ctx: QueryCtx | MutationCtx): Promise<Doc<"users"> | null> {
+  const email = adminEmail();
+  if (!email) return null;
+  const byEmail = await ctx.db
+    .query("users")
+    .withIndex("email", (q) => q.eq("email", email))
+    .first();
+  if (byEmail) return byEmail;
+  const all = await ctx.db.query("users").collect();
+  return all.find((u) => (u.email ?? "").trim().toLowerCase() === email || u.isAdmin === true) ?? null;
 }
 
 async function pairRow(ctx: QueryCtx | MutationCtx, owner: Id<"users">, other: Id<"users">) {
@@ -69,17 +97,16 @@ async function pairRow(ctx: QueryCtx | MutationCtx, owner: Id<"users">, other: I
     .unique();
 }
 
-async function isBlockedEitherWay(ctx: QueryCtx | MutationCtx, a: Id<"users">, b: Id<"users">) {
-  const ab = await ctx.db
+async function blockState(ctx: QueryCtx | MutationCtx, me: Id<"users">, other: Id<"users">) {
+  const iBlockedRow = await ctx.db
     .query("blocks")
-    .withIndex("by_pair", (q) => q.eq("blocker", a).eq("blocked", b))
+    .withIndex("by_pair", (q) => q.eq("blocker", me).eq("blocked", other))
     .unique();
-  if (ab) return true;
-  const ba = await ctx.db
+  const blockedByThemRow = await ctx.db
     .query("blocks")
-    .withIndex("by_pair", (q) => q.eq("blocker", b).eq("blocked", a))
+    .withIndex("by_pair", (q) => q.eq("blocker", other).eq("blocked", me))
     .unique();
-  return !!ba;
+  return { iBlocked: !!iBlockedRow, blockedByThem: !!blockedByThemRow };
 }
 
 type FriendState = "none" | "pending_out" | "pending_in" | "accepted" | "blocked";
@@ -89,13 +116,16 @@ async function friendState(
   me: Id<"users">,
   other: Id<"users">,
 ): Promise<FriendState> {
-  if (await isBlockedEitherWay(ctx, me, other)) return "blocked";
+  const { iBlocked, blockedByThem } = await blockState(ctx, me, other);
+  if (iBlocked || blockedByThem) return "blocked";
+  const admin = await getAdminUser(ctx);
+  if (admin && (admin._id === other || admin._id === me)) return "accepted"; // everyone is friends with admin
   const row = await pairRow(ctx, me, other);
   return (row?.status as FriendState) ?? "none";
 }
 
-// Resolve an exact username OR email to a user id. Returns null if nothing
-// matches. Does not apply discoverability/block rules — callers do that.
+// Resolve an exact username OR email to a user. Does not apply
+// discoverability/block rules — callers do that.
 async function resolveUser(ctx: QueryCtx | MutationCtx, rawQuery: string): Promise<Doc<"users"> | null> {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return null;
@@ -112,7 +142,6 @@ async function resolveUser(ctx: QueryCtx | MutationCtx, rawQuery: string): Promi
     .first();
   if (byEmail) return byEmail;
 
-  // Fallback for emails stored with different casing.
   if (q.includes("@")) {
     const all = await ctx.db.query("users").collect();
     return all.find((u) => (u.email ?? "").trim().toLowerCase() === q) ?? null;
@@ -129,6 +158,7 @@ export const myProfile = query({
     if (!userId) return null;
     const user = await ctx.db.get(userId);
     if (!user) return null;
+    const admin = await getAdminUser(ctx);
     return {
       id: userId,
       username: user.username ?? "",
@@ -137,6 +167,7 @@ export const myProfile = query({
       discoverable: user.discoverable !== false,
       feedVisibility: user.feedVisibility ?? "friends",
       initials: initialsOf(user.displayName || user.username || "?"),
+      isAdmin: admin?._id === userId,
     };
   },
 });
@@ -166,12 +197,14 @@ export const friends = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
+    const admin = await getAdminUser(ctx);
     const rows = await ctx.db
       .query("friendships")
       .withIndex("by_owner_status", (q) => q.eq("owner", userId).eq("status", "accepted"))
       .collect();
     const out = [];
     for (const row of rows) {
+      if (admin && row.other === admin._id) continue; // hide admin from the list
       out.push(miniProfile(await ctx.db.get(row.other), row.other));
     }
     out.sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -209,7 +242,11 @@ export const findUser = query({
     const found = await resolveUser(ctx, q);
     if (!found) return { reason: "not_found" as const };
     if (found._id === me) return { reason: "self" as const };
-    if (await isBlockedEitherWay(ctx, me, found._id)) return { reason: "blocked" as const };
+    const { iBlocked, blockedByThem } = await blockState(ctx, me, found._id);
+    if (blockedByThem) return { reason: "not_found" as const };
+    if (iBlocked) {
+      return { user: miniProfile(found, found._id), status: "blocked" as const };
+    }
     if (found.discoverable === false) return { reason: "not_found" as const };
     return {
       user: miniProfile(found, found._id),
@@ -226,7 +263,12 @@ export const sendFriendRequest = mutation({
     if (!found) throw new Error("USER_NOT_FOUND");
     if (found._id === me) throw new Error("CANNOT_ADD_SELF");
     if (found.discoverable === false) throw new Error("USER_NOT_FOUND");
-    if (await isBlockedEitherWay(ctx, me, found._id)) throw new Error("BLOCKED");
+
+    const { iBlocked, blockedByThem } = await blockState(ctx, me, found._id);
+    if (iBlocked || blockedByThem) throw new Error("BLOCKED");
+
+    const admin = await getAdminUser(ctx);
+    if (admin && found._id === admin._id) return { status: "accepted" as const };
 
     const other = found._id;
     const now = Date.now();
@@ -234,13 +276,13 @@ export const sendFriendRequest = mutation({
     const theirsRow = await pairRow(ctx, other, me);
 
     if (mineRow?.status === "accepted") throw new Error("ALREADY_FRIENDS");
-    if (mineRow?.status === "pending_out") return { status: "pending_out" };
+    if (mineRow?.status === "pending_out") return { status: "pending_out" as const };
 
-    // They already asked me — accept instead of creating a duplicate.
     if (mineRow?.status === "pending_in") {
       await ctx.db.patch(mineRow._id, { status: "accepted", updatedAt: now });
       if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "accepted", updatedAt: now });
-      return { status: "accepted" };
+      await notifyFriendAccepted(ctx, me, other);
+      return { status: "accepted" as const };
     }
 
     await ctx.db.insert("friendships", {
@@ -257,9 +299,22 @@ export const sendFriendRequest = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    return { status: "pending_out" };
+    return { status: "pending_out" as const };
   },
 });
+
+async function notifyFriendAccepted(ctx: MutationCtx, accepterId: Id<"users">, requesterId: Id<"users">) {
+  const accepter = await ctx.db.get(accepterId);
+  const name = accepter?.displayName || accepter?.username || "?";
+  await ctx.db.insert("notifications", {
+    userId: requesterId,
+    type: "friend_accepted",
+    actorId: accepterId,
+    actorName: name,
+    actorInitials: initialsOf(name),
+    createdAt: Date.now(),
+  });
+}
 
 export const respondFriendRequest = mutation({
   args: { userId: v.id("users"), accept: v.boolean() },
@@ -273,6 +328,7 @@ export const respondFriendRequest = mutation({
     if (accept) {
       await ctx.db.patch(mineRow._id, { status: "accepted", updatedAt: now });
       if (theirsRow) await ctx.db.patch(theirsRow._id, { status: "accepted", updatedAt: now });
+      await notifyFriendAccepted(ctx, me, other);
     } else {
       await ctx.db.delete(mineRow._id);
       if (theirsRow) await ctx.db.delete(theirsRow._id);
@@ -280,7 +336,7 @@ export const respondFriendRequest = mutation({
   },
 });
 
-// Covers "withdraw outgoing request" and "unfriend".
+// Covers "withdraw outgoing request" and "unfriend" (client confirms first).
 export const removeFriend = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId: other }) => {
@@ -297,6 +353,9 @@ export const block = mutation({
   handler: async (ctx, { userId: other }) => {
     const me = await requireUserId(ctx);
     if (other === me) throw new Error("CANNOT_BLOCK_SELF");
+    const admin = await getAdminUser(ctx);
+    if (admin && other === admin._id) throw new Error("CANNOT_BLOCK_ADMIN");
+
     const existing = await ctx.db
       .query("blocks")
       .withIndex("by_pair", (q) => q.eq("blocker", me).eq("blocked", other))
@@ -323,23 +382,108 @@ export const unblock = mutation({
   },
 });
 
-export const report = mutation({
+// ---- admin messages ----
+
+export const sendAdminMessage = mutation({
   args: {
-    targetUserId: v.id("users"),
-    context: v.string(),
-    refId: v.optional(v.string()),
-    reason: v.string(),
+    category: v.union(
+      v.literal("feedback"),
+      v.literal("bug"),
+      v.literal("report_user"),
+      v.literal("other"),
+    ),
+    message: v.string(),
+    reportedUserId: v.optional(v.id("users")),
+    reportedQuery: v.optional(v.string()), // username/email typed on the admin form
   },
-  handler: async (ctx, { targetUserId, context, refId, reason }) => {
+  handler: async (ctx, { category, message, reportedUserId, reportedQuery }) => {
     const me = await requireUserId(ctx);
-    await ctx.db.insert("reports", {
-      reporter: me,
-      targetUser: targetUserId,
-      context,
-      refId,
-      reason: reason.slice(0, 1000),
+    const admin = await getAdminUser(ctx);
+    if (!admin) throw new Error("ADMIN_NOT_CONFIGURED");
+
+    const meDoc = await ctx.db.get(me);
+
+    let reportedId = reportedUserId ?? null;
+    if (!reportedId && reportedQuery) {
+      const found = await resolveUser(ctx, reportedQuery);
+      reportedId = found?._id ?? null;
+    }
+    let reportedUsername: string | undefined;
+    let reportedEmail: string | undefined;
+    if (reportedId) {
+      const rDoc = await ctx.db.get(reportedId);
+      reportedUsername = rDoc?.username;
+      reportedEmail = rDoc?.email;
+    }
+
+    await ctx.db.insert("adminMessages", {
+      fromUser: me,
+      fromUsername: meDoc?.username,
+      fromEmail: meDoc?.email,
+      category,
+      message: message.trim().slice(0, MSG_MAX),
+      reportedUserId: reportedId ?? undefined,
+      reportedUsername,
+      reportedEmail,
       createdAt: Date.now(),
     });
+  },
+});
+
+export const adminInbox = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await getAuthUserId(ctx);
+    if (!me) return null;
+    const admin = await getAdminUser(ctx);
+    if (!admin || admin._id !== me) return null;
+    const rows = await ctx.db
+      .query("adminMessages")
+      .withIndex("by_created")
+      .order("desc")
+      .take(100);
+    return rows.map((r) => ({
+      id: r._id,
+      category: r.category,
+      message: r.message,
+      from: { username: r.fromUsername ?? "", email: r.fromEmail ?? "" },
+      reported:
+        r.reportedUserId != null
+          ? { username: r.reportedUsername ?? "", email: r.reportedEmail ?? "" }
+          : null,
+      createdAt: r.createdAt,
+      resolved: r.resolvedAt !== undefined,
+    }));
+  },
+});
+
+export const resolveAdminMessage = mutation({
+  args: { id: v.id("adminMessages") },
+  handler: async (ctx, { id }) => {
+    const me = await requireUserId(ctx);
+    const admin = await getAdminUser(ctx);
+    if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
+    await ctx.db.patch(id, { resolvedAt: Date.now() });
+  },
+});
+
+export const broadcastInfo = mutation({
+  args: { message: v.string() },
+  handler: async (ctx, { message }) => {
+    const me = await requireUserId(ctx);
+    const admin = await getAdminUser(ctx);
+    if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
+    const users = await ctx.db.query("users").collect();
+    const now = Date.now();
+    for (const u of users) {
+      if (u._id === me) continue;
+      await ctx.db.insert("notifications", {
+        userId: u._id,
+        type: "info",
+        message: message.trim().slice(0, MSG_MAX),
+        createdAt: now,
+      });
+    }
   },
 });
 
@@ -373,47 +517,6 @@ export const shareRecipe = mutation({
   },
 });
 
-export const shareInbox = query({
-  args: {},
-  handler: async (ctx) => {
-    const me = await getAuthUserId(ctx);
-    if (!me) return [];
-    const rows = await ctx.db
-      .query("recipeShares")
-      .withIndex("by_toUser_created", (q) => q.eq("toUser", me))
-      .order("desc")
-      .take(FEED_LIMIT);
-    const out = [];
-    for (const row of rows) {
-      out.push({
-        id: row._id,
-        recipe: row.recipe,
-        note: row.note ?? "",
-        createdAt: row.createdAt,
-        seen: row.seenAt !== undefined,
-        saved: row.savedAt !== undefined,
-        from: miniProfile(await ctx.db.get(row.fromUser), row.fromUser),
-      });
-    }
-    return out;
-  },
-});
-
-export const markAllSharesSeen = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const me = await requireUserId(ctx);
-    const rows = await ctx.db
-      .query("recipeShares")
-      .withIndex("by_toUser_created", (q) => q.eq("toUser", me))
-      .take(FEED_LIMIT);
-    const now = Date.now();
-    for (const row of rows) {
-      if (row.seenAt === undefined) await ctx.db.patch(row._id, { seenAt: now });
-    }
-  },
-});
-
 export const saveSharedRecipe = mutation({
   args: { id: v.id("recipeShares") },
   handler: async (ctx, { id }) => {
@@ -435,6 +538,93 @@ export const saveSharedRecipe = mutation({
       });
     }
     await ctx.db.patch(id, { savedAt: Date.now() });
+  },
+});
+
+// ---- inbox (shares + notifications, merged) ----
+
+export const inbox = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await getAuthUserId(ctx);
+    if (!me) return [];
+
+    const shares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_toUser_created", (q) => q.eq("toUser", me))
+      .order("desc")
+      .take(FEED_LIMIT);
+    const notifs = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_created", (q) => q.eq("userId", me))
+      .order("desc")
+      .take(FEED_LIMIT);
+
+    const items: {
+      id: string;
+      kind: "recipe_share" | "friend_accepted" | "info";
+      createdAt: number;
+      seen: boolean;
+      from: ReturnType<typeof miniProfile> | null;
+      recipe?: Doc<"recipeShares">["recipe"];
+      note?: string;
+      saved?: boolean;
+      message?: string;
+    }[] = [];
+
+    for (const s of shares) {
+      items.push({
+        id: s._id,
+        kind: "recipe_share",
+        createdAt: s.createdAt,
+        seen: s.seenAt !== undefined,
+        from: miniProfile(await ctx.db.get(s.fromUser), s.fromUser),
+        recipe: s.recipe,
+        note: s.note ?? "",
+        saved: s.savedAt !== undefined,
+      });
+    }
+    for (const n of notifs) {
+      items.push({
+        id: n._id,
+        kind: n.type,
+        createdAt: n.createdAt,
+        seen: n.seenAt !== undefined,
+        from: n.actorId
+          ? { id: n.actorId, username: "", displayName: n.actorName ?? "", initials: n.actorInitials ?? "?", isAdmin: false }
+          : null,
+        message: n.message ?? "",
+      });
+    }
+
+    items.sort((a, b) => b.createdAt - a.createdAt);
+    return items.slice(0, FEED_LIMIT);
+  },
+});
+
+export const markInboxSeen = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const me = await requireUserId(ctx);
+    const now = Date.now();
+    const shares = await ctx.db
+      .query("recipeShares")
+      .withIndex("by_toUser_created", (q) => q.eq("toUser", me))
+      .take(FEED_LIMIT);
+    for (const s of shares) if (s.seenAt === undefined) await ctx.db.patch(s._id, { seenAt: now });
+    const notifs = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_created", (q) => q.eq("userId", me))
+      .take(FEED_LIMIT);
+    for (const n of notifs) if (n.seenAt === undefined) await ctx.db.patch(n._id, { seenAt: now });
+  },
+});
+
+export const markFeedSeen = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const me = await requireUserId(ctx);
+    await ctx.db.patch(me, { feedSeenAt: Date.now() });
   },
 });
 
@@ -482,23 +672,62 @@ export const feed = query({
   },
 });
 
-export const badgeCount = query({
+// ---- counts (per social sub-tab) ----
+
+export const socialCounts = query({
   args: {},
   handler: async (ctx) => {
     const me = await getAuthUserId(ctx);
-    if (!me) return 0;
+    if (!me) return { feed: 0, friends: 0, inbox: 0 };
+    const meDoc = await ctx.db.get(me);
+    const feedSeenAt = meDoc?.feedSeenAt ?? 0;
+
+    const friendRows = await ctx.db
+      .query("friendships")
+      .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "accepted"))
+      .collect();
+
+    let feedCount = 0;
+    for (const row of friendRows) {
+      if (feedCount >= COUNT_CAP) break;
+      const evs = await ctx.db
+        .query("activityEvents")
+        .withIndex("by_user_created", (q) => q.eq("userId", row.other).gt("createdAt", feedSeenAt))
+        .take(PER_FRIEND);
+      feedCount += evs.length;
+    }
+
     const incoming = await ctx.db
       .query("friendships")
       .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "pending_in"))
       .collect();
+
     const shares = await ctx.db
       .query("recipeShares")
       .withIndex("by_toUser_created", (q) => q.eq("toUser", me))
       .take(FEED_LIMIT);
-    const unseen = shares.filter((s) => s.seenAt === undefined).length;
-    return incoming.length + unseen;
+    const notifs = await ctx.db
+      .query("notifications")
+      .withIndex("by_user_created", (q) => q.eq("userId", me))
+      .take(FEED_LIMIT);
+    const inboxCount =
+      shares.filter((s) => s.seenAt === undefined).length +
+      notifs.filter((n) => n.seenAt === undefined).length;
+
+    return {
+      feed: Math.min(feedCount, COUNT_CAP),
+      friends: incoming.length,
+      inbox: inboxCount,
+    };
   },
 });
+
+// ---- public profile + stats ----
+
+function customToRecipe(doc: Doc<"customRecipes">) {
+  const { _id, _creationTime, userId, ...rest } = doc;
+  return { id: _id, ...rest };
+}
 
 export const userPublic = query({
   args: { userId: v.id("users") },
@@ -506,20 +735,122 @@ export const userPublic = query({
     const me = await requireUserId(ctx);
     const doc = await ctx.db.get(other);
     if (!doc) return null;
-    const status = await friendState(ctx, me, other);
+
+    const admin = await getAdminUser(ctx);
+    const isAdminProfile = admin?._id === other;
+    const isSelf = other === me;
+    const { iBlocked, blockedByThem } = await blockState(ctx, me, other);
+    const status: FriendState = iBlocked || blockedByThem ? "blocked" : await friendState(ctx, me, other);
+    const canSeeRecipes = isSelf || isAdminProfile === false && status === "accepted";
+
+    // stats
+    const customRecipes = await ctx.db
+      .query("customRecipes")
+      .withIndex("by_user", (q) => q.eq("userId", other))
+      .collect();
+    const favRows = await ctx.db
+      .query("favoriteRecipes")
+      .withIndex("by_user", (q) => q.eq("userId", other))
+      .collect();
+    const cookedRows = await ctx.db
+      .query("cookedRecipes")
+      .withIndex("by_user", (q) => q.eq("userId", other))
+      .collect();
+    const friendRows = await ctx.db
+      .query("friendships")
+      .withIndex("by_owner_status", (q) => q.eq("owner", other).eq("status", "accepted"))
+      .collect();
+
+    const customFavs = customRecipes.filter((r) => r.isFavorite);
+    const favoritesCount = favRows.length + customFavs.length;
+    const cookedCount = cookedRows.reduce((sum, r) => sum + r.count, 0);
+    const friendsCount = friendRows.filter((r) => !admin || r.other !== admin._id).length;
+
     const base = {
       ...miniProfile(doc, other),
       bio: doc.bio ?? "",
       status,
-      isSelf: other === me,
+      isSelf,
+      isAdmin: isAdminProfile,
+      iBlocked,
+      blockedByThem,
+      memberSince: doc._creationTime,
+      stats: {
+        favoritesCount,
+        createdCount: customRecipes.length,
+        cookedCount,
+        friendsCount,
+      },
     };
-    if (status !== "accepted" && other !== me) {
-      return { ...base, recipes: [] as Doc<"customRecipes">[] };
+
+    if (!canSeeRecipes) {
+      return { ...base, recipes: [] as any[], favorites: [] as any[] };
     }
-    const recipes = await ctx.db
-      .query("customRecipes")
-      .withIndex("by_user", (q) => q.eq("userId", other))
-      .collect();
-    return { ...base, recipes };
+    return {
+      ...base,
+      recipes: customRecipes.map(customToRecipe),
+      favorites: [
+        ...favRows.map((r) => r.recipe),
+        ...customFavs.map(customToRecipe),
+      ],
+    };
+  },
+});
+
+// ---- admin seed ----
+// Run once per deployment after setting env vars ADMIN_EMAIL and ADMIN_PASSWORD:
+//   npx convex run social:seedAdmin '{}'
+// Creates the admin auth account (email+password) if missing, else flags the
+// existing account as admin. The account is pre-verified so no email OTP is
+// needed to sign in.
+
+export const markAdminByEmail = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const email = adminEmail();
+    if (!email) return "no-admin-email";
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .first();
+    if (!existing) return "no-user";
+    await ctx.db.patch(existing._id, {
+      isAdmin: true,
+      username: existing.username ?? "admin",
+      displayName: existing.displayName ?? "Admin",
+      emailVerificationTime: existing.emailVerificationTime ?? Date.now(),
+      discoverable: existing.discoverable ?? false,
+    });
+    return "patched";
+  },
+});
+
+export const seedAdmin = internalAction({
+  args: {},
+  handler: async (ctx): Promise<string> => {
+    const email = adminEmail();
+    const password = process.env.ADMIN_PASSWORD;
+    if (!email || !password) throw new Error("Set ADMIN_EMAIL and ADMIN_PASSWORD env vars first");
+
+    try {
+      await createAccount(ctx, {
+        provider: "password",
+        account: { id: email, secret: password },
+        profile: {
+          email,
+          username: "admin",
+          displayName: "Admin",
+          isAdmin: true,
+          discoverable: false,
+          emailVerificationTime: Date.now(),
+        } as any,
+      });
+    } catch (e) {
+      // Account already exists — just flag it.
+      await ctx.runMutation(internal.social.markAdminByEmail, {});
+      return `existing (${e instanceof Error ? e.message : "exists"})`;
+    }
+    await ctx.runMutation(internal.social.markAdminByEmail, {});
+    return "created";
   },
 });

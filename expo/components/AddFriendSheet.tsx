@@ -26,19 +26,27 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
   const { t } = useLanguage();
   const { sendFriendRequest } = useSocial();
   const [input, setInput] = useState("");
-  const [submitted, setSubmitted] = useState("");
+  const [debounced, setDebounced] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Live search: debounce keystrokes, then query.
+  useEffect(() => {
+    const q = input.trim();
+    const id = setTimeout(() => setDebounced(q), q.length ? 300 : 0);
+    return () => clearTimeout(id);
+  }, [input]);
+
+  const submitted = debounced;
   const result = useQuery(
     api.social.findUser,
-    submitted.trim() ? { query: submitted.trim() } : "skip",
+    submitted.length >= 2 ? { query: submitted } : "skip",
   );
 
   useEffect(() => {
     if (visible) {
       setInput("");
-      setSubmitted("");
+      setDebounced("");
       setSentTo(null);
       setError(null);
     }
@@ -67,7 +75,7 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
   };
 
   const renderResult = () => {
-    if (!submitted.trim()) return null;
+    if (submitted.length < 2) return null;
     if (result === undefined) return <ActivityIndicator style={{ marginTop: 20 }} color={Colors.primary} />;
     if (!("user" in result) || !result.user) {
       const reason = "reason" in result ? result.reason : undefined;
@@ -76,15 +84,18 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
 
     const user = result.user;
     const status = "status" in result ? result.status : "none";
-    const alreadyLinked = status === "accepted" || status === "pending_out" || sentTo === user.id;
+    const alreadyLinked =
+      status === "accepted" || status === "pending_out" || status === "blocked" || sentTo === user.id;
     const buttonLabel =
-      sentTo === user.id || status === "pending_out"
-        ? t("friendRequestSent")
-        : status === "accepted"
-          ? t("alreadyFriends")
-          : status === "pending_in"
-            ? t("accept")
-            : t("sendRequest");
+      status === "blocked"
+        ? t("userBlocked")
+        : sentTo === user.id || status === "pending_out"
+          ? t("friendRequestSent")
+          : status === "accepted"
+            ? t("alreadyFriends")
+            : status === "pending_in"
+              ? t("accept")
+              : t("sendRequest");
 
     return (
       <View style={styles.resultCard}>
@@ -121,33 +132,23 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
           </View>
 
           <View style={styles.searchRow}>
+            <Search size={18} color={Colors.textLight} style={styles.searchIcon} />
             <TextInput
               style={styles.input}
               value={input}
-              onChangeText={setInput}
+              onChangeText={(v) => {
+                setInput(v);
+                setSentTo(null);
+                setError(null);
+              }}
               placeholder={t("emailOrUsername")}
               placeholderTextColor={Colors.textLight}
               autoCapitalize="none"
               autoCorrect={false}
-              onSubmitEditing={() => {
-                setSentTo(null);
-                setError(null);
-                setSubmitted(input);
-              }}
+              autoFocus
               returnKeyType="search"
               testID="add-friend-input"
             />
-            <Pressable
-              style={styles.searchBtn}
-              onPress={() => {
-                setSentTo(null);
-                setError(null);
-                setSubmitted(input);
-              }}
-              testID="add-friend-search"
-            >
-              <Search size={20} color={Colors.white} />
-            </Pressable>
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -170,17 +171,21 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   title: { fontSize: 18, fontWeight: "700", color: Colors.text },
-  searchRow: { flexDirection: "row", gap: 10, alignItems: "center" },
-  input: {
-    flex: 1,
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
+    backgroundColor: Colors.card,
+  },
+  searchIcon: { marginRight: 8 },
+  input: {
+    flex: 1,
     paddingVertical: 10,
     fontSize: 15,
     color: Colors.text,
-    backgroundColor: Colors.card,
   },
   searchBtn: { backgroundColor: Colors.primary, borderRadius: 20, padding: 10 },
   hint: { marginTop: 20, fontSize: 14, color: Colors.textLight, textAlign: "center" },

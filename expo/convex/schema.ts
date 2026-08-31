@@ -58,6 +58,8 @@ export default defineSchema({
     bio: v.optional(v.string()),
     discoverable: v.optional(v.boolean()), // missing = findable
     feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
+    isAdmin: v.optional(v.boolean()),
+    feedSeenAt: v.optional(v.number()), // last time the user opened the feed
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -186,13 +188,38 @@ export default defineSchema({
     .index("by_blocker", ["blocker"])
     .index("by_pair", ["blocker", "blocked"]),
 
-  reports: defineTable({
-    reporter: v.id("users"),
-    targetUser: v.id("users"),
-    context: v.string(), // "share" | "feed" | "profile"
-    refId: v.optional(v.string()),
-    reason: v.string(),
+  // Inbox notifications that aren't recipe shares (friend-request accepted,
+  // admin broadcasts, …). Recipe shares live in recipeShares and are merged
+  // into the inbox at query time.
+  notifications: defineTable({
+    userId: v.id("users"), // recipient
+    type: v.union(v.literal("friend_accepted"), v.literal("info")),
+    actorId: v.optional(v.id("users")),
+    actorName: v.optional(v.string()),
+    actorInitials: v.optional(v.string()),
+    message: v.optional(v.string()),
     createdAt: v.number(),
+    seenAt: v.optional(v.number()),
+  }).index("by_user_created", ["userId", "createdAt"]),
+
+  // Messages from users to the admin account: feedback, bug reports, user
+  // reports ("report_user" carries the reported user + email), other.
+  adminMessages: defineTable({
+    fromUser: v.id("users"),
+    fromUsername: v.optional(v.string()),
+    fromEmail: v.optional(v.string()),
+    category: v.union(
+      v.literal("feedback"),
+      v.literal("bug"),
+      v.literal("report_user"),
+      v.literal("other"),
+    ),
+    message: v.string(),
+    reportedUserId: v.optional(v.id("users")),
+    reportedUsername: v.optional(v.string()),
+    reportedEmail: v.optional(v.string()),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
   }).index("by_created", ["createdAt"]),
 
   // Shared cache of machine translations for browse/search recipes so each

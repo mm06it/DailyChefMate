@@ -1,27 +1,57 @@
 import { useQuery } from "convex/react";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Ban, Flag } from "lucide-react-native";
-import React, { useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ban, Flag, ShieldCheck } from "lucide-react-native";
+import React, { useMemo, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Avatar from "@/components/Avatar";
+import InlineConfirm from "@/components/InlineConfirm";
 import RecipeCard from "@/components/RecipeCard";
 import Colors from "@/constants/colors";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
-import { useSocial } from "@/hooks/use-social";
+import { useSocial, type AdminCategory } from "@/hooks/use-social";
 import { Recipe } from "@/types/recipe";
+
+const ADMIN_CATS: AdminCategory[] = ["feedback", "bug", "report_user", "other"];
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useLanguage();
-  const { sendFriendRequest, respondFriendRequest, removeFriend, blockUser, reportUser } = useSocial();
+  const {
+    sendFriendRequest,
+    respondFriendRequest,
+    removeFriend,
+    blockUser,
+    unblockUser,
+    sendAdminMessage,
+  } = useSocial();
   const { cacheRecipes } = useDailyChefMateStore();
-  const [confirmBlock, setConfirmBlock] = useState(false);
+
+  const [confirm, setConfirm] = useState<null | "remove" | "block" | "unblock">(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportSent, setReportSent] = useState(false);
+  const [listMode, setListMode] = useState<"created" | "favorites">("created");
+
+  // admin-message form
+  const [adminCat, setAdminCat] = useState<AdminCategory>("feedback");
+  const [adminMsg, setAdminMsg] = useState("");
+  const [adminWho, setAdminWho] = useState("");
+  const [adminSent, setAdminSent] = useState(false);
 
   const data = useQuery(api.social.userPublic, id ? { userId: id as Id<"users"> } : "skip");
+
+  const recipes: Recipe[] = useMemo(
+    () => (data?.recipes ?? []).map((r: any) => ({ ...r, isFavorite: false })),
+    [data],
+  );
+  const favorites: Recipe[] = useMemo(
+    () => (data?.favorites ?? []).map((r: any) => ({ ...r, isFavorite: false })),
+    [data],
+  );
 
   if (data === undefined) {
     return (
@@ -41,20 +71,161 @@ export default function UserProfileScreen() {
   }
 
   const name = data.displayName || data.username;
-  const recipes: Recipe[] = (data.recipes ?? []).map((r: any) => ({ ...r, id: r._id, isFavorite: false }));
+  const memberSince = new Date(data.memberSince).toLocaleDateString();
 
+  const openRecipe = (r: Recipe) => {
+    cacheRecipes([r]);
+    router.push(`/recipe-detail?id=${r.id}`);
+  };
+
+  // ---- Admin profile: message form ----
+  if (data.isAdmin && !data.isSelf) {
+    const catLabel = (c: AdminCategory) =>
+      c === "feedback"
+        ? t("adminCatFeedback")
+        : c === "bug"
+          ? t("adminCatBug")
+          : c === "report_user"
+            ? t("adminCatReport")
+            : t("adminCatOther");
+
+    const submit = async () => {
+      if (!adminMsg.trim()) return;
+      try {
+        await sendAdminMessage({
+          category: adminCat,
+          message: adminMsg,
+          reportedQuery: adminCat === "report_user" ? adminWho.trim() || undefined : undefined,
+        });
+        setAdminSent(true);
+        setAdminMsg("");
+        setAdminWho("");
+      } catch (e) {
+        console.error("sendAdminMessage failed", e);
+      }
+    };
+
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: name || t("friendProfile") }} />
+        <View style={styles.adminForm}>
+          <View style={styles.header}>
+            <Avatar name={name} initials={data.initials} size={72} />
+            <View style={styles.adminBadge}>
+              <ShieldCheck size={14} color={Colors.white} />
+              <Text style={styles.adminBadgeText}>Admin</Text>
+            </View>
+            <Text style={styles.pageName}>{name}</Text>
+          </View>
+
+          <Text style={styles.sectionTitle}>{t("messageAdmin")}</Text>
+
+          <View style={styles.catRow}>
+            {ADMIN_CATS.map((c) => (
+              <Pressable
+                key={c}
+                style={[styles.catChip, adminCat === c && styles.catChipOn]}
+                onPress={() => setAdminCat(c)}
+              >
+                <Text style={[styles.catChipText, adminCat === c && styles.catChipTextOn]}>
+                  {catLabel(c)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {adminCat === "report_user" && (
+            <TextInput
+              style={styles.input}
+              value={adminWho}
+              onChangeText={setAdminWho}
+              placeholder={t("adminReportWhoLabel")}
+              placeholderTextColor={Colors.textLight}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          )}
+
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={adminMsg}
+            onChangeText={setAdminMsg}
+            placeholder={t("yourMessage")}
+            placeholderTextColor={Colors.textLight}
+            multiline
+            maxLength={2000}
+          />
+
+          <Pressable
+            style={[styles.primaryBtn, !adminMsg.trim() && styles.primaryBtnDisabled]}
+            onPress={submit}
+            disabled={!adminMsg.trim()}
+          >
+            <Text style={styles.primaryBtnText}>{adminSent ? t("messageSent") : t("send")}</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+
+  // ---- Normal profile ----
   const statusButton = () => {
     if (data.isSelf) return null;
+    if (data.blockedByThem) {
+      return <Text style={styles.muted}>{t("blockedByThisUser")}</Text>;
+    }
+    if (data.iBlocked) {
+      return confirm === "unblock" ? (
+        <InlineConfirm
+          question={t("confirmUnblock")}
+          confirmLabel={t("unblock")}
+          onConfirm={() => {
+            unblockUser(data.id);
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : (
+        <View style={styles.blockedWrap}>
+          <Text style={styles.muted}>{t("youBlockedThisUser")}</Text>
+          <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("unblock")}>
+            <Text style={styles.statusMutedText}>{t("unblock")}</Text>
+          </Pressable>
+        </View>
+      );
+    }
     if (data.status === "accepted") {
-      return (
-        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => removeFriend(data.id)}>
+      return confirm === "remove" ? (
+        <InlineConfirm
+          question={t("confirmRemoveFriend")}
+          confirmLabel={t("removeFriend")}
+          destructive
+          onConfirm={() => {
+            removeFriend(data.id);
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : (
+        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
           <Text style={styles.statusMutedText}>{t("removeFriend")}</Text>
         </Pressable>
       );
     }
     if (data.status === "pending_out") {
-      return (
-        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => removeFriend(data.id)}>
+      return confirm === "remove" ? (
+        <InlineConfirm
+          question={t("confirmCancelRequest")}
+          confirmLabel={t("cancelRequest")}
+          destructive
+          onConfirm={() => {
+            removeFriend(data.id);
+            setConfirm(null);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      ) : (
+        <Pressable style={[styles.statusBtn, styles.statusMuted]} onPress={() => setConfirm("remove")}>
           <Text style={styles.statusMutedText}>{t("cancelRequest")}</Text>
         </Pressable>
       );
@@ -71,9 +242,6 @@ export default function UserProfileScreen() {
         </View>
       );
     }
-    if (data.status === "blocked") {
-      return <Text style={styles.muted}>{t("userBlocked")}</Text>;
-    }
     return (
       <Pressable
         style={[styles.statusBtn, styles.statusPrimary]}
@@ -84,16 +252,25 @@ export default function UserProfileScreen() {
     );
   };
 
-  const openRecipe = (r: Recipe) => {
-    cacheRecipes([r]);
-    router.push(`/recipe-detail?id=${r.id}`);
-  };
+  const canSeeLists = data.isSelf || data.status === "accepted";
+  const listData = listMode === "created" ? recipes : favorites;
+
+  const Stat = ({ label, value, onPress, active }: { label: string; value: number; onPress?: () => void; active?: boolean }) => (
+    <Pressable
+      style={[styles.statCard, active && styles.statCardActive]}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </Pressable>
+  );
 
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ title: name || t("friendProfile") }} />
       <FlatList
-        data={recipes}
+        data={canSeeLists ? listData : []}
         keyExtractor={(r) => r.id}
         renderItem={({ item }) => (
           <Pressable onPress={() => openRecipe(item)}>
@@ -104,39 +281,32 @@ export default function UserProfileScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <Avatar name={name} initials={data.initials} size={72} />
-            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.pageName}>{name}</Text>
             {!!data.username && <Text style={styles.handle}>@{data.username}</Text>}
             {!!data.bio && <Text style={styles.bio}>{data.bio}</Text>}
             <View style={styles.statusWrap}>{statusButton()}</View>
 
-            {!data.isSelf && (
+            {!data.isSelf && !data.blockedByThem && !data.iBlocked && (
               <View style={styles.dangerRow}>
-                {confirmBlock ? (
-                  <>
-                    <Pressable
-                      style={[styles.dangerBtn, styles.dangerConfirm]}
-                      onPress={() => {
-                        blockUser(data.id);
-                        setConfirmBlock(false);
-                        router.back();
-                      }}
-                    >
-                      <Text style={styles.dangerConfirmText}>{t("blockUser")}</Text>
-                    </Pressable>
-                    <Pressable style={styles.dangerBtn} onPress={() => setConfirmBlock(false)}>
-                      <Text style={styles.dangerText}>{t("cancel")}</Text>
-                    </Pressable>
-                  </>
+                {confirm === "block" ? (
+                  <InlineConfirm
+                    style={styles.blockConfirm}
+                    question={t("confirmBlock")}
+                    confirmLabel={t("blockUser")}
+                    destructive
+                    onConfirm={() => {
+                      blockUser(data.id);
+                      setConfirm(null);
+                    }}
+                    onCancel={() => setConfirm(null)}
+                  />
                 ) : (
                   <>
-                    <Pressable style={styles.dangerBtn} onPress={() => setConfirmBlock(true)}>
+                    <Pressable style={styles.dangerBtn} onPress={() => setConfirm("block")}>
                       <Ban size={15} color={Colors.error} />
                       <Text style={styles.dangerText}>{t("blockUser")}</Text>
                     </Pressable>
-                    <Pressable
-                      style={styles.dangerBtn}
-                      onPress={() => reportUser(data.id, "profile", "reported from profile")}
-                    >
+                    <Pressable style={styles.dangerBtn} onPress={() => setReportOpen((v) => !v)}>
                       <Flag size={15} color={Colors.error} />
                       <Text style={styles.dangerText}>{t("reportUser")}</Text>
                     </Pressable>
@@ -145,13 +315,72 @@ export default function UserProfileScreen() {
               </View>
             )}
 
-            {recipes.length > 0 && <Text style={styles.sectionTitle}>{t("theirRecipes")}</Text>}
+            {reportOpen && !data.isSelf && (
+              <View style={styles.reportBox}>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={reportReason}
+                  onChangeText={setReportReason}
+                  placeholder={t("reportReason")}
+                  placeholderTextColor={Colors.textLight}
+                  multiline
+                  maxLength={2000}
+                />
+                <Pressable
+                  style={[styles.primaryBtn, !reportReason.trim() && styles.primaryBtnDisabled]}
+                  disabled={!reportReason.trim()}
+                  onPress={async () => {
+                    try {
+                      await sendAdminMessage({
+                        category: "report_user",
+                        message: reportReason.trim(),
+                        reportedUserId: data.id,
+                      });
+                      setReportSent(true);
+                      setReportReason("");
+                      setReportOpen(false);
+                    } catch (e) {
+                      console.error("report failed", e);
+                    }
+                  }}
+                >
+                  <Text style={styles.primaryBtnText}>{t("submitReport")}</Text>
+                </Pressable>
+              </View>
+            )}
+            {reportSent && <Text style={styles.okText}>{t("reportSent")}</Text>}
+
+            {/* Stats */}
+            <View style={styles.statsGrid}>
+              <View style={[styles.statCard, styles.statCardWide]}>
+                <Text style={styles.statValueSmall}>{memberSince}</Text>
+                <Text style={styles.statLabel}>{t("memberSince")}</Text>
+              </View>
+              <Stat
+                label={t("createdRecipesCount")}
+                value={data.stats.createdCount}
+                active={canSeeLists && listMode === "created"}
+                onPress={canSeeLists ? () => setListMode("created") : undefined}
+              />
+              <Stat
+                label={t("favoriteRecipesCount")}
+                value={data.stats.favoritesCount}
+                active={canSeeLists && listMode === "favorites"}
+                onPress={canSeeLists ? () => setListMode("favorites") : undefined}
+              />
+              <Stat label={t("cookedRecipesCount")} value={data.stats.cookedCount} />
+              <Stat label={t("friendsCount")} value={data.stats.friendsCount} />
+            </View>
+
+            {canSeeLists && (
+              <Text style={styles.sectionTitle}>
+                {listMode === "created" ? t("createdRecipesCount") : t("favoriteRecipesCount")}
+              </Text>
+            )}
           </View>
         }
         ListEmptyComponent={
-          data.status === "accepted" || data.isSelf ? (
-            <Text style={styles.muted}>{t("noHomemadeRecipes")}</Text>
-          ) : null
+          canSeeLists ? <Text style={styles.muted}>{t("noHomemadeRecipes")}</Text> : null
         }
       />
     </View>
@@ -162,23 +391,49 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   muted: { color: Colors.textLight, fontSize: 15, textAlign: "center", marginTop: 24 },
+  okText: { color: Colors.success, fontSize: 13, fontWeight: "600", marginTop: 8, textAlign: "center" },
   listContent: { padding: 16 },
-  header: { alignItems: "center", marginBottom: 16 },
-  name: { fontSize: 22, fontWeight: "700", color: Colors.text, marginTop: 12 },
+  header: { alignItems: "center", marginBottom: 8 },
+  pageName: { fontSize: 22, fontWeight: "700", color: Colors.text, marginTop: 12 },
   handle: { fontSize: 14, color: Colors.textLight, marginTop: 2 },
   bio: { fontSize: 14, color: Colors.text, marginTop: 10, textAlign: "center" },
   statusWrap: { marginTop: 16 },
+  blockedWrap: { alignItems: "center", gap: 8 },
   inlineRow: { flexDirection: "row", gap: 8 },
   statusBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999 },
   statusPrimary: { backgroundColor: Colors.primary },
   statusPrimaryText: { color: Colors.white, fontWeight: "700" },
   statusMuted: { backgroundColor: Colors.cardSecondary },
   statusMutedText: { color: Colors.text, fontWeight: "600" },
+
   dangerRow: { flexDirection: "row", gap: 16, marginTop: 16 },
   dangerBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6 },
   dangerText: { color: Colors.error, fontSize: 13, fontWeight: "600" },
-  dangerConfirm: { backgroundColor: Colors.error, paddingHorizontal: 14, borderRadius: 999 },
-  dangerConfirmText: { color: Colors.white, fontSize: 13, fontWeight: "700" },
+  blockConfirm: { marginTop: 16, alignSelf: "stretch" },
+  reportBox: { alignSelf: "stretch", marginTop: 12, gap: 10 },
+
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 20,
+    alignSelf: "stretch",
+  },
+  statCard: {
+    minWidth: "47%",
+    flexGrow: 1,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 14,
+  },
+  statCardWide: { minWidth: "100%" },
+  statCardActive: { borderColor: Colors.primary, backgroundColor: Colors.cardSecondary },
+  statValue: { fontSize: 20, fontWeight: "800", color: Colors.text },
+  statValueSmall: { fontSize: 15, fontWeight: "700", color: Colors.text },
+  statLabel: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+
   sectionTitle: {
     alignSelf: "flex-start",
     fontSize: 16,
@@ -187,4 +442,49 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 8,
   },
+
+  adminForm: { padding: 16 },
+  adminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.accent,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginTop: 8,
+  },
+  adminBadgeText: { color: Colors.white, fontWeight: "800", fontSize: 12 },
+  catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  catChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+  },
+  catChipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  catChipText: { fontSize: 13, fontWeight: "600", color: Colors.text },
+  catChipTextOn: { color: Colors.white },
+  input: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text,
+    backgroundColor: Colors.card,
+    marginBottom: 10,
+  },
+  textArea: { minHeight: 90, textAlignVertical: "top" },
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  primaryBtnDisabled: { opacity: 0.5 },
+  primaryBtnText: { color: Colors.white, fontWeight: "700", fontSize: 15 },
 });
