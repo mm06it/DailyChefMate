@@ -1,6 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { clampRecipeSnapshot } from "./lib/recipeLimits";
+import { rateLimiter } from "./rateLimits";
 import { notifyRecipeInteraction } from "./social";
 
 const ingredientValidator = v.object({
@@ -44,9 +46,11 @@ export const list = query({
 
 export const add = mutation({
   args: { recipe: recipeValidator },
-  handler: async (ctx, { recipe }) => {
+  handler: async (ctx, { recipe: rawRecipe }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.limit(ctx, "addFavorite", { key: userId, throws: true });
+    const recipe = clampRecipeSnapshot(rawRecipe);
     const existing = await ctx.db
       .query("favoriteRecipes")
       .withIndex("by_user_and_recipe", (q) => q.eq("userId", userId).eq("recipeId", recipe.id))

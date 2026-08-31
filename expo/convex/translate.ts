@@ -1,7 +1,31 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
-import { action, internalMutation, internalQuery } from "./_generated/server";
+import { action, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { rateLimiter } from "./rateLimits";
+
+async function requireUserId(ctx: ActionCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) throw new Error("Not authenticated");
+  return userId;
+}
+
+const MAX_RECIPES_PER_CALL = 12;
+
+// Trim an untrusted recipe payload before it goes anywhere near the LLM.
+function clampInput(r: InputRecipe): InputRecipe {
+  return {
+    id: String(r.id).slice(0, 200),
+    name: String(r.name).slice(0, 200),
+    category: String(r.category).slice(0, 80),
+    ingredients: (r.ingredients ?? []).slice(0, 60).map((i) => ({
+      name: String(i.name).slice(0, 120),
+      amount: String(i.amount).slice(0, 60),
+    })),
+    steps: (r.steps ?? []).slice(0, 40).map((s) => String(s).slice(0, 800)),
+  };
+}
 
 // Machine-translate browse/search recipes (English source, US measures) into
 // the app language, once per recipe, cached forever in recipeTranslationCache.
@@ -134,7 +158,13 @@ export const translateRecipes = action({
     recipes: v.array(recipeInput),
   },
   // Explicit return type — the handler references internal.translate.* (itself).
-  handler: async (ctx, { lang, recipes }): Promise<Record<string, Translated>> => {
+  handler: async (ctx, { lang, recipes: rawRecipes }): Promise<Record<string, Translated>> => {
+    const userId = await requireUserId(ctx);
+    await rateLimiter.limit(ctx, "aiTranslate", { key: userId, throws: true });
+
+    if (rawRecipes.length > MAX_RECIPES_PER_CALL) throw new Error("TOO_MANY_RECIPES");
+    const recipes = rawRecipes.map(clampInput);
+
     const out: Record<string, Translated> = {};
 
     // English is the source language: nothing to do.

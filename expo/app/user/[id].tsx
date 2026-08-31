@@ -491,47 +491,51 @@ export default function UserProfileScreen() {
                   <Text style={styles.statLabel}>{t("memberSince")}</Text>
                 </View>
               </View>
-              <Stat
-                icon={<ChefHat size={20} color={Colors.primary} />}
-                label={t("createdRecipesCount")}
-                value={data.stats.createdCount}
-                active={canSeeLists && listMode === "created"}
-                onPress={canSeeLists ? () => setListMode("created") : undefined}
-              />
-              <Stat
-                icon={<Star size={20} color={Colors.primary} />}
-                label={t("favoriteRecipesCount")}
-                value={data.stats.favoritesCount}
-                active={canSeeLists && listMode === "favorites"}
-                onPress={canSeeLists ? () => setListMode("favorites") : undefined}
-              />
-              <Stat
-                icon={<Flame size={20} color={Colors.primary} />}
-                label={t("cookedRecipesCount")}
-                value={data.stats.cookedCount}
-                active={canSeeLists && listMode === "cooked"}
-                onPress={canSeeLists ? () => setListMode("cooked") : undefined}
-              />
-              <Stat
-                icon={<UsersIcon size={20} color={Colors.primary} />}
-                label={t("friendsCount")}
-                value={data.stats.friendsCount}
-                active={canSeeLists && listMode === "friends"}
-                onPress={canSeeLists ? () => setListMode("friends") : undefined}
-              />
-              <View style={[styles.statCard, styles.statCardWide, styles.statWideRow, styles.statWideRowCenter]}>
-                <Star size={18} color={Colors.star} fill={Colors.star} />
-                <View style={{ alignItems: "center" }}>
-                  <Text style={styles.statValueSmall}>
-                    {(data.stats.recipeRatingCount ?? 0) > 0
-                      ? `★ ${(data.stats.recipeRatingAvg ?? 0).toFixed(1)}`
-                      : "–"}
-                    {"  ·  "}
-                    {data.stats.distinctRaters ?? 0} {t("ratedByPeople")}
-                  </Text>
-                  <Text style={styles.statLabel}>{t("avgRecipeRating")}</Text>
-                </View>
-              </View>
+              {data.stats && (
+                <>
+                  <Stat
+                    icon={<ChefHat size={20} color={Colors.primary} />}
+                    label={t("createdRecipesCount")}
+                    value={data.stats.createdCount}
+                    active={canSeeLists && listMode === "created"}
+                    onPress={canSeeLists ? () => setListMode("created") : undefined}
+                  />
+                  <Stat
+                    icon={<Star size={20} color={Colors.primary} />}
+                    label={t("favoriteRecipesCount")}
+                    value={data.stats.favoritesCount}
+                    active={canSeeLists && listMode === "favorites"}
+                    onPress={canSeeLists ? () => setListMode("favorites") : undefined}
+                  />
+                  <Stat
+                    icon={<Flame size={20} color={Colors.primary} />}
+                    label={t("cookedRecipesCount")}
+                    value={data.stats.cookedCount}
+                    active={canSeeLists && listMode === "cooked"}
+                    onPress={canSeeLists ? () => setListMode("cooked") : undefined}
+                  />
+                  <Stat
+                    icon={<UsersIcon size={20} color={Colors.primary} />}
+                    label={t("friendsCount")}
+                    value={data.stats.friendsCount}
+                    active={canSeeLists && listMode === "friends"}
+                    onPress={canSeeLists ? () => setListMode("friends") : undefined}
+                  />
+                  <View style={[styles.statCard, styles.statCardWide, styles.statWideRow, styles.statWideRowCenter]}>
+                    <Star size={18} color={Colors.star} fill={Colors.star} />
+                    <View style={{ alignItems: "center" }}>
+                      <Text style={styles.statValueSmall}>
+                        {(data.stats.recipeRatingCount ?? 0) > 0
+                          ? `★ ${(data.stats.recipeRatingAvg ?? 0).toFixed(1)}`
+                          : "–"}
+                        {"  ·  "}
+                        {data.stats.distinctRaters ?? 0} {t("ratedByPeople")}
+                      </Text>
+                      <Text style={styles.statLabel}>{t("avgRecipeRating")}</Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
 
             {canSeeLists && (

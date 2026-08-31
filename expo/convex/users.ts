@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
+import { rateLimiter } from "./rateLimits";
 
 // Same rule the sign-up form enforces (app/auth.tsx): 3–20 chars,
 // lowercase letters/digits/hyphen/underscore.
@@ -20,9 +21,15 @@ export const current = query({
 // sign-in / sign-up form uses this to show a precise "not registered" vs
 // "already registered" message, since Convex Auth deliberately returns an
 // opaque error for both. Small user table, so a scan is fine.
-export const emailRegistered = query({
+//
+// A `mutation` (not a query) purely so it can consume a rate-limit token — it
+// writes nothing. It's a pre-login endpoint with no per-caller key, so only a
+// coarse *global* ceiling is possible (Convex has no request IP). Called
+// imperatively (convex.mutation), never reactively.
+export const emailRegistered = mutation({
   args: { email: v.string() },
   handler: async (ctx, { email }) => {
+    await rateLimiter.limit(ctx, "emailProbe", { throws: true });
     const target = email.trim().toLowerCase();
     if (target.length === 0) return false;
     const users = await ctx.db.query("users").collect();
@@ -33,9 +40,11 @@ export const emailRegistered = query({
 // Whether `username` is free for the signed-in user to take (normalized to
 // lowercase first). Returns false for a value that can't be a username at
 // all, so the caller can treat that the same as "not available".
-export const usernameAvailable = query({
+// `mutation` for the same rate-limit reason as emailRegistered.
+export const usernameAvailable = mutation({
   args: { username: v.string() },
   handler: async (ctx, { username }) => {
+    await rateLimiter.limit(ctx, "usernameCheck", { throws: true });
     const normalized = username.trim().toLowerCase();
     if (!USERNAME_PATTERN.test(normalized)) return false;
     const userId = await getAuthUserId(ctx);
@@ -54,6 +63,7 @@ export const updateUsername = mutation({
   handler: async (ctx, { username }) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+    await rateLimiter.limit(ctx, "usernameCheck", { throws: true });
 
     const normalized = username.trim().toLowerCase();
     if (!USERNAME_PATTERN.test(normalized)) {

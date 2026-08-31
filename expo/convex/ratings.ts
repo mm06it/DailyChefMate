@@ -2,6 +2,11 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { rateLimiter } from "./rateLimits";
+
+const RECIPE_NAME_MAX = 120;
+const RECIPE_IMAGE_MAX = 500;
+const RATING_NOTIFY_CAP = 300;
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
@@ -40,10 +45,16 @@ export const rate = mutation({
     recipeName: v.string(),
     recipeImage: v.optional(v.string()),
   },
-  handler: async (ctx, { recipeId, rating: rawRating, comment, recipeName, recipeImage }) => {
+  handler: async (ctx, { recipeId, rating: rawRating, comment, recipeName: rawName, recipeImage: rawImage }) => {
     const me = await requireUserId(ctx);
+    await rateLimiter.limit(ctx, "rateRecipe", { key: me, throws: true });
     const rating = clampRating(rawRating);
     const trimmedComment = comment ? comment.trim().slice(0, COMMENT_MAX) : undefined;
+    const recipeName = String(rawName).trim().slice(0, RECIPE_NAME_MAX) || "Recipe";
+    const recipeImage =
+      typeof rawImage === "string" && /^https?:\/\//.test(rawImage)
+        ? rawImage.slice(0, RECIPE_IMAGE_MAX)
+        : undefined;
 
     // Must have cooked it.
     const cooked = await ctx.db
@@ -127,7 +138,7 @@ export const rate = mutation({
       const friendRows = await ctx.db
         .query("friendships")
         .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "accepted"))
-        .collect();
+        .take(RATING_NOTIFY_CAP);
       for (const row of friendRows) await notify(row.other);
     }
     // Creator always hears about a rating of their own recipe.
@@ -211,9 +222,11 @@ export const myRatings = query({
 export const ratingStats = query({
   args: {},
   handler: async (ctx) => {
+    const me = await getAuthUserId(ctx);
+    if (!me) return [];
     // Small table (one row per rated recipe). If it ever grows large, switch
     // callers to a batched ratingStatsFor({ recipeIds }).
-    const rows = await ctx.db.query("recipeRatingStats").collect();
+    const rows = await ctx.db.query("recipeRatingStats").take(5000);
     return rows.map((r) => ({
       recipeId: r.recipeId,
       avg: r.count > 0 ? r.sum / r.count : 0,

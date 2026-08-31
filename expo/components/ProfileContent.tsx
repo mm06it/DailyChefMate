@@ -117,6 +117,18 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
         </View>
         <Text style={styles.userName}>{user.username || user.email}</Text>
         <Text style={styles.userSubtitle}>{t('memberSince')} {profileStats.memberSince}</Text>
+        {!user.username && (
+          <Pressable
+            style={styles.usernameBanner}
+            onPress={() => {
+              onBeforeNavigate?.();
+              router.push('/settings');
+            }}
+            testID="set-username-banner"
+          >
+            <Text style={styles.usernameBannerText}>{t('setUsernameBanner')}</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Statistics Cards */}
@@ -282,6 +294,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textLight,
     textAlign: 'center',
+  },
+  usernameBanner: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+  },
+  usernameBannerText: {
+    color: Colors.white,
+    fontWeight: '600',
+    fontSize: 14,
   },
   section: {
     marginBottom: 32,

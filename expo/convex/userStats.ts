@@ -38,7 +38,11 @@ export const recordView = mutation({
     if (!userId) return;
     const row = await getOrCreateRow(ctx, userId);
     if (!row || row.viewedRecipeIds.includes(recipeId)) return;
-    await ctx.db.patch(row._id, { viewedRecipeIds: [...row.viewedRecipeIds, recipeId] });
+    // Keep the array bounded — only the most recent 1000 ids matter for the
+    // "recipes viewed" stat and the browse de-dupe.
+    await ctx.db.patch(row._id, {
+      viewedRecipeIds: [...row.viewedRecipeIds, recipeId].slice(-1000),
+    });
   },
 });
 

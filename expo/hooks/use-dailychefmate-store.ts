@@ -11,7 +11,6 @@ import {
 } from "@/mocks/refrigerator";
 import { Recipe, Ingredient } from "@/types/recipe";
 import themealdb from "@/lib/themealdb";
-import { trpcClient } from "@/lib/trpc";
 
 export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook(() => {
   // Transient browse/search cache (mock catalog + TheMealDB/AI results).
@@ -55,6 +54,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
 
   const recordViewMutation = useMutation(api.userStats.recordView);
   const findByIngredientsAction = useAction(api.recipes.findByIngredients);
+  const searchByNameAction = useAction(api.recipes.searchByName);
 
   // Seed a brand-new account's fridge once, right after we can see (while
   // actually authenticated) that it's empty. Gated on isAuthenticated rather
@@ -235,7 +235,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     try {
       console.log("Online search (web + AI) for recipes:", query);
 
-      const data = await trpcClient.recipes.search.query({ query, limit: 30, ai: false });
+      const found = await searchByNameAction({ query, limit: 30 });
+      const data: Recipe[] = found.map((r) => ({ ...r, isFavorite: false }));
       const merged = addUniqueRecipes(data);
 
       if (merged.length < 5) {

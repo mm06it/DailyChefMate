@@ -10,6 +10,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { clampRecipeSnapshot } from "./lib/recipeLimits";
+import { rateLimiter } from "./rateLimits";
 import { ratingSummaryFor } from "./ratings";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
@@ -87,8 +89,10 @@ async function getAdminUser(ctx: QueryCtx | MutationCtx): Promise<Doc<"users"> |
     .withIndex("email", (q) => q.eq("email", email))
     .first();
   if (byEmail) return byEmail;
+  // Fallback scan by email only — never trust a stray `isAdmin` flag on some
+  // other row as proof of admin.
   const all = await ctx.db.query("users").collect();
-  return all.find((u) => (u.email ?? "").trim().toLowerCase() === email || u.isAdmin === true) ?? null;
+  return all.find((u) => (u.email ?? "").trim().toLowerCase() === email) ?? null;
 }
 
 async function pairRow(ctx: QueryCtx | MutationCtx, owner: Id<"users">, other: Id<"users">) {
@@ -282,6 +286,9 @@ export const findUser = query({
   args: { query: v.string() },
   handler: async (ctx, { query: q }) => {
     const me = await requireUserId(ctx);
+    // Note: findUser is a reactive query (AddFriendSheet), so it can't consume
+    // a rate-limit token. It's auth-gated and read-only; the abuse vector
+    // (sendFriendRequest) is rate-limited instead.
     const found = await resolveUser(ctx, q);
     if (!found) return { reason: "not_found" as const };
     if (found._id === me) return { reason: "self" as const };
@@ -351,6 +358,7 @@ export const sendFriendRequest = mutation({
   args: { query: v.string() },
   handler: async (ctx, { query: q }) => {
     const me = await requireUserId(ctx);
+    await rateLimiter.limit(ctx, "friendRequest", { key: me, throws: true });
     const found = await resolveUser(ctx, q);
     if (!found) throw new Error("USER_NOT_FOUND");
     if (found._id === me) throw new Error("CANNOT_ADD_SELF");
@@ -365,6 +373,7 @@ export const sendFriendRequestTo = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId: other }) => {
     const me = await requireUserId(ctx);
+    await rateLimiter.limit(ctx, "friendRequest", { key: me, throws: true });
     if (other === me) throw new Error("CANNOT_ADD_SELF");
     const target = await ctx.db.get(other);
     if (!target) throw new Error("USER_NOT_FOUND");
@@ -474,6 +483,7 @@ export const sendAdminMessage = mutation({
   },
   handler: async (ctx, { category, message, reportedUserId, reportedQuery }) => {
     const me = await requireUserId(ctx);
+    await rateLimiter.limit(ctx, "adminMessage", { key: me, throws: true });
     const admin = await getAdminUser(ctx);
     if (!admin) throw new Error("ADMIN_NOT_CONFIGURED");
 
@@ -602,11 +612,12 @@ export const broadcastInfo = mutation({
 
 export const shareRecipe = mutation({
   args: { toUserId: v.id("users"), recipe: shareRecipeValidator, note: v.optional(v.string()) },
-  handler: async (ctx, { toUserId, recipe, note }) => {
+  handler: async (ctx, { toUserId, recipe: rawRecipe, note }) => {
     const me = await requireUserId(ctx);
     if (toUserId === me) throw new Error("CANNOT_SHARE_WITH_SELF");
     if ((await friendState(ctx, me, toUserId)) !== "accepted") throw new Error("NOT_FRIENDS");
 
+    const recipe = clampRecipeSnapshot(rawRecipe);
     const now = Date.now();
     await ctx.db.insert("recipeShares", {
       fromUser: me,
@@ -916,6 +927,10 @@ export const userPublic = query({
     const { iBlocked, blockedByThem } = await blockState(ctx, me, other);
     const status: FriendState = iBlocked || blockedByThem ? "blocked" : await friendState(ctx, me, other);
     const canSeeRecipes = isSelf || isAdminProfile === false && status === "accepted";
+    // Bio + stat counters are visible to self, accepted friends, and anyone
+    // when the profile is discoverable. A non-discoverable stranger sees only
+    // the name + friendship status (enough to send a request).
+    const canSeeStats = isSelf || status === "accepted" || doc.discoverable !== false;
 
     // stats
     const customRecipes = await ctx.db
@@ -944,22 +959,24 @@ export const userPublic = query({
 
     const base = {
       ...miniProfile(doc, other),
-      bio: doc.bio ?? "",
+      bio: canSeeStats ? doc.bio ?? "" : "",
       status,
       isSelf,
       isAdmin: isAdminProfile,
       iBlocked,
       blockedByThem,
       memberSince: doc._creationTime,
-      stats: {
-        favoritesCount,
-        createdCount: customRecipes.length,
-        cookedCount,
-        friendsCount,
-        recipeRatingAvg: ratingSummary.avg,
-        recipeRatingCount: ratingSummary.ratingCount,
-        distinctRaters: ratingSummary.distinctRaters,
-      },
+      stats: canSeeStats
+        ? {
+            favoritesCount,
+            createdCount: customRecipes.length,
+            cookedCount,
+            friendsCount,
+            recipeRatingAvg: ratingSummary.avg,
+            recipeRatingCount: ratingSummary.ratingCount,
+            distinctRaters: ratingSummary.distinctRaters,
+          }
+        : null,
     };
 
     if (!canSeeRecipes) {

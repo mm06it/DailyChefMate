@@ -102,7 +102,7 @@ export default function SettingsScreen() {
     try {
       // Convex Auth's prod deployment redacts the mutation's error text, so
       // check availability up front to give a precise "taken" message.
-      const available = await convex.query(api.users.usernameAvailable, { username: next });
+      const available = await convex.mutation(api.users.usernameAvailable, { username: next });
       if (available === false) {
         setFeedback({ type: 'error', text: t('usernameTaken') });
         return;
@@ -125,7 +125,7 @@ export default function SettingsScreen() {
         // so a race that grabbed the name still shows "taken", not a generic
         // failure.
         const stillFree = await convex
-          .query(api.users.usernameAvailable, { username: next })
+          .mutation(api.users.usernameAvailable, { username: next })
           .catch(() => null);
         if (stillFree === false) {
           setFeedback({ type: 'error', text: t('usernameTaken') });

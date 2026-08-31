@@ -16,12 +16,18 @@ import { ResendOTP } from "./otp/ResendOTP";
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password({
+      // Username is deliberately NOT taken from sign-up params: it can't be
+      // validated for uniqueness synchronously here, so it would let a direct
+      // API call set an arbitrary or duplicate name. The client claims the
+      // username right after verification via the atomic users.updateUsername
+      // mutation instead.
       profile(params) {
-        const username = (params.username as string | undefined) || undefined;
-        return {
-          email: params.email as string,
-          ...(username ? { username } : {}),
-        };
+        return { email: params.email as string };
+      },
+      validatePasswordRequirements(password: string) {
+        if (typeof password !== "string" || password.length < 8) {
+          throw new Error("PASSWORD_TOO_SHORT");
+        }
       },
       verify: ResendOTP,
     }),

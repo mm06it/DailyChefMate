@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
+import { clampRecipeSnapshot } from "./lib/recipeLimits";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
@@ -54,9 +55,9 @@ export const addEntry = mutation({
     const userId = await requireUserId(ctx);
     return await ctx.db.insert("mealPlanEntries", {
       userId,
-      day,
-      recipe,
-      servings,
+      day: day.slice(0, 20),
+      recipe: clampRecipeSnapshot(recipe),
+      servings: Math.max(1, Math.min(20, Math.round(servings))),
       checkedIngredients: [],
       addedAt: Date.now(),
     });

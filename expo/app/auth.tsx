@@ -13,8 +13,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useConvex } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
+import { PENDING_USERNAME_KEY } from '@/lib/auth-storage';
 import { useLanguage } from '@/hooks/use-language';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import { getTranslation } from '@/constants/translations';
@@ -108,7 +110,7 @@ export default function AuthScreen() {
 
   const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
     try {
-      return await convex.query(api.users.emailRegistered, { email: value.trim() });
+      return await convex.mutation(api.users.emailRegistered, { email: value.trim() });
     } catch (e) {
       console.log('emailRegistered check failed', e);
       return null;
@@ -207,28 +209,6 @@ export default function AuthScreen() {
     }
     if (hasFieldError) return;
 
-    if (email.toLowerCase() === 'admin' && password === 'admin') {
-      setLoading(true);
-      try {
-        const adminEmail = 'admin@dailychefmate.app';
-        const adminPassword = 'admin123456';
-        const { error: signInError } = await signIn(adminEmail, adminPassword);
-        if (signInError) {
-          const { error: signUpError } = await signUp(adminEmail, adminPassword, 'admin');
-          if (signUpError) {
-            console.error('Admin account creation failed:', (signUpError as any)?.message);
-            setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen.');
-          }
-        }
-      } catch (err) {
-        console.error('Admin auth error:', err);
-        setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen.');
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
     if (!validateEmail(email)) {
       setEmailError(tr('invalidEmail') ?? 'Ungültige E-Mail-Adresse');
       return;
@@ -255,7 +235,14 @@ export default function AuthScreen() {
           return;
         }
 
-        const { error, pendingVerification } = await signUp(trimmedEmail, password, normalizedUsername);
+        // The username is no longer set during sign-up (see convex/auth.ts).
+        // Stash it so it can be claimed via the atomic users.updateUsername
+        // mutation once the session is active (see PENDING_USERNAME_KEY reader
+        // in app/_layout.tsx).
+        if (normalizedUsername) {
+          await AsyncStorage.setItem(PENDING_USERNAME_KEY, normalizedUsername).catch(() => {});
+        }
+        const { error, pendingVerification } = await signUp(trimmedEmail, password);
         if (error) {
           const msg = String((error as any)?.message ?? '');
           if (/already (exists|registered)/i.test(msg)) {

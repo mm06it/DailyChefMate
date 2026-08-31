@@ -1,10 +1,11 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { useMutation } from "convex/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 
@@ -16,21 +17,46 @@ import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
-import { trpc, trpcClient } from "@/lib/trpc";
+import { api } from "@/convex/_generated/api";
 import { convex } from "@/lib/convex";
-import { secureStorage } from "@/lib/auth-storage";
+import { secureStorage, PENDING_USERNAME_KEY } from "@/lib/auth-storage";
 import DesktopSidebar from "@/components/DesktopSidebar";
 import AuthScreen from "./auth";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
-
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const isDesktop = useIsDesktop();
   const { t } = useLanguage();
+  const claimUsername = useMutation(api.users.updateUsername);
+
+  // A username picked on the sign-up form is claimed here, once the session is
+  // active, via the atomic users.updateUsername mutation (sign-up itself no
+  // longer sets it — see convex/auth.ts). If it's taken/invalid the user sets
+  // one in Settings; the profile tab shows a reminder while username is empty.
+  useEffect(() => {
+    if (!user || user.username) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pending = await AsyncStorage.getItem(PENDING_USERNAME_KEY);
+        if (!pending || cancelled) return;
+        try {
+          await claimUsername({ username: pending });
+        } catch (e) {
+          console.log("pending username claim failed", e);
+        }
+        await AsyncStorage.removeItem(PENDING_USERNAME_KEY);
+      } catch {
+        /* storage unavailable — ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, claimUsername]);
 
   if (loading) {
     return (
@@ -84,27 +110,23 @@ export default function RootLayout() {
   return (
     <>
       <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
-          <QueryClientProvider client={queryClient}>
-            <LanguageContext>
-              <ToastProvider>
-                <AuthProvider>
-                  <DailyChefMateContext>
-                    <MealPlanContext>
-                      <SocialContext>
-                        <RatingsContext>
-                          <GestureHandlerRootView style={{ flex: 1 }}>
-                            <RootLayoutNav />
-                          </GestureHandlerRootView>
-                        </RatingsContext>
-                      </SocialContext>
-                    </MealPlanContext>
-                  </DailyChefMateContext>
-                </AuthProvider>
-              </ToastProvider>
-            </LanguageContext>
-          </QueryClientProvider>
-        </trpc.Provider>
+        <LanguageContext>
+          <ToastProvider>
+            <AuthProvider>
+              <DailyChefMateContext>
+                <MealPlanContext>
+                  <SocialContext>
+                    <RatingsContext>
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <RootLayoutNav />
+                      </GestureHandlerRootView>
+                    </RatingsContext>
+                  </SocialContext>
+                </MealPlanContext>
+              </DailyChefMateContext>
+            </AuthProvider>
+          </ToastProvider>
+        </LanguageContext>
       </ConvexAuthProvider>
       {/* Vercel Web Analytics + Speed Insights — web only; these touch
           `document`, which doesn't exist on native. */}

@@ -14,8 +14,10 @@ import type * as crons from "../crons.js";
 import type * as customRecipes from "../customRecipes.js";
 import type * as favorites from "../favorites.js";
 import type * as http from "../http.js";
+import type * as lib_recipeLimits from "../lib/recipeLimits.js";
 import type * as mealPlan from "../mealPlan.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
+import type * as rateLimits from "../rateLimits.js";
 import type * as ratings from "../ratings.js";
 import type * as recipes from "../recipes.js";
 import type * as refrigerator from "../refrigerator.js";
@@ -37,8 +39,10 @@ declare const fullApi: ApiFromModules<{
   customRecipes: typeof customRecipes;
   favorites: typeof favorites;
   http: typeof http;
+  "lib/recipeLimits": typeof lib_recipeLimits;
   mealPlan: typeof mealPlan;
   "otp/ResendOTP": typeof otp_ResendOTP;
+  rateLimits: typeof rateLimits;
   ratings: typeof ratings;
   recipes: typeof recipes;
   refrigerator: typeof refrigerator;
@@ -74,4 +78,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

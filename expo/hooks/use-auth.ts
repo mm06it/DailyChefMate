@@ -96,15 +96,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [convexSignIn]);
 
-  // Not wired up to any real OAuth provider yet — add Google/Apple in
-  // convex/auth.ts (providers array) and update these when needed.
-  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
-    return { data: null, error: { message: 'Google-Anmeldung ist noch nicht konfiguriert.' } };
-  }, []);
-
-  const signInWithApple = useCallback(async (): Promise<AuthResult> => {
-    return { data: null, error: { message: 'Apple-Anmeldung ist noch nicht konfiguriert.' } };
-  }, []);
+  // OAuth (Google/Apple) is not wired up — add providers in convex/auth.ts
+  // and surface real sign-in methods here when needed.
 
   const signOut = useCallback(async () => {
     await convexSignOut();
@@ -118,8 +111,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     signIn,
     verifyEmail,
     resendVerificationCode,
-    signInWithGoogle,
-    signInWithApple,
     signOut,
-  }), [realUser, realLoading, signUp, signIn, verifyEmail, resendVerificationCode, signInWithGoogle, signInWithApple, signOut]);
+  }), [realUser, realLoading, signUp, signIn, verifyEmail, resendVerificationCode, signOut]);
 });

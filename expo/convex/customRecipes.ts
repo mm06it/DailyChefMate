@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
+import { clampRecipeSnapshot } from "./lib/recipeLimits";
 
 const ingredientValidator = v.object({
   id: v.string(),
@@ -108,9 +109,11 @@ export const clearRecipeImage = mutation({
 
 export const add = mutation({
   args: recipeArgs,
-  handler: async (ctx, args) => {
+  handler: async (ctx, rawArgs) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    const args = clampRecipeSnapshot(rawArgs);
 
     // Guard against a double-submit (rapid taps on the save button): if this
     // user just created a recipe with the same name, return that one instead
@@ -150,7 +153,7 @@ export const update = mutation({
   args: { id: v.id("customRecipes"), ...recipeArgs },
   handler: async (ctx, { id, ...rest }) => {
     const recipe = await requireOwnRecipe(ctx, id);
-    await ctx.db.patch(id, { ...rest, isFavorite: recipe.isFavorite });
+    await ctx.db.patch(id, { ...clampRecipeSnapshot(rest), isFavorite: recipe.isFavorite });
   },
 });
 
