@@ -151,12 +151,16 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             title={t('totalRecipes')}
             value={profileStats.cookedTotal}
           />
-          <StatCard
-            icon={<Star size={24} color={Colors.star} />}
-            title={t('avgRecipeRating')}
-            value={ratingSummary && ratingSummary.ratingCount > 0 ? ratingSummary.avg.toFixed(1) : '–'}
-            subtitle={`${ratingSummary?.distinctRaters ?? 0} ${t('ratedByPeople')}`}
-          />
+        </View>
+
+        <View style={styles.ratingStatRow}>
+          <Star size={22} color={Colors.star} fill={Colors.star} />
+          <Text style={styles.ratingStatValue}>
+            {ratingSummary && ratingSummary.ratingCount > 0 ? `★ ${ratingSummary.avg.toFixed(1)}` : '–'}
+          </Text>
+          <Text style={styles.ratingStatLabel}>
+            {t('avgRecipeRating')} · {ratingSummary?.distinctRaters ?? 0} {t('ratedByPeople')}
+          </Text>
         </View>
       </View>
 
@@ -293,6 +297,23 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  ratingStatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    flexWrap: 'wrap',
+  },
+  ratingStatValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  ratingStatLabel: {
+    fontSize: 13,
+    color: Colors.textLight,
   },
   statCard: {
     backgroundColor: Colors.card,

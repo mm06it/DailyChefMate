@@ -519,9 +519,9 @@ export default function UserProfileScreen() {
                 active={canSeeLists && listMode === "friends"}
                 onPress={canSeeLists ? () => setListMode("friends") : undefined}
               />
-              <View style={[styles.statCard, styles.statCardWide, styles.statWideRow]}>
-                <Star size={18} color={Colors.star} />
-                <View>
+              <View style={[styles.statCard, styles.statCardWide, styles.statWideRow, styles.statWideRowCenter]}>
+                <Star size={18} color={Colors.star} fill={Colors.star} />
+                <View style={{ alignItems: "center" }}>
                   <Text style={styles.statValueSmall}>
                     {(data.stats.recipeRatingCount ?? 0) > 0
                       ? `★ ${(data.stats.recipeRatingAvg ?? 0).toFixed(1)}`
@@ -632,6 +632,7 @@ const styles = StyleSheet.create({
   },
   statCardWide: { minWidth: "100%" },
   statWideRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  statWideRowCenter: { justifyContent: "center" },
   statCardActive: { borderColor: Colors.primary, backgroundColor: Colors.cardSecondary },
   statIconWrap: { marginBottom: 6 },
   statValue: { fontSize: 20, fontWeight: "800", color: Colors.text },
