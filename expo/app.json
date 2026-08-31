@@ -33,6 +33,12 @@
         {
           "origin": "https://www.dailychefmate.com/"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DailyChefMate braucht Zugriff auf deine Fotos, um ein Rezeptbild zu setzen."
+        }
       ]
     ],
     "experiments": {

@@ -8,12 +8,15 @@ import {
   Pressable,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Plus, Minus, X as XIcon, Check } from "lucide-react-native";
+import { Plus, Minus, X as XIcon, Check, Camera, Trash2 } from "lucide-react-native";
 
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { translateText } from "@/constants/translations";
 import Colors from "@/constants/colors";
 import { Recipe } from "@/types/recipe";
@@ -125,6 +128,8 @@ export default function AddRecipeScreen() {
   const { t, currentLanguage } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
+  const { pickAndUpload, uploadPicked, removeImage, uploading } = useRecipeImageUpload();
+  const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
@@ -236,7 +241,7 @@ export default function AddRecipeScreen() {
     }
   }, [isEditing, editId, getCustomRecipe]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (hasErrors) {
       // Inline banner + the red asterisks only — no blocking popup.
       setErrorMessage(t('fillHighlightedFields'));
@@ -277,7 +282,11 @@ export default function AddRecipeScreen() {
         updateCustomRecipe(editId, recipeData);
         setSuccessMessage(t('recipeUpdated'));
       } else {
-        addCustomRecipe(recipeData);
+        const newId = await addCustomRecipe(recipeData);
+        // Attach the photo the user picked while creating.
+        if (newId && pickedImage) {
+          await uploadPicked(newId, pickedImage);
+        }
         setSuccessMessage(t('recipeCreated'));
       }
       // Let the green confirmation show for a beat, then go back.
@@ -368,6 +377,24 @@ export default function AddRecipeScreen() {
       </View>
     </View>
   );
+
+  // Photo: edit mode uploads immediately (recipe exists); create mode keeps
+  // the pick local and uploads right after the recipe is saved.
+  const editingRecipe = isEditing && editId ? getCustomRecipe(editId) : undefined;
+  const photoUri = isEditing ? editingRecipe?.image || null : pickedImage?.uri ?? null;
+
+  const handlePickPhoto = async () => {
+    if (isEditing && editId) {
+      await pickAndUpload(editId);
+    } else {
+      const p = await pickRecipeImage();
+      if (p) setPickedImage(p);
+    }
+  };
+  const handleRemovePhoto = async () => {
+    if (isEditing && editId) await removeImage(editId);
+    else setPickedImage(null);
+  };
 
   return (
     <KeyboardAvoidingView
@@ -469,6 +496,52 @@ export default function AddRecipeScreen() {
                   : ''}
             </Text>
           </View>
+
+          {/* Photo — optional, shown once visibility is chosen */}
+          {formData.visibility !== null && (
+            <View style={styles.section}>
+              <Text style={styles.label}>{t('recipePhoto')}</Text>
+              <View style={styles.photoRow}>
+                <View style={styles.photoPreview}>
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.photoPreviewImg} />
+                  ) : (
+                    <Camera size={26} color={Colors.textLight} />
+                  )}
+                </View>
+                <View style={styles.photoActions}>
+                  <Pressable
+                    style={styles.photoBtn}
+                    onPress={handlePickPhoto}
+                    disabled={uploading}
+                    testID="button-pick-photo"
+                  >
+                    {uploading ? (
+                      <ActivityIndicator size="small" color={Colors.primary} />
+                    ) : (
+                      <>
+                        <Camera size={16} color={Colors.primary} />
+                        <Text style={styles.photoBtnText}>
+                          {t(photoUri ? 'changePhoto' : 'addPhoto')}
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                  {photoUri && (
+                    <Pressable
+                      style={styles.photoBtnGhost}
+                      onPress={handleRemovePhoto}
+                      disabled={uploading}
+                      testID="button-remove-photo"
+                    >
+                      <Trash2 size={14} color="#ef4444" />
+                      <Text style={styles.photoBtnGhostText}>{t('removePhoto')}</Text>
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Cooking vs. baking — only after visibility is chosen */}
           {formData.visibility !== null && (
@@ -947,6 +1020,58 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textLight,
     marginTop: 8,
+  },
+  photoRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  photoPreview: {
+    width: 96,
+    height: 72,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photoPreviewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoActions: {
+    flex: 1,
+    gap: 8,
+  },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.cardSecondary,
+  },
+  photoBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  photoBtnGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  photoBtnGhostText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#ef4444',
   },
   stepRow: {
     flexDirection: 'row',

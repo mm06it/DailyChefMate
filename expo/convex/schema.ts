@@ -83,6 +83,8 @@ export default defineSchema({
   customRecipes: defineTable({
     userId: v.id("users"),
     isFavorite: v.boolean(),
+    // Uploaded photo (Convex file storage). When set it wins over `image`.
+    imageStorageId: v.optional(v.id("_storage")),
     ...recipeFields,
   }).index("by_user", ["userId"]),
 

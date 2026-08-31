@@ -23,6 +23,8 @@ export interface Recipe {
   ovenMode?: string;
   // Custom recipes only: 'private' (not shown to friends) or 'public'.
   visibility?: string;
+  // Custom recipes only: present when the image is an uploaded photo.
+  imageStorageId?: string;
   // Set only on results from the ingredient search: which of the picked
   // ingredients this recipe uses, and which it still needs.
   usedIngredients?: string[];

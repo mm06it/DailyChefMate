@@ -18,6 +18,7 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
+import { useRecipeImageUpload } from "@/hooks/use-recipe-image";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { scaleAmount } from "@/lib/scale-amount";
@@ -32,6 +33,7 @@ export default function RecipeDetailScreen() {
   const { currentLanguage, t } = useLanguage();
   const { markPlannedCooked } = useMealPlan();
   const { myRating } = useRatings();
+  const { pickAndUpload, removeImage, uploading } = useRecipeImageUpload();
 
   // Look across every source a recipe can come from: the browse cache
   // (mocks + TheMealDB pages), the user's own recipes, and favorites.
@@ -138,6 +140,9 @@ export default function RecipeDetailScreen() {
         onAddToPlan={() => setPlanModalVisible(true)}
         onShare={() => setShareSheetVisible(true)}
         justPlanned={justPlanned}
+        onChangePhoto={isCustom ? () => pickAndUpload(recipe.id) : undefined}
+        onRemovePhoto={isCustom ? () => removeImage(recipe.id) : undefined}
+        photoBusy={uploading}
       />
 
       <ResponsiveContainer maxWidth={720}>

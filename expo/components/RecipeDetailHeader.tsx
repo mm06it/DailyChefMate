@@ -1,6 +1,6 @@
-import { CalendarCheck, CalendarPlus, Send, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Camera, Send, Star, Clock, Trash2, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { getTranslation, translateText } from "@/constants/translations";
@@ -16,9 +16,20 @@ interface RecipeDetailHeaderProps {
   onAddToPlan?: () => void;
   onShare?: () => void;
   justPlanned?: boolean;
+  onChangePhoto?: () => void;
+  onRemovePhoto?: () => void;
+  photoBusy?: boolean;
 }
 
-export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justPlanned }: RecipeDetailHeaderProps) {
+export default function RecipeDetailHeader({
+  recipe,
+  onAddToPlan,
+  onShare,
+  justPlanned,
+  onChangePhoto,
+  onRemovePhoto,
+  photoBusy,
+}: RecipeDetailHeaderProps) {
   const { toggleFavorite, favorites } = useDailyChefMateStore();
   const { entries: planEntries } = useMealPlan();
   const { getRatingStats } = useRatings();
@@ -87,6 +98,36 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justP
         ) : (
           <View style={[styles.image, styles.imageFallback]}>
             <UtensilsCrossed size={52} color={Colors.textLight} />
+          </View>
+        )}
+        {onChangePhoto && (
+          <View style={styles.photoControls}>
+            <Pressable
+              onPress={onChangePhoto}
+              disabled={photoBusy}
+              hitSlop={8}
+              style={styles.photoButton}
+              testID={`recipe-detail-${recipe.id}-photo`}
+              accessibilityLabel={t(showImage ? "changePhoto" : "addPhoto")}
+            >
+              {photoBusy ? (
+                <ActivityIndicator size="small" color={Colors.text} />
+              ) : (
+                <Camera size={20} color={Colors.text} />
+              )}
+            </Pressable>
+            {showImage && onRemovePhoto && (
+              <Pressable
+                onPress={onRemovePhoto}
+                disabled={photoBusy}
+                hitSlop={8}
+                style={styles.photoButton}
+                testID={`recipe-detail-${recipe.id}-photo-remove`}
+                accessibilityLabel={t("removePhoto")}
+              >
+                <Trash2 size={18} color={Colors.error} />
+              </Pressable>
+            )}
           </View>
         )}
         {onShare && (
@@ -233,6 +274,26 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  photoControls: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  photoButton: {
     width: 40,
     height: 40,
     borderRadius: 20,

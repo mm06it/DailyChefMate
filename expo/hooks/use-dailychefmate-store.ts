@@ -129,6 +129,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       mode: r.mode,
       ovenMode: r.ovenMode,
       visibility: r.visibility,
+      imageStorageId: r.imageStorageId,
     }));
   }, [convexCustomRecipes]);
 
@@ -377,9 +378,10 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     return cookedEntries;
   };
 
-  // Custom recipe functions
-  const addCustomRecipe = (recipe: Omit<Recipe, "id">) => {
-    addCustomRecipeMutation({
+  // Custom recipe functions. Returns the new recipe id (needed to attach a
+  // freshly-picked photo).
+  const addCustomRecipe = (recipe: Omit<Recipe, "id">): Promise<Id<"customRecipes"> | null> => {
+    return addCustomRecipeMutation({
       name: recipe.name,
       image: recipe.image,
       rating: recipe.rating,
@@ -396,7 +398,10 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       mode: recipe.mode,
       ovenMode: recipe.ovenMode,
       visibility: recipe.visibility === "private" ? "private" : "public",
-    }).catch((e) => console.error("addCustomRecipe failed", e));
+    }).catch((e) => {
+      console.error("addCustomRecipe failed", e);
+      return null;
+    });
   };
 
   const updateCustomRecipe = (recipeId: string, updatedRecipe: Omit<Recipe, "id">) => {

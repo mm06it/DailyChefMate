@@ -44,10 +44,48 @@ export const list = query({
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) return [];
-    return await ctx.db
+    const rows = await ctx.db
       .query("customRecipes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
+    // Resolve an uploaded photo to a served URL — it wins over `image`.
+    return await Promise.all(
+      rows.map(async (r) =>
+        r.imageStorageId
+          ? { ...r, image: (await ctx.storage.getUrl(r.imageStorageId)) ?? r.image }
+          : r,
+      ),
+    );
+  },
+});
+
+// Client uploads the file to this URL (POST), then calls setRecipeImage.
+export const generateImageUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const setRecipeImage = mutation({
+  args: { id: v.id("customRecipes"), storageId: v.id("_storage") },
+  handler: async (ctx, { id, storageId }) => {
+    const recipe = await requireOwnRecipe(ctx, id);
+    if (recipe.imageStorageId && recipe.imageStorageId !== storageId) {
+      await ctx.storage.delete(recipe.imageStorageId);
+    }
+    await ctx.db.patch(id, { imageStorageId: storageId, image: "" });
+  },
+});
+
+export const clearRecipeImage = mutation({
+  args: { id: v.id("customRecipes") },
+  handler: async (ctx, { id }) => {
+    const recipe = await requireOwnRecipe(ctx, id);
+    if (recipe.imageStorageId) await ctx.storage.delete(recipe.imageStorageId);
+    await ctx.db.patch(id, { imageStorageId: undefined, image: "" });
   },
 });
 
@@ -88,7 +126,8 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("customRecipes") },
   handler: async (ctx, { id }) => {
-    await requireOwnRecipe(ctx, id);
+    const recipe = await requireOwnRecipe(ctx, id);
+    if (recipe.imageStorageId) await ctx.storage.delete(recipe.imageStorageId);
     await ctx.db.delete(id);
 
     const userId = await getAuthUserId(ctx);
