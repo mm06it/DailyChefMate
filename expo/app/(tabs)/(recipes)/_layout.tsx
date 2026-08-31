@@ -30,7 +30,10 @@ function renderTabBar(props: MaterialTopTabBarProps) {
   return (
     <View>
       <MaterialTopTabBar {...props} />
-      <RecipeFilterBar showFilters={props.state.index === 0} />
+      <RecipeFilterBar
+        showFilters={props.state.index === 0}
+        showAddRecipe={props.state.index === 1}
+      />
     </View>
   );
 }

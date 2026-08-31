@@ -1,4 +1,5 @@
-import { ChevronDown, Globe, Search, UtensilsCrossed, X } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ChevronDown, Globe, Plus, Search, UtensilsCrossed, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -60,7 +61,13 @@ function FilterMenu({
 // One row for the Rezepte tab: search icon + "Küche" / "Kurs-Art" dropdowns.
 // Rendered as part of the tab bar (OUTSIDE the swipeable pager) and collapses
 // away as the list scrolls. The chips only show on "Alle Rezepte".
-export default function RecipeFilterBar({ showFilters }: { showFilters: boolean }) {
+export default function RecipeFilterBar({
+  showFilters,
+  showAddRecipe = false,
+}: {
+  showFilters: boolean;
+  showAddRecipe?: boolean;
+}) {
   const { progress } = useCollapsibleHeader();
   const { t: translate, currentLanguage } = useLanguage();
   const {
@@ -148,6 +155,18 @@ export default function RecipeFilterBar({ showFilters }: { showFilters: boolean 
                     <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? Colors.white : Colors.textLight} />
                   </Pressable>
                 </View>
+              )}
+              {showAddRecipe && (
+                <Pressable
+                  style={styles.addRecipeBtn}
+                  onPress={() => router.push('/add-recipe')}
+                  hitSlop={8}
+                  testID="filter-add-recipe"
+                  accessibilityRole="button"
+                  accessibilityLabel={translate('addRecipe')}
+                >
+                  <Plus size={22} color={Colors.white} strokeWidth={2.6} />
+                </Pressable>
               )}
             </>
           ) : (
@@ -251,6 +270,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  addRecipeBtn: {
+    marginLeft: 'auto',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inputSearch: {
     flexGrow: 1,
