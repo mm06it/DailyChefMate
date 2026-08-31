@@ -332,7 +332,9 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
     return [...displayedRecipes.filter(matchesRecipe), ...customRecipes.filter(matchesRecipe)];
   };
 
-  const generateRecipesFromIngredients = async (): Promise<Recipe[]> => {
+  // `offset` pages into the same Spoonacular/TheMealDB result set — 0 for the
+  // first search, 8/16/… for "load more".
+  const generateRecipesFromIngredients = async (offset: number = 0): Promise<Recipe[]> => {
     const selectedIngredients = getSelectedIngredients();
 
     if (selectedIngredients.length === 0) {
@@ -341,15 +343,17 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
 
     try {
       const names = selectedIngredients.map((i) => i.name);
-      console.log("Searching recipes for ingredients:", names);
+      console.log("Searching recipes for ingredients:", names, "offset", offset);
 
       // Convex action: Spoonacular (cached) with a TheMealDB fallback.
-      const found = await findByIngredientsAction({ ingredients: names });
+      const found = await findByIngredientsAction({ ingredients: names, offset });
       const matchingRecipes: Recipe[] = found.map((r) => ({ ...r, isFavorite: false }));
 
-      return addUniqueRecipes(matchingRecipes);
+      addUniqueRecipes(matchingRecipes);
+      return matchingRecipes;
     } catch (error) {
       console.error("Error generating recipes from ingredients:", error);
+      if (offset > 0) return [];
       // Last-ditch: hit TheMealDB straight from the client with the first ingredient.
       try {
         const fallback = await themealdb.getMealsByIngredient(selectedIngredients[0].name);

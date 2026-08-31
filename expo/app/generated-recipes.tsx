@@ -1,5 +1,5 @@
 import { Stack, useFocusEffect } from "expo-router";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Recipe } from "@/types/recipe";
 import { Animated, FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { RefreshCw, ChefHat } from "lucide-react-native";
@@ -16,19 +16,28 @@ import { translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
-import themealdb from "@/lib/themealdb";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
+
+// One page of results; "load more" advances the offset by this much.
+const PAGE_SIZE = 8;
 
 export default function GeneratedRecipesScreen() {
   const { t, currentLanguage } = useLanguage();
-  const { generateRecipesFromIngredients, getSelectedIngredients, cacheRecipes } =
-    useDailyChefMateStore();
+  const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [hasMoreRecipes, setHasMoreRecipes] = useState<boolean>(true);
-  const [currentPage, setCurrentPage] = useState<number>(0);
+  // How far into the Spoonacular/TheMealDB result set the next "load more"
+  // should start (0, 8, 16, …).
+  const [offset, setOffset] = useState<number>(0);
   const selectedIngredients = getSelectedIngredients();
+  // Stable signature of the current selection — drives the one-shot auto search.
+  const ingredientKey = selectedIngredients
+    .map((i) => i.name.toLowerCase())
+    .sort()
+    .join("|");
+  const autoSearchedKey = useRef<string>("");
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
@@ -36,119 +45,60 @@ export default function GeneratedRecipesScreen() {
   // Keep the shared collapsing header from staying stuck-hidden when this
   // screen gains focus with a non-zero scroll position.
   useFocusEffect(useCallback(() => resetHeader(), []));
-  
-  // Categories to cycle through for endless recipes
-  const recipeCategories = useMemo(() => [
-    'Beef', 'Chicken', 'Dessert', 'Lamb', 'Miscellaneous', 'Pasta', 'Pork', 
-    'Seafood', 'Side', 'Starter', 'Vegan', 'Vegetarian', 'Breakfast', 'Goat'
-  ], []);
-  
-  // Common ingredients to search by
-  const commonIngredients = useMemo(() => [
-    'chicken', 'beef', 'pork', 'fish', 'rice', 'pasta', 'tomato', 'onion',
-    'garlic', 'cheese', 'potato', 'carrot', 'mushroom', 'pepper', 'lemon',
-    'butter', 'egg', 'milk', 'flour', 'oil', 'salt', 'sugar', 'herbs'
-  ], []);
 
-  const handleGenerateOnlineRecipes = useCallback(async (reset: boolean = false) => {
+  // First search: page 0 of the ingredient-ranked Spoonacular results
+  // (TheMealDB is the server-side fallback). generateRecipesFromIngredients
+  // also drops each page into the shared store so recipe-detail can resolve
+  // it by id.
+  const handleGenerateOnlineRecipes = useCallback(async () => {
     if (selectedIngredients.length === 0) return;
-    
-    if (reset) {
-      setIsLoading(true);
-      setCurrentPage(0);
-      setHasMoreRecipes(true);
-    }
-    
+
+    autoSearchedKey.current = ingredientKey;
+    setIsLoading(true);
+    setHasMoreRecipes(true);
+    setOffset(0);
+
     try {
-      const recipes = await generateRecipesFromIngredients();
-      if (reset) {
-        setOnlineRecipes(recipes);
-      } else {
-        setOnlineRecipes(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const newRecipes = recipes.filter(r => !existingIds.has(r.id));
-          return [...prev, ...newRecipes];
-        });
-      }
+      const recipes = await generateRecipesFromIngredients(0);
+      setOnlineRecipes(recipes);
+      setOffset(recipes.length);
+      setHasMoreRecipes(recipes.length >= PAGE_SIZE);
     } catch (error) {
       console.error('Error generating online recipes:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [selectedIngredients.length, generateRecipesFromIngredients]);
-  
+  }, [selectedIngredients.length, ingredientKey, generateRecipesFromIngredients]);
+
+  // "Load more": the next page from the same result set (offset 8, 16, …).
   const loadMoreRecipes = useCallback(async () => {
-    if (isLoadingMore || !hasMoreRecipes) return;
-    
+    if (isLoadingMore || isLoading || !hasMoreRecipes) return;
+
     setIsLoadingMore(true);
     try {
-      const nextPage = currentPage + 1;
-      let newRecipes: Recipe[] = [];
-      
-      // Strategy 1: Use selected ingredients if available
-      if (selectedIngredients.length > 0 && nextPage <= 3) {
-        const ingredientIndex = (nextPage - 1) % selectedIngredients.length;
-        const ingredient = selectedIngredients[ingredientIndex].name;
-        console.log(`Loading more recipes with ingredient: ${ingredient}`);
-        newRecipes = await themealdb.getMealsByIngredient(ingredient);
-      }
-      
-      // Strategy 2: Use random categories
-      if (newRecipes.length === 0) {
-        const categoryIndex = nextPage % recipeCategories.length;
-        const category = recipeCategories[categoryIndex];
-        console.log(`Loading more recipes from category: ${category}`);
-        newRecipes = await themealdb.getMealsByCategory(category);
-      }
-      
-      // Strategy 3: Use common ingredients as fallback
-      if (newRecipes.length === 0) {
-        const ingredientIndex = nextPage % commonIngredients.length;
-        const ingredient = commonIngredients[ingredientIndex];
-        console.log(`Loading more recipes with common ingredient: ${ingredient}`);
-        newRecipes = await themealdb.getMealsByIngredient(ingredient);
-      }
-      
-      // Strategy 4: Get random recipes as last resort
-      if (newRecipes.length === 0) {
-        console.log('Loading random recipes as fallback');
-        newRecipes = await themealdb.getRandomMeals(8);
-      }
-
-      // Drop half-hydrated results (a failed lookup.php leaves a recipe with no
-      // ingredients / no real steps) — they render as a blank detail page.
-      newRecipes = newRecipes.filter(
-        (r) =>
-          r.ingredients.length > 0 &&
-          r.steps.some((s) => s.trim() && s !== 'No instructions available'),
-      );
-
-      if (newRecipes.length > 0) {
-        // Put them in the shared store too — recipe-detail resolves a recipe
-        // by id from that cache, so without this the "load more" results open
-        // a blank page.
-        cacheRecipes(newRecipes);
-        setOnlineRecipes(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const uniqueNewRecipes = newRecipes.filter(r => !existingIds.has(r.id));
-          return [...prev, ...uniqueNewRecipes];
-        });
-        setCurrentPage(nextPage);
-      } else {
-        setHasMoreRecipes(false);
-      }
+      const more = await generateRecipesFromIngredients(offset);
+      setOnlineRecipes(prev => {
+        const existingIds = new Set(prev.map(r => r.id));
+        return [...prev, ...more.filter(r => !existingIds.has(r.id))];
+      });
+      setOffset(prev => prev + PAGE_SIZE);
+      if (more.length < PAGE_SIZE) setHasMoreRecipes(false);
     } catch (error) {
       console.error('Error loading more recipes:', error);
+      setHasMoreRecipes(false);
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMoreRecipes, currentPage, selectedIngredients, recipeCategories, commonIngredients, cacheRecipes]);
+  }, [isLoadingMore, isLoading, hasMoreRecipes, offset, generateRecipesFromIngredients]);
 
+  // Auto-search once per distinct ingredient selection (re-runs if the user
+  // changes the fridge selection and comes back). Not gated on result count,
+  // so a genuinely empty result doesn't retry forever.
   useEffect(() => {
-    if (selectedIngredients.length > 0 && onlineRecipes.length === 0) {
-      handleGenerateOnlineRecipes(true);
+    if (ingredientKey && autoSearchedKey.current !== ingredientKey) {
+      handleGenerateOnlineRecipes();
     }
-  }, [selectedIngredients.length, onlineRecipes.length, handleGenerateOnlineRecipes]);
+  }, [ingredientKey, handleGenerateOnlineRecipes]);
 
   // Only the real ingredient-search results — deduped by id. (The local
   // mock-catalog matches were dropped: they made an unrelated recipe like
@@ -226,7 +176,7 @@ export default function GeneratedRecipesScreen() {
           </Text>
           <Pressable 
             style={styles.refreshButton}
-            onPress={() => handleGenerateOnlineRecipes(true)}
+            onPress={() => handleGenerateOnlineRecipes()}
             disabled={isLoading}
           >
             {isLoading ? (

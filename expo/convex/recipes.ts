@@ -8,7 +8,13 @@ import { searchResultRecipe } from "./schema";
 // so the Spoonacular free tier (150 points/day) lasts. Entries older than
 // this are re-fetched.
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 5;
-const RESULT_LIMIT = 8;
+// How many recipes one "page" of results contains ("load more" fetches the
+// next page).
+const PAGE_SIZE = 8;
+// How many recipes we fetch + enrich + cache on the first search for a given
+// ingredient set. "Load more" then just slices deeper into this cached list,
+// so paging costs no extra API quota until the cache expires.
+const MAX_RESULTS = 24;
 const NO_INSTRUCTIONS = "No instructions available.";
 
 type SearchRecipe = {
@@ -68,14 +74,17 @@ export const putCache = internalMutation({
   },
 });
 
-async function fromSpoonacular(ingredients: string[]): Promise<SearchRecipe[] | null> {
+async function fromSpoonacular(
+  ingredients: string[],
+  count: number,
+): Promise<SearchRecipe[] | null> {
   const apiKey = process.env.SPOONACULAR_API_KEY;
   if (!apiKey) return null;
 
   const findUrl =
     `https://api.spoonacular.com/recipes/findByIngredients` +
     `?ingredients=${encodeURIComponent(ingredients.join(","))}` +
-    `&number=${RESULT_LIMIT}&ranking=1&ignorePantry=true&apiKey=${apiKey}`;
+    `&number=${count}&ranking=1&ignorePantry=true&apiKey=${apiKey}`;
 
   const findRes = await fetch(findUrl);
   if (!findRes.ok) {
@@ -145,19 +154,19 @@ async function fromSpoonacular(ingredients: string[]): Promise<SearchRecipe[] | 
   });
 }
 
-async function fromTheMealDB(ingredients: string[]): Promise<SearchRecipe[]> {
+async function fromTheMealDB(ingredients: string[], count: number): Promise<SearchRecipe[]> {
   const base = "https://www.themealdb.com/api/json/v1/1";
   const picked = ingredients.map((i) => i.toLowerCase());
   const seen = new Set<string>();
   const out: SearchRecipe[] = [];
 
-  for (const ing of ingredients.slice(0, 3)) {
-    if (out.length >= RESULT_LIMIT) break;
+  for (const ing of ingredients.slice(0, 6)) {
+    if (out.length >= count) break;
     const res = await fetch(`${base}/filter.php?i=${encodeURIComponent(ing)}`);
     if (!res.ok) continue;
     const list = (await res.json()) as { meals: { idMeal: string }[] | null };
     for (const meal of list.meals ?? []) {
-      if (out.length >= RESULT_LIMIT || seen.has(meal.idMeal)) continue;
+      if (out.length >= count || seen.has(meal.idMeal)) continue;
       seen.add(meal.idMeal);
       const detailRes = await fetch(`${base}/lookup.php?i=${meal.idMeal}`);
       if (!detailRes.ok) continue;
@@ -202,39 +211,44 @@ async function fromTheMealDB(ingredients: string[]): Promise<SearchRecipe[]> {
 }
 
 // Search real recipes for a set of ingredients: Spoonacular first (cached),
-// TheMealDB as the free fallback.
+// TheMealDB as the free fallback. `offset` pages through the cached result
+// set — "load more" passes 8, 16, … and gets the next slice with no extra
+// API calls until the cache expires.
 export const findByIngredients = action({
-  args: { ingredients: v.array(v.string()) },
+  args: { ingredients: v.array(v.string()), offset: v.optional(v.number()) },
   returns: v.array(searchResultRecipe),
   // Explicit return type: the handler references internal.recipes.* (itself),
   // which makes inference circular without an annotation.
-  handler: async (ctx, { ingredients }): Promise<SearchRecipe[]> => {
+  handler: async (ctx, { ingredients, offset }): Promise<SearchRecipe[]> => {
     const cleaned = normalize(ingredients).slice(0, 10);
     if (cleaned.length === 0) return [];
+
+    const start = Math.max(0, Math.floor(offset ?? 0));
+    if (start >= MAX_RESULTS) return [];
 
     const key = cacheKey(cleaned);
     const cached = (await ctx.runQuery(internal.recipes.getCache, { key })) as
       | { recipes: SearchRecipe[]; createdAt: number }
       | null;
     if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
-      return cached.recipes;
+      return cached.recipes.slice(start, start + PAGE_SIZE);
     }
 
     let recipes: SearchRecipe[] = [];
     let source = "spoonacular";
     try {
-      const spoon = await fromSpoonacular(cleaned);
+      const spoon = await fromSpoonacular(cleaned, MAX_RESULTS);
       if (spoon && spoon.length > 0) {
         recipes = spoon;
       } else {
         source = "themealdb";
-        recipes = await fromTheMealDB(cleaned);
+        recipes = await fromTheMealDB(cleaned, MAX_RESULTS);
       }
     } catch (e) {
       console.error("recipe search failed", e);
       source = "themealdb";
       try {
-        recipes = await fromTheMealDB(cleaned);
+        recipes = await fromTheMealDB(cleaned, MAX_RESULTS);
       } catch {
         recipes = [];
       }
@@ -243,6 +257,6 @@ export const findByIngredients = action({
     if (recipes.length > 0) {
       await ctx.runMutation(internal.recipes.putCache, { key, source, recipes });
     }
-    return recipes;
+    return recipes.slice(start, start + PAGE_SIZE);
   },
 });
