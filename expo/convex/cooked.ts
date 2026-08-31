@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { notifyRecipeInteraction } from "./social";
 
 export const list = query({
   args: {},
@@ -27,6 +28,7 @@ export const markCooked = mutation({
       await ctx.db.patch(existing._id, { count: existing.count + 1 });
     } else {
       await ctx.db.insert("cookedRecipes", { userId, recipeId, count: 1 });
+      await notifyRecipeInteraction(ctx, userId, recipeId, "recipe_cooked");
     }
   },
 });

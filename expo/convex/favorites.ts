@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { notifyRecipeInteraction } from "./social";
 
 const ingredientValidator = v.object({
   id: v.string(),
@@ -52,6 +53,7 @@ export const add = mutation({
       .unique();
     if (existing) return;
     await ctx.db.insert("favoriteRecipes", { userId, recipeId: recipe.id, recipe });
+    await notifyRecipeInteraction(ctx, userId, recipe.id, "recipe_favorited");
   },
 });
 

@@ -6,7 +6,9 @@ import {
   CalendarPlus,
   Check,
   ChefHat,
+  Flame,
   Info,
+  Star,
   UserCheck,
   UserPlus,
   Users,
@@ -49,6 +51,113 @@ function CountBadge({ n }: { n: number }) {
   );
 }
 
+const CAT_COLOR: Record<string, string> = {
+  feedback: "#3B82F6", // blue
+  bug: "#EF4444", // red
+  report_user: "#F59E0B", // amber
+  other: "#8A94A6", // grey
+};
+const ADMIN_STATUSES = ["seen", "in_progress", "done"] as const;
+
+type AdminMsg = {
+  id: string;
+  category: string;
+  message: string;
+  from: { username: string; email: string };
+  reported: { username: string; email: string } | null;
+  createdAt: number;
+  status: string;
+  priority: number;
+};
+
+function AdminMessageCard({
+  msg,
+  expanded,
+  onToggle,
+  onStatus,
+  t,
+}: {
+  msg: AdminMsg;
+  expanded: boolean;
+  onToggle: () => void;
+  onStatus: (s: (typeof ADMIN_STATUSES)[number]) => void;
+  t: (k: string) => string;
+}) {
+  const color = CAT_COLOR[msg.category] ?? CAT_COLOR.other;
+  const catLabel =
+    msg.category === "report_user"
+      ? t("adminCatReport")
+      : msg.category === "bug"
+        ? t("adminCatBug")
+        : msg.category === "feedback"
+          ? t("adminCatFeedback")
+          : t("adminCatOther");
+  const statusLabel = (s: string) =>
+    s === "done"
+      ? t("statusDone")
+      : s === "in_progress"
+        ? t("statusInProgress")
+        : s === "seen"
+          ? t("statusSeen")
+          : t("statusNew");
+  const currentIdx = ADMIN_STATUSES.indexOf(msg.status as any); // -1 for "new"
+
+  return (
+    <Pressable
+      style={[styles.adminMsg, { borderLeftColor: color }, msg.status === "done" && styles.adminMsgDone]}
+      onPress={onToggle}
+    >
+      <View style={styles.adminMsgTop}>
+        <View style={[styles.catTag, { backgroundColor: color }]}>
+          <Text style={styles.catTagText}>{catLabel}</Text>
+        </View>
+        {msg.category === "bug" && <Text style={styles.prioHigh}>!!!</Text>}
+        {msg.category === "report_user" && <Text style={styles.prioLow}>!!</Text>}
+        <Text style={styles.adminDate}>{new Date(msg.createdAt).toLocaleDateString()}</Text>
+      </View>
+
+      <Text style={styles.adminText} numberOfLines={expanded ? undefined : 2}>
+        {msg.message}
+      </Text>
+
+      {expanded && (
+        <View style={styles.adminDetails}>
+          <Text style={styles.adminDetailLine}>
+            {t("fromLabel")}: {msg.from.username || "—"} ({msg.from.email || "—"})
+          </Text>
+          {msg.reported && (
+            <Text style={styles.adminDetailLine}>
+              {t("reportedUserLabel")}: {msg.reported.username || "—"} ({msg.reported.email || "—"})
+            </Text>
+          )}
+          <Text style={styles.adminDetailLine}>
+            {t("sentAtLabel")}: {new Date(msg.createdAt).toLocaleString()}
+          </Text>
+
+          <View style={styles.statusBar}>
+            {ADMIN_STATUSES.map((s, i) => {
+              const active = currentIdx >= i;
+              return (
+                <Pressable
+                  key={s}
+                  style={[styles.statusStep, active && { backgroundColor: color }]}
+                  onPress={() => onStatus(s)}
+                >
+                  <Text style={[styles.statusStepText, active && styles.statusStepTextOn]}>
+                    {statusLabel(s)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {!expanded && <Text style={styles.adminHint}>{statusLabel(msg.status)} · {t("tapForDetails")}</Text>}
+    </Pressable>
+  );
+}
+
 export default function SocialScreen() {
   const { t } = useLanguage();
   const isDesktop = useIsDesktop();
@@ -61,6 +170,7 @@ export default function SocialScreen() {
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
 
   const {
     friends,
@@ -79,7 +189,7 @@ export default function SocialScreen() {
   const feed = useQuery(api.social.feed) ?? [];
   const inbox = useQuery(api.social.inbox) ?? [];
   const adminInbox = useQuery(api.social.adminInbox) ?? null;
-  const resolveAdminMessage = useMutation(api.social.resolveAdminMessage);
+  const setAdminMessageStatus = useMutation(api.social.setAdminMessageStatus);
 
   useEffect(() => {
     if (view === "inbox") markInboxSeen().catch(() => {});
@@ -373,6 +483,27 @@ export default function SocialScreen() {
       );
     }
 
+    if (item.kind === "recipe_favorited" || item.kind === "recipe_cooked") {
+      const name = item.from?.displayName || "?";
+      const verb = item.kind === "recipe_favorited" ? t("feedFavorited") : t("feedCooked");
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Text style={styles.line} numberOfLines={3}>
+              <Text style={styles.name}>{name}</Text> {verb}
+              {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
+            </Text>
+            {item.kind === "recipe_favorited" ? (
+              <Star size={18} color={Colors.primary} fill={Colors.primary} />
+            ) : (
+              <Flame size={18} color={Colors.orange} />
+            )}
+          </View>
+        </View>
+      );
+    }
+
     // info
     return (
       <View style={styles.card}>
@@ -395,33 +526,16 @@ export default function SocialScreen() {
           <View style={styles.adminBox}>
             <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
             {adminInbox.map((m) => (
-              <View key={m.id} style={[styles.adminMsg, m.resolved && styles.adminMsgResolved]}>
-                <Text style={styles.adminCat}>
-                  {m.category === "report_user"
-                    ? t("adminCatReport")
-                    : m.category === "bug"
-                      ? t("adminCatBug")
-                      : m.category === "feedback"
-                        ? t("adminCatFeedback")
-                        : t("adminCatOther")}
-                  {"  ·  "}
-                  {m.from.username || m.from.email}
-                </Text>
-                <Text style={styles.adminText}>{m.message}</Text>
-                {m.reported && (
-                  <Text style={styles.adminReported}>
-                    {t("reportedUserLabel")}: {m.reported.username} ({m.reported.email})
-                  </Text>
-                )}
-                {!m.resolved && (
-                  <Pressable
-                    style={styles.adminResolve}
-                    onPress={() => resolveAdminMessage({ id: m.id as Id<"adminMessages"> })}
-                  >
-                    <Text style={styles.adminResolveText}>{t("markResolved")}</Text>
-                  </Pressable>
-                )}
-              </View>
+              <AdminMessageCard
+                key={m.id}
+                msg={m}
+                expanded={expandedMsg === m.id}
+                onToggle={() => setExpandedMsg((cur) => (cur === m.id ? null : m.id))}
+                onStatus={(s) =>
+                  setAdminMessageStatus({ id: m.id as Id<"adminMessages">, status: s })
+                }
+                t={t}
+              />
             ))}
           </View>
         ) : null
@@ -585,28 +699,35 @@ const styles = StyleSheet.create({
   adminBox: { marginBottom: 16 },
   adminTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 10 },
   adminMsg: {
-    backgroundColor: "#FFF7ED",
+    backgroundColor: Colors.card,
     borderWidth: 1,
-    borderColor: "#FFE4CC",
+    borderColor: Colors.border,
+    borderLeftWidth: 4,
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,
   },
-  adminMsgResolved: { opacity: 0.5 },
-  adminCat: { fontSize: 12, fontWeight: "800", color: Colors.orange, marginBottom: 4 },
+  adminMsgDone: { opacity: 0.55 },
+  adminMsgTop: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  catTag: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  catTagText: { color: Colors.white, fontSize: 11, fontWeight: "800" },
+  prioHigh: { color: "#EF4444", fontSize: 15, fontWeight: "900", letterSpacing: 1 },
+  prioLow: { color: "#F59E0B", fontSize: 14, fontWeight: "900", letterSpacing: 1 },
+  adminDate: { marginLeft: "auto", fontSize: 12, color: Colors.textLight },
   adminText: { fontSize: 14, color: Colors.text },
-  adminReported: { fontSize: 12, color: Colors.textLight, marginTop: 6 },
-  adminResolve: {
-    alignSelf: "flex-start",
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  adminHint: { fontSize: 12, color: Colors.textLight, marginTop: 8 },
+  adminDetails: { marginTop: 10, gap: 6 },
+  adminDetailLine: { fontSize: 12, color: Colors.textLight },
+  statusBar: { flexDirection: "row", gap: 6, marginTop: 6 },
+  statusStep: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.cardSecondary,
+    alignItems: "center",
   },
-  adminResolveText: { fontSize: 12, fontWeight: "700", color: Colors.text },
+  statusStepText: { fontSize: 11, fontWeight: "700", color: Colors.textLight },
+  statusStepTextOn: { color: Colors.white },
 
   emptyWrap: { alignItems: "center", marginTop: 40, gap: 16 },
   emptyText: { textAlign: "center", color: Colors.textLight, marginTop: 32, fontSize: 15 },

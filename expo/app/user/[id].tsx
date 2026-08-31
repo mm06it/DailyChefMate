@@ -1,8 +1,18 @@
 import { useQuery } from "convex/react";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Ban, Flag, ShieldCheck } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Ban,
+  Calendar,
+  Check,
+  ChefHat,
+  Flag,
+  Flame,
+  ShieldCheck,
+  Star,
+  Users as UsersIcon,
+} from "lucide-react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import Avatar from "@/components/Avatar";
 import InlineConfirm from "@/components/InlineConfirm";
@@ -41,6 +51,14 @@ export default function UserProfileScreen() {
   const [adminMsg, setAdminMsg] = useState("");
   const [adminWho, setAdminWho] = useState("");
   const [adminSent, setAdminSent] = useState(false);
+  const checkAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!adminSent) return;
+    Animated.spring(checkAnim, { toValue: 1, useNativeDriver: true, friction: 5 }).start();
+    const timer = setTimeout(() => router.back(), 1500);
+    return () => clearTimeout(timer);
+  }, [adminSent, checkAnim]);
 
   const data = useQuery(api.social.userPublic, id ? { userId: id as Id<"users"> } : "skip");
 
@@ -89,13 +107,17 @@ export default function UserProfileScreen() {
             ? t("adminCatReport")
             : t("adminCatOther");
 
+    const isReport = adminCat === "report_user";
+    const minLen = isReport ? 10 : 1;
+    const valid = adminMsg.trim().length >= minLen;
+
     const submit = async () => {
-      if (!adminMsg.trim()) return;
+      if (!valid) return;
       try {
         await sendAdminMessage({
           category: adminCat,
           message: adminMsg,
-          reportedQuery: adminCat === "report_user" ? adminWho.trim() || undefined : undefined,
+          reportedQuery: isReport ? adminWho.trim() || undefined : undefined,
         });
         setAdminSent(true);
         setAdminMsg("");
@@ -118,51 +140,70 @@ export default function UserProfileScreen() {
             <Text style={styles.pageName}>{name}</Text>
           </View>
 
-          <Text style={styles.sectionTitle}>{t("messageAdmin")}</Text>
-
-          <View style={styles.catRow}>
-            {ADMIN_CATS.map((c) => (
-              <Pressable
-                key={c}
-                style={[styles.catChip, adminCat === c && styles.catChipOn]}
-                onPress={() => setAdminCat(c)}
+          {adminSent ? (
+            <View style={styles.sentWrap}>
+              <Animated.View
+                style={[
+                  styles.sentCircle,
+                  { transform: [{ scale: checkAnim }], opacity: checkAnim },
+                ]}
               >
-                <Text style={[styles.catChipText, adminCat === c && styles.catChipTextOn]}>
-                  {catLabel(c)}
-                </Text>
+                <Check size={40} color={Colors.white} />
+              </Animated.View>
+              <Text style={styles.sentText}>{t("adminThanks")}</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.sectionTitle}>{t("messageAdmin")}</Text>
+
+              <View style={styles.catRow}>
+                {ADMIN_CATS.map((c) => (
+                  <Pressable
+                    key={c}
+                    style={[styles.catChip, adminCat === c && styles.catChipOn]}
+                    onPress={() => setAdminCat(c)}
+                  >
+                    <Text style={[styles.catChipText, adminCat === c && styles.catChipTextOn]}>
+                      {catLabel(c)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {isReport && (
+                <TextInput
+                  style={styles.input}
+                  value={adminWho}
+                  onChangeText={setAdminWho}
+                  placeholder={t("adminReportWhoLabel")}
+                  placeholderTextColor={Colors.textLight}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              )}
+
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={adminMsg}
+                onChangeText={setAdminMsg}
+                placeholder={isReport ? t("reportReasonMin") : t("yourMessage")}
+                placeholderTextColor={Colors.textLight}
+                multiline
+                maxLength={2000}
+              />
+              {isReport && adminMsg.trim().length > 0 && adminMsg.trim().length < 10 && (
+                <Text style={styles.hintText}>{t("reportReasonMin")}</Text>
+              )}
+
+              <Pressable
+                style={[styles.primaryBtn, !valid && styles.primaryBtnDisabled]}
+                onPress={submit}
+                disabled={!valid}
+              >
+                <Text style={styles.primaryBtnText}>{t("send")}</Text>
               </Pressable>
-            ))}
-          </View>
-
-          {adminCat === "report_user" && (
-            <TextInput
-              style={styles.input}
-              value={adminWho}
-              onChangeText={setAdminWho}
-              placeholder={t("adminReportWhoLabel")}
-              placeholderTextColor={Colors.textLight}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            </>
           )}
-
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={adminMsg}
-            onChangeText={setAdminMsg}
-            placeholder={t("yourMessage")}
-            placeholderTextColor={Colors.textLight}
-            multiline
-            maxLength={2000}
-          />
-
-          <Pressable
-            style={[styles.primaryBtn, !adminMsg.trim() && styles.primaryBtnDisabled]}
-            onPress={submit}
-            disabled={!adminMsg.trim()}
-          >
-            <Text style={styles.primaryBtnText}>{adminSent ? t("messageSent") : t("send")}</Text>
-          </Pressable>
         </View>
       </View>
     );
@@ -255,12 +296,25 @@ export default function UserProfileScreen() {
   const canSeeLists = data.isSelf || data.status === "accepted";
   const listData = listMode === "created" ? recipes : favorites;
 
-  const Stat = ({ label, value, onPress, active }: { label: string; value: number; onPress?: () => void; active?: boolean }) => (
+  const Stat = ({
+    icon,
+    label,
+    value,
+    onPress,
+    active,
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    value: number;
+    onPress?: () => void;
+    active?: boolean;
+  }) => (
     <Pressable
       style={[styles.statCard, active && styles.statCardActive]}
       onPress={onPress}
       disabled={!onPress}
     >
+      <View style={styles.statIconWrap}>{icon}</View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </Pressable>
@@ -321,14 +375,17 @@ export default function UserProfileScreen() {
                   style={[styles.input, styles.textArea]}
                   value={reportReason}
                   onChangeText={setReportReason}
-                  placeholder={t("reportReason")}
+                  placeholder={t("reportReasonMin")}
                   placeholderTextColor={Colors.textLight}
                   multiline
                   maxLength={2000}
                 />
+                {reportReason.trim().length > 0 && reportReason.trim().length < 10 && (
+                  <Text style={styles.hintText}>{t("reportReasonMin")}</Text>
+                )}
                 <Pressable
-                  style={[styles.primaryBtn, !reportReason.trim() && styles.primaryBtnDisabled]}
-                  disabled={!reportReason.trim()}
+                  style={[styles.primaryBtn, reportReason.trim().length < 10 && styles.primaryBtnDisabled]}
+                  disabled={reportReason.trim().length < 10}
                   onPress={async () => {
                     try {
                       await sendAdminMessage({
@@ -352,24 +409,37 @@ export default function UserProfileScreen() {
 
             {/* Stats */}
             <View style={styles.statsGrid}>
-              <View style={[styles.statCard, styles.statCardWide]}>
-                <Text style={styles.statValueSmall}>{memberSince}</Text>
-                <Text style={styles.statLabel}>{t("memberSince")}</Text>
+              <View style={[styles.statCard, styles.statCardWide, styles.statWideRow]}>
+                <Calendar size={18} color={Colors.primary} />
+                <View>
+                  <Text style={styles.statValueSmall}>{memberSince}</Text>
+                  <Text style={styles.statLabel}>{t("memberSince")}</Text>
+                </View>
               </View>
               <Stat
+                icon={<ChefHat size={20} color={Colors.primary} />}
                 label={t("createdRecipesCount")}
                 value={data.stats.createdCount}
                 active={canSeeLists && listMode === "created"}
                 onPress={canSeeLists ? () => setListMode("created") : undefined}
               />
               <Stat
+                icon={<Star size={20} color={Colors.primary} />}
                 label={t("favoriteRecipesCount")}
                 value={data.stats.favoritesCount}
                 active={canSeeLists && listMode === "favorites"}
                 onPress={canSeeLists ? () => setListMode("favorites") : undefined}
               />
-              <Stat label={t("cookedRecipesCount")} value={data.stats.cookedCount} />
-              <Stat label={t("friendsCount")} value={data.stats.friendsCount} />
+              <Stat
+                icon={<Flame size={20} color={Colors.primary} />}
+                label={t("cookedRecipesCount")}
+                value={data.stats.cookedCount}
+              />
+              <Stat
+                icon={<UsersIcon size={20} color={Colors.primary} />}
+                label={t("friendsCount")}
+                value={data.stats.friendsCount}
+              />
             </View>
 
             {canSeeLists && (
@@ -429,10 +499,24 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   statCardWide: { minWidth: "100%" },
+  statWideRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   statCardActive: { borderColor: Colors.primary, backgroundColor: Colors.cardSecondary },
+  statIconWrap: { marginBottom: 6 },
   statValue: { fontSize: 20, fontWeight: "800", color: Colors.text },
   statValueSmall: { fontSize: 15, fontWeight: "700", color: Colors.text },
   statLabel: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+
+  hintText: { fontSize: 12, color: Colors.error, marginTop: -4 },
+  sentWrap: { alignItems: "center", paddingVertical: 40, gap: 16 },
+  sentCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.success,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sentText: { fontSize: 15, fontWeight: "600", color: Colors.text, textAlign: "center" },
 
   sectionTitle: {
     alignSelf: "flex-start",

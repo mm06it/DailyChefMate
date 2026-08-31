@@ -193,10 +193,16 @@ export default defineSchema({
   // into the inbox at query time.
   notifications: defineTable({
     userId: v.id("users"), // recipient
-    type: v.union(v.literal("friend_accepted"), v.literal("info")),
+    type: v.union(
+      v.literal("friend_accepted"),
+      v.literal("info"),
+      v.literal("recipe_favorited"),
+      v.literal("recipe_cooked"),
+    ),
     actorId: v.optional(v.id("users")),
     actorName: v.optional(v.string()),
     actorInitials: v.optional(v.string()),
+    recipeName: v.optional(v.string()),
     message: v.optional(v.string()),
     createdAt: v.number(),
     seenAt: v.optional(v.number()),
@@ -219,6 +225,8 @@ export default defineSchema({
     reportedUsername: v.optional(v.string()),
     reportedEmail: v.optional(v.string()),
     createdAt: v.number(),
+    // "new" | "seen" | "in_progress" | "done" (missing = "new")
+    status: v.optional(v.string()),
     resolvedAt: v.optional(v.number()),
   }).index("by_created", ["createdAt"]),
 

@@ -149,6 +149,31 @@ async function resolveUser(ctx: QueryCtx | MutationCtx, rawQuery: string): Promi
   return null;
 }
 
+// Notify the owner of a custom recipe that someone favorited / cooked it.
+// Called from convex/favorites.ts and convex/cooked.ts.
+export async function notifyRecipeInteraction(
+  ctx: MutationCtx,
+  actorId: Id<"users">,
+  recipeStringId: string,
+  kind: "recipe_favorited" | "recipe_cooked",
+) {
+  const rid = ctx.db.normalizeId("customRecipes", recipeStringId);
+  if (!rid) return;
+  const recipe = await ctx.db.get(rid);
+  if (!recipe || recipe.userId === actorId) return;
+  const actor = await ctx.db.get(actorId);
+  const name = actor?.displayName || actor?.username || "?";
+  await ctx.db.insert("notifications", {
+    userId: recipe.userId,
+    type: kind,
+    actorId,
+    actorName: name,
+    actorInitials: initialsOf(name),
+    recipeName: recipe.name,
+    createdAt: Date.now(),
+  });
+}
+
 // ---- profile ----
 
 export const myProfile = query({
@@ -402,6 +427,10 @@ export const sendAdminMessage = mutation({
     const admin = await getAdminUser(ctx);
     if (!admin) throw new Error("ADMIN_NOT_CONFIGURED");
 
+    const trimmed = message.trim();
+    if (category === "report_user" && trimmed.length < 10) throw new Error("REASON_TOO_SHORT");
+    if (trimmed.length === 0) throw new Error("MESSAGE_EMPTY");
+
     const meDoc = await ctx.db.get(me);
 
     let reportedId = reportedUserId ?? null;
@@ -422,14 +451,22 @@ export const sendAdminMessage = mutation({
       fromUsername: meDoc?.username,
       fromEmail: meDoc?.email,
       category,
-      message: message.trim().slice(0, MSG_MAX),
+      message: trimmed.slice(0, MSG_MAX),
       reportedUserId: reportedId ?? undefined,
       reportedUsername,
       reportedEmail,
       createdAt: Date.now(),
+      status: "new",
     });
   },
 });
+
+const ADMIN_PRIORITY: Record<string, number> = {
+  bug: 3,
+  report_user: 2,
+  feedback: 0,
+  other: 0,
+};
 
 export const adminInbox = query({
   args: {},
@@ -442,29 +479,50 @@ export const adminInbox = query({
       .query("adminMessages")
       .withIndex("by_created")
       .order("desc")
-      .take(100);
-    return rows.map((r) => ({
-      id: r._id,
-      category: r.category,
-      message: r.message,
-      from: { username: r.fromUsername ?? "", email: r.fromEmail ?? "" },
-      reported:
-        r.reportedUserId != null
-          ? { username: r.reportedUsername ?? "", email: r.reportedEmail ?? "" }
-          : null,
-      createdAt: r.createdAt,
-      resolved: r.resolvedAt !== undefined,
-    }));
+      .take(200);
+    return rows
+      .map((r) => ({
+        id: r._id,
+        category: r.category,
+        message: r.message,
+        from: { username: r.fromUsername ?? "", email: r.fromEmail ?? "" },
+        reported:
+          r.reportedUserId != null
+            ? { username: r.reportedUsername ?? "", email: r.reportedEmail ?? "" }
+            : null,
+        createdAt: r.createdAt,
+        status: r.status ?? (r.resolvedAt !== undefined ? "done" : "new"),
+        priority: ADMIN_PRIORITY[r.category] ?? 0,
+      }))
+      .sort((a, b) => {
+        // open (not done) first, then by priority, then newest
+        const aDone = a.status === "done" ? 1 : 0;
+        const bDone = b.status === "done" ? 1 : 0;
+        if (aDone !== bDone) return aDone - bDone;
+        if (a.priority !== b.priority) return b.priority - a.priority;
+        return b.createdAt - a.createdAt;
+      });
   },
 });
 
-export const resolveAdminMessage = mutation({
-  args: { id: v.id("adminMessages") },
-  handler: async (ctx, { id }) => {
+export const setAdminMessageStatus = mutation({
+  args: {
+    id: v.id("adminMessages"),
+    status: v.union(
+      v.literal("new"),
+      v.literal("seen"),
+      v.literal("in_progress"),
+      v.literal("done"),
+    ),
+  },
+  handler: async (ctx, { id, status }) => {
     const me = await requireUserId(ctx);
     const admin = await getAdminUser(ctx);
     if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
-    await ctx.db.patch(id, { resolvedAt: Date.now() });
+    await ctx.db.patch(id, {
+      status,
+      resolvedAt: status === "done" ? Date.now() : undefined,
+    });
   },
 });
 
@@ -563,7 +621,7 @@ export const inbox = query({
 
     const items: {
       id: string;
-      kind: "recipe_share" | "friend_accepted" | "info";
+      kind: "recipe_share" | "friend_accepted" | "info" | "recipe_favorited" | "recipe_cooked";
       createdAt: number;
       seen: boolean;
       from: ReturnType<typeof miniProfile> | null;
@@ -571,6 +629,7 @@ export const inbox = query({
       note?: string;
       saved?: boolean;
       message?: string;
+      recipeName?: string;
     }[] = [];
 
     for (const s of shares) {
@@ -592,9 +651,16 @@ export const inbox = query({
         createdAt: n.createdAt,
         seen: n.seenAt !== undefined,
         from: n.actorId
-          ? { id: n.actorId, username: "", displayName: n.actorName ?? "", initials: n.actorInitials ?? "?", isAdmin: false }
+          ? {
+              id: n.actorId,
+              username: "",
+              displayName: n.actorName ?? "",
+              initials: n.actorInitials ?? initialsOf(n.actorName ?? "?"),
+              isAdmin: false,
+            }
           : null,
         message: n.message ?? "",
+        recipeName: n.recipeName ?? "",
       });
     }
 
