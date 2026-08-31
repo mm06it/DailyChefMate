@@ -826,6 +826,40 @@ export const markAdminByEmail = internalMutation({
   },
 });
 
+// Mark the admin account's email as verified so sign-in skips the OTP step.
+// Convex Auth gates this on authAccounts.emailVerified (see
+// @convex-dev/auth Password.js: `config.verify && !account.emailVerified`).
+// Run: npx convex run social:verifyAdmin '{}'   (add --prod for production)
+export const verifyAdmin = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const email = adminEmail();
+    if (!email) return "no-admin-email";
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", email))
+      .first();
+    if (user && user.emailVerificationTime === undefined) {
+      await ctx.db.patch(user._id, { emailVerificationTime: Date.now() });
+    }
+
+    const accounts = await ctx.db.query("authAccounts").collect();
+    let patched = 0;
+    for (const acc of accounts as any[]) {
+      const matches =
+        acc.provider === "password" &&
+        (acc.providerAccountId === email ||
+          (user && acc.userId === user._id));
+      if (matches && !acc.emailVerified) {
+        await ctx.db.patch(acc._id, { emailVerified: email });
+        patched++;
+      }
+    }
+    return { user: !!user, accountsPatched: patched };
+  },
+});
+
 export const seedAdmin = internalAction({
   args: {},
   handler: async (ctx): Promise<string> => {
@@ -839,19 +873,21 @@ export const seedAdmin = internalAction({
         account: { id: email, secret: password },
         profile: {
           email,
+          emailVerified: email, // skips the OTP gate on sign-in
           username: "admin",
           displayName: "Admin",
           isAdmin: true,
           discoverable: false,
-          emailVerificationTime: Date.now(),
         } as any,
       });
     } catch (e) {
-      // Account already exists — just flag it.
+      // Account already exists — flag it and mark verified.
       await ctx.runMutation(internal.social.markAdminByEmail, {});
+      await ctx.runMutation(internal.social.verifyAdmin, {});
       return `existing (${e instanceof Error ? e.message : "exists"})`;
     }
     await ctx.runMutation(internal.social.markAdminByEmail, {});
+    await ctx.runMutation(internal.social.verifyAdmin, {});
     return "created";
   },
 });
