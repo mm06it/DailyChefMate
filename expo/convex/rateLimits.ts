@@ -22,6 +22,8 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   addFavorite: { kind: "token bucket", rate: 120, period: HOUR, capacity: 40 },
 
   // Pre-login enumeration endpoints — global buckets, no per-caller key.
-  usernameCheck: { kind: "fixed window", rate: 240, period: MINUTE },
-  emailProbe: { kind: "fixed window", rate: 300, period: MINUTE },
+  // Sharded so a concurrent flood degrades to clean rate-limit rejections
+  // instead of OCC write contention on one hot counter document.
+  usernameCheck: { kind: "fixed window", rate: 240, period: MINUTE, shards: 10 },
+  emailProbe: { kind: "fixed window", rate: 300, period: MINUTE, shards: 10 },
 });
