@@ -36,8 +36,6 @@ const planRecipeValidator = v.object({
   ovenMode: v.optional(v.string()),
 });
 
-// ---- Week plan ----
-
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -51,13 +49,15 @@ export const list = query({
 });
 
 export const addEntry = mutation({
-  args: { day: v.string(), recipe: planRecipeValidator },
-  handler: async (ctx, { day, recipe }) => {
+  args: { day: v.string(), recipe: planRecipeValidator, servings: v.number() },
+  handler: async (ctx, { day, recipe, servings }) => {
     const userId = await requireUserId(ctx);
     return await ctx.db.insert("mealPlanEntries", {
       userId,
       day,
       recipe,
+      servings,
+      checkedIngredients: [],
       addedAt: Date.now(),
     });
   },
@@ -83,108 +83,37 @@ export const moveEntry = mutation({
   },
 });
 
-// ---- Shopping list ----
-
-export const listItems = query({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) return [];
-    return await ctx.db
-      .query("shoppingListItems")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+export const setServings = mutation({
+  args: { id: v.id("mealPlanEntries"), servings: v.number() },
+  handler: async (ctx, { id, servings }) => {
+    const userId = await requireUserId(ctx);
+    const entry = await ctx.db.get(id);
+    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    await ctx.db.patch(id, { servings: Math.max(1, Math.min(20, Math.round(servings))) });
   },
 });
 
-export const addItem = mutation({
-  args: { name: v.string(), amount: v.string(), source: v.string() },
-  handler: async (ctx, { name, amount, source }) => {
+export const setCooked = mutation({
+  args: { id: v.id("mealPlanEntries"), cooked: v.boolean() },
+  handler: async (ctx, { id, cooked }) => {
     const userId = await requireUserId(ctx);
-    return await ctx.db.insert("shoppingListItems", {
-      userId,
-      name,
-      amount,
-      checked: false,
-      source,
-      addedAt: Date.now(),
-    });
+    const entry = await ctx.db.get(id);
+    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    await ctx.db.patch(id, { cookedAt: cooked ? Date.now() : undefined });
   },
 });
 
-// Bulk add from the week plan. Skips names already on the list
-// (case-insensitive) and returns how many were actually inserted.
-export const addItemsBulk = mutation({
-  args: { items: v.array(v.object({ name: v.string(), amount: v.string() })) },
-  handler: async (ctx, { items }) => {
+// Tick / untick one ingredient of a planned recipe on the shopping list.
+export const toggleIngredient = mutation({
+  args: { id: v.id("mealPlanEntries"), ingredientId: v.string() },
+  handler: async (ctx, { id, ingredientId }) => {
     const userId = await requireUserId(ctx);
-    const existing = await ctx.db
-      .query("shoppingListItems")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    const have = new Set(existing.map((i) => i.name.trim().toLowerCase()));
-
-    let added = 0;
-    for (const item of items) {
-      const key = item.name.trim().toLowerCase();
-      if (!key || have.has(key)) continue;
-      have.add(key);
-      await ctx.db.insert("shoppingListItems", {
-        userId,
-        name: item.name,
-        amount: item.amount,
-        checked: false,
-        source: "plan",
-        addedAt: Date.now(),
-      });
-      added++;
-    }
-    return { added };
-  },
-});
-
-export const toggleItem = mutation({
-  args: { id: v.id("shoppingListItems") },
-  handler: async (ctx, { id }) => {
-    const userId = await requireUserId(ctx);
-    const item = await ctx.db.get(id);
-    if (!item || item.userId !== userId) throw new Error("Item not found");
-    await ctx.db.patch(id, { checked: !item.checked });
-  },
-});
-
-export const removeItem = mutation({
-  args: { id: v.id("shoppingListItems") },
-  handler: async (ctx, { id }) => {
-    const userId = await requireUserId(ctx);
-    const item = await ctx.db.get(id);
-    if (!item || item.userId !== userId) throw new Error("Item not found");
-    await ctx.db.delete(id);
-  },
-});
-
-export const clearChecked = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await requireUserId(ctx);
-    const items = await ctx.db
-      .query("shoppingListItems")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const item of items) {
-      if (item.checked) await ctx.db.delete(item._id);
-    }
-  },
-});
-
-export const clearAll = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const userId = await requireUserId(ctx);
-    const items = await ctx.db
-      .query("shoppingListItems")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-    for (const item of items) await ctx.db.delete(item._id);
+    const entry = await ctx.db.get(id);
+    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    const current = entry.checkedIngredients ?? [];
+    const next = current.includes(ingredientId)
+      ? current.filter((x) => x !== ingredientId)
+      : [...current, ingredientId];
+    await ctx.db.patch(id, { checkedIngredients: next });
   },
 });

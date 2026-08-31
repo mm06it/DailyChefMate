@@ -1,8 +1,9 @@
-import { Check, ChevronLeft, ChevronRight, X } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
+import { translateText } from "@/constants/translations";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { Recipe } from "@/types/recipe";
@@ -21,6 +22,9 @@ interface AddToPlanModalProps {
   onClose: () => void;
 }
 
+const MIN_SERVINGS = 1;
+const MAX_SERVINGS = 20;
+
 // Shared day picker for "add this recipe to the week plan" — used from the
 // recipe card and the recipe detail screen.
 export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanModalProps) {
@@ -28,20 +32,22 @@ export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanMo
   const { addToPlan, entriesByDay } = useMealPlan();
   const [monday, setMonday] = useState<string>(thisMondayIso());
   const [addedDay, setAddedDay] = useState<string | null>(null);
+  const [servings, setServings] = useState<number>(2);
 
   useEffect(() => {
     if (visible) {
       setMonday(thisMondayIso());
       setAddedDay(null);
+      setServings(recipe?.servings && recipe.servings > 0 ? recipe.servings : 2);
     }
-  }, [visible]);
+  }, [visible, recipe]);
 
   if (!recipe) return null;
 
   const days = weekDates(monday);
 
   const handlePick = (iso: string) => {
-    addToPlan(recipe, iso);
+    addToPlan(recipe, iso, servings);
     setAddedDay(iso);
     setTimeout(onClose, 550);
   };
@@ -67,6 +73,29 @@ export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanMo
             {recipe.name}
           </Text>
 
+          <View style={styles.servingsRow}>
+            <Text style={styles.servingsLabel}>{t("portions")}</Text>
+            <View style={styles.stepper}>
+              <Pressable
+                style={[styles.stepBtn, servings <= MIN_SERVINGS && styles.stepBtnDisabled]}
+                onPress={() => setServings((s) => Math.max(MIN_SERVINGS, s - 1))}
+                disabled={servings <= MIN_SERVINGS}
+                testID="add-to-plan-servings-minus"
+              >
+                <Minus size={16} color={servings <= MIN_SERVINGS ? Colors.textLight : Colors.primary} />
+              </Pressable>
+              <Text style={styles.stepValue}>{servings}</Text>
+              <Pressable
+                style={[styles.stepBtn, servings >= MAX_SERVINGS && styles.stepBtnDisabled]}
+                onPress={() => setServings((s) => Math.min(MAX_SERVINGS, s + 1))}
+                disabled={servings >= MAX_SERVINGS}
+                testID="add-to-plan-servings-plus"
+              >
+                <Plus size={16} color={servings >= MAX_SERVINGS ? Colors.textLight : Colors.primary} />
+              </Pressable>
+            </View>
+          </View>
+
           <View style={styles.weekBar}>
             <Pressable onPress={() => setMonday((m) => addWeeks(m, -1))} hitSlop={10} testID="add-to-plan-prev">
               <ChevronLeft size={22} color={Colors.text} />
@@ -77,9 +106,9 @@ export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanMo
             </Pressable>
           </View>
 
-          <View style={styles.dayList}>
+          <ScrollView style={styles.dayScroll} showsVerticalScrollIndicator={false}>
             {days.map((iso) => {
-              const count = entriesByDay[iso]?.length ?? 0;
+              const dayEntries = entriesByDay[iso] ?? [];
               const justAdded = addedDay === iso;
               return (
                 <Pressable
@@ -88,15 +117,23 @@ export default function AddToPlanModal({ recipe, visible, onClose }: AddToPlanMo
                   onPress={() => handlePick(iso)}
                   testID={`add-to-plan-day-${iso}`}
                 >
-                  <Text style={styles.dayLabel}>{formatDayLabel(iso, currentLanguage)}</Text>
-                  <View style={styles.dayRight}>
-                    {count > 0 && <Text style={styles.dayCount}>{count}</Text>}
+                  <View style={styles.dayRowHead}>
+                    <Text style={styles.dayLabel}>{formatDayLabel(iso, currentLanguage)}</Text>
                     {justAdded && <Check size={18} color={Colors.success} />}
                   </View>
+                  {dayEntries.length > 0 && (
+                    <View style={styles.plannedList}>
+                      {dayEntries.map((e) => (
+                        <Text key={e.id} style={styles.plannedItem} numberOfLines={1}>
+                          • {translateText(currentLanguage, e.recipe.name) || e.recipe.name}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -115,6 +152,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 36,
+    maxHeight: "85%",
   },
   header: {
     flexDirection: "row",
@@ -130,7 +168,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textLight,
     marginTop: 4,
-    marginBottom: 16,
+  },
+  servingsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  servingsLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: Colors.cardSecondary,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  stepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepBtnDisabled: {
+    opacity: 0.5,
+  },
+  stepValue: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.text,
+    minWidth: 20,
+    textAlign: "center",
   },
   weekBar: {
     flexDirection: "row",
@@ -144,37 +220,36 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.text,
   },
-  dayList: {
-    gap: 6,
+  dayScroll: {
+    flexGrow: 0,
   },
   dayRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: Colors.cardSecondary,
+    marginBottom: 6,
   },
   dayRowToday: {
     borderWidth: 1,
     borderColor: Colors.primary,
+  },
+  dayRowHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   dayLabel: {
     fontSize: 15,
     fontWeight: "600",
     color: Colors.text,
   },
-  dayRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  plannedList: {
+    marginTop: 6,
+    gap: 2,
   },
-  dayCount: {
+  plannedItem: {
     fontSize: 13,
-    fontWeight: "700",
     color: Colors.textLight,
-    minWidth: 18,
-    textAlign: "center",
   },
 });

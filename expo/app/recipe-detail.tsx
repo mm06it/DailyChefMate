@@ -1,7 +1,7 @@
 import { useLocalSearchParams, router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, Pressable } from "react-native";
-import { CalendarPlus, Check, Minus, Plus, ChefHat } from "lucide-react-native";
+import { Check, Minus, Plus, ChefHat } from "lucide-react-native";
 
 import AddToPlanModal from "@/components/AddToPlanModal";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
@@ -10,6 +10,7 @@ import Colors from "@/constants/colors";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { scaleAmount } from "@/lib/scale-amount";
@@ -21,6 +22,7 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { recipes, customRecipes, favorites, markRecipeAsCooked, recordRecipeView } = useDailyChefMateStore();
   const { currentLanguage } = useLanguage();
+  const { markPlannedCooked } = useMealPlan();
 
   // Look across every source a recipe can come from: the browse cache
   // (mocks + TheMealDB pages), the user's own recipes, and favorites.
@@ -86,6 +88,7 @@ export default function RecipeDetailScreen() {
 
   const handleMarkAsCooked = () => {
     markRecipeAsCooked(recipe.id);
+    markPlannedCooked(recipe.id);
     router.push('/(tabs)/(recipes)/all');
   };
 
@@ -102,7 +105,7 @@ export default function RecipeDetailScreen() {
       style={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <RecipeDetailHeader recipe={displayRecipe} />
+      <RecipeDetailHeader recipe={displayRecipe} onAddToPlan={() => setPlanModalVisible(true)} />
 
       <ResponsiveContainer maxWidth={720}>
       <View style={styles.section}>
@@ -156,14 +159,6 @@ export default function RecipeDetailScreen() {
           >
             <ChefHat size={22} color={Colors.white} />
             <Text style={styles.startCookingButtonText}>{getTranslation(currentLanguage, 'startCooking')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addToPlanButton}
-            onPress={() => setPlanModalVisible(true)}
-            testID="add-to-plan-button"
-          >
-            <CalendarPlus size={20} color={Colors.primary} />
-            <Text style={styles.addToPlanButtonText}>{getTranslation(currentLanguage, 'addToWeekPlan')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -302,23 +297,6 @@ const styles = StyleSheet.create({
   startCookingButtonText: {
     color: Colors.white,
     fontSize: 18,
-    fontWeight: '600',
-  },
-  addToPlanButton: {
-    marginTop: 12,
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.cardSecondary,
-  },
-  addToPlanButtonText: {
-    color: Colors.primary,
-    fontSize: 16,
     fontWeight: '600',
   },
   ingredientsList: {

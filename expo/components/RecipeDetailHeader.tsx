@@ -1,4 +1,4 @@
-import { Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarPlus, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -10,11 +10,12 @@ import { Recipe } from "@/types/recipe";
 
 interface RecipeDetailHeaderProps {
   recipe: Recipe;
+  onAddToPlan?: () => void;
 }
 
-export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) {
+export default function RecipeDetailHeader({ recipe, onAddToPlan }: RecipeDetailHeaderProps) {
   const { toggleFavorite } = useDailyChefMateStore();
-  const { currentLanguage } = useLanguage();
+  const { currentLanguage, t } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
   const showImage = !!recipe.image && !imageError;
 
@@ -61,6 +62,17 @@ export default function RecipeDetailHeader({ recipe }: RecipeDetailHeaderProps) 
           <View style={[styles.image, styles.imageFallback]}>
             <UtensilsCrossed size={52} color={Colors.textLight} />
           </View>
+        )}
+        {onAddToPlan && (
+          <Pressable
+            onPress={onAddToPlan}
+            hitSlop={10}
+            style={styles.planButton}
+            testID={`recipe-detail-${recipe.id}-plan`}
+            accessibilityLabel={t('addToWeekPlan')}
+          >
+            <CalendarPlus size={22} color={Colors.text} />
+          </Pressable>
         )}
         <Pressable
           onPress={handleFavoritePress}
@@ -180,6 +192,22 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  planButton: {
+    position: "absolute",
+    top: 12,
+    right: 60,
     width: 40,
     height: 40,
     borderRadius: 20,

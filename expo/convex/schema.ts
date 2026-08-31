@@ -116,26 +116,22 @@ export default defineSchema({
 
   // Recipes assigned to a day of a real calendar week (planner tab). The
   // recipe is snapshotted in full (like favoriteRecipes) so external results
-  // survive. `day` is the ISO date (YYYY-MM-DD).
+  // survive. `day` is the ISO date (YYYY-MM-DD). `servings` is the planned
+  // portion size (drives shopping-list amount scaling); `cookedAt` marks the
+  // meal as done; `checkedIngredients` are the ingredient ids ticked off on
+  // the shopping list. All three are optional so entries created before this
+  // schema keep validating.
   mealPlanEntries: defineTable({
     userId: v.id("users"),
     day: v.string(),
     recipe: v.object({ id: v.string(), ...recipeFields }),
+    servings: v.optional(v.number()),
+    cookedAt: v.optional(v.number()),
+    checkedIngredients: v.optional(v.array(v.string())),
     addedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_user_and_day", ["userId", "day"]),
-
-  // The user's shopping list. Filled by hand or aggregated from the ingredients
-  // of the week's planned recipes ("Fill from plan").
-  shoppingListItems: defineTable({
-    userId: v.id("users"),
-    name: v.string(),
-    amount: v.string(),
-    checked: v.boolean(),
-    source: v.string(), // "manual" | "plan"
-    addedAt: v.number(),
-  }).index("by_user", ["userId"]),
 
   // Shared cache of machine translations for browse/search recipes so each
   // recipe is only ever sent to the LLM once per language. `key` is
