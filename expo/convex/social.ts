@@ -852,9 +852,12 @@ export const socialCounts = query({
 
 // ---- public profile + stats ----
 
-function customToRecipe(doc: Doc<"customRecipes">) {
+async function customToRecipe(ctx: QueryCtx, doc: Doc<"customRecipes">) {
   const { _id, _creationTime, userId, ...rest } = doc;
-  return { id: _id, ...rest };
+  const image = doc.imageStorageId
+    ? (await ctx.storage.getUrl(doc.imageStorageId)) ?? rest.image
+    : rest.image;
+  return { id: _id, ...rest, image };
 }
 
 export const userPublic = query({
@@ -935,12 +938,14 @@ export const userPublic = query({
     // Cooked list: only the custom recipes we can resolve (external cooked
     // recipes aren't snapshotted per user). Count stat stays the full total.
     const customById = new Map(visibleCustom.map((r) => [r._id as string, r]));
-    const cooked = cookedRows
-      .map((row) => {
-        const cr = customById.get(row.recipeId);
-        return cr ? { ...customToRecipe(cr), cookCount: row.count } : null;
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+    const cooked = (
+      await Promise.all(
+        cookedRows.map(async (row) => {
+          const cr = customById.get(row.recipeId);
+          return cr ? { ...(await customToRecipe(ctx, cr)), cookCount: row.count } : null;
+        }),
+      )
+    ).filter((x): x is NonNullable<typeof x> => x !== null);
 
     // Friend list: the owner's accepted friends. For a non-self viewer only
     // friends who opted in (friendListVisible) are shown. Each carries the
@@ -963,8 +968,11 @@ export const userPublic = query({
 
     return {
       ...base,
-      recipes: visibleCustom.map(customToRecipe),
-      favorites: [...favRows.map((r) => r.recipe), ...visibleCustomFavs.map(customToRecipe)],
+      recipes: await Promise.all(visibleCustom.map((r) => customToRecipe(ctx, r))),
+      favorites: [
+        ...favRows.map((r) => r.recipe),
+        ...(await Promise.all(visibleCustomFavs.map((r) => customToRecipe(ctx, r)))),
+      ],
       cooked,
       friendsList,
     };

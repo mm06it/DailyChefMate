@@ -77,6 +77,23 @@ export const setRecipeImage = mutation({
       await ctx.storage.delete(recipe.imageStorageId);
     }
     await ctx.db.patch(id, { imageStorageId: storageId, image: "" });
+
+    // The recipe's feed event was emitted at create time with an empty image
+    // (the photo is uploaded a moment later). Backfill it so friends see the
+    // photo in their feed.
+    const url = await ctx.storage.getUrl(storageId);
+    if (url) {
+      const events = await ctx.db
+        .query("activityEvents")
+        .withIndex("by_user_created", (q) => q.eq("userId", recipe.userId))
+        .order("desc")
+        .take(30);
+      for (const e of events) {
+        if (e.recipe?.id === id && e.recipe.image !== url) {
+          await ctx.db.patch(e._id, { recipe: { ...e.recipe, image: url } });
+        }
+      }
+    }
   },
 });
 
@@ -94,6 +111,20 @@ export const add = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
+
+    // Guard against a double-submit (rapid taps on the save button): if this
+    // user just created a recipe with the same name, return that one instead
+    // of inserting a duplicate.
+    const name = args.name.trim();
+    const mine = await ctx.db
+      .query("customRecipes")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const recent = mine.find(
+      (r) => r.name.trim() === name && Date.now() - r._creationTime < 20_000,
+    );
+    if (recent) return recent._id;
+
     const id = await ctx.db.insert("customRecipes", {
       userId,
       isFavorite: false,

@@ -148,7 +148,7 @@ export const rate = mutation({
       );
       if (!dupe) {
         const snapshot = ownerDoc
-          ? { ...stripRecipeDoc(ownerDoc) }
+          ? await stripRecipeDoc(ctx, ownerDoc)
           : {
               id: recipeId,
               name: recipeName,
@@ -172,9 +172,12 @@ export const rate = mutation({
   },
 });
 
-function stripRecipeDoc(doc: Doc<"customRecipes">) {
+async function stripRecipeDoc(ctx: MutationCtx, doc: Doc<"customRecipes">) {
   const { _id, _creationTime, userId, isFavorite, ...rest } = doc;
-  return { id: _id, ...rest };
+  const image = doc.imageStorageId
+    ? (await ctx.storage.getUrl(doc.imageStorageId)) ?? rest.image
+    : rest.image;
+  return { id: _id, ...rest, image };
 }
 
 // ---- reads ----

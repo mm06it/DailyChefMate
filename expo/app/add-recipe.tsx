@@ -130,6 +130,7 @@ export default function AddRecipeScreen() {
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
   const { pickAndUpload, uploadPicked, removeImage, uploading } = useRecipeImageUpload();
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
+  const [saving, setSaving] = useState<boolean>(false);
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
@@ -242,12 +243,14 @@ export default function AddRecipeScreen() {
   }, [isEditing, editId, getCustomRecipe]);
 
   const handleSave = async () => {
+    if (saving) return; // ignore rapid double-taps
     if (hasErrors) {
       // Inline banner + the red asterisks only — no blocking popup.
       setErrorMessage(t('fillHighlightedFields'));
       return;
     }
     setErrorMessage(null);
+    setSaving(true);
 
     const mode = formData.mode as RecipeMode;
     const main = mode === 'baking' ? num(formData.ovenTime) : num(formData.cookTime);
@@ -294,6 +297,7 @@ export default function AddRecipeScreen() {
     } catch (error) {
       console.error('Error saving recipe:', error);
       setErrorMessage('Failed to save recipe');
+      setSaving(false); // stay on the form so the user can retry
     }
   };
 
@@ -413,8 +417,18 @@ export default function AddRecipeScreen() {
             )
           ),
           headerRight: () => (
-            <Pressable testID="header-save" onPress={handleSave} style={styles.headerSave} accessibilityLabel={t('save')}>
-              <Check size={22} color={Colors.success} />
+            <Pressable
+              testID="header-save"
+              onPress={handleSave}
+              disabled={saving}
+              style={[styles.headerSave, saving && { opacity: 0.4 }]}
+              accessibilityLabel={t('save')}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={Colors.success} />
+              ) : (
+                <Check size={22} color={Colors.success} />
+              )}
             </Pressable>
           ),
         }}
@@ -831,9 +845,14 @@ export default function AddRecipeScreen() {
               <Pressable
                 testID="button-save-recipe-bottom"
                 onPress={handleSave}
-                style={styles.primarySaveButton}
+                disabled={saving}
+                style={[styles.primarySaveButton, saving && { opacity: 0.6 }]}
               >
-                <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
+                {saving ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
+                )}
               </Pressable>
             </>
           )}
