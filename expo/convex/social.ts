@@ -544,10 +544,11 @@ export const adminInbox = query({
         priority: ADMIN_PRIORITY[r.category] ?? 0,
       }))
       .sort((a, b) => {
-        // open (not done) first, then by priority, then newest
-        const aDone = a.status === "done" ? 1 : 0;
-        const bDone = b.status === "done" ? 1 : 0;
-        if (aDone !== bDone) return aDone - bDone;
+        // open first, then closed (done / read), then by priority, then newest
+        const closed = (s: string) => (s === "done" || s === "read" ? 1 : 0);
+        const ac = closed(a.status);
+        const bc = closed(b.status);
+        if (ac !== bc) return ac - bc;
         if (a.priority !== b.priority) return b.priority - a.priority;
         return b.createdAt - a.createdAt;
       });
@@ -562,6 +563,7 @@ export const setAdminMessageStatus = mutation({
       v.literal("seen"),
       v.literal("in_progress"),
       v.literal("done"),
+      v.literal("read"), // feedback / other: single "read" state, no workflow
     ),
   },
   handler: async (ctx, { id, status }) => {
@@ -570,7 +572,7 @@ export const setAdminMessageStatus = mutation({
     if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
     await ctx.db.patch(id, {
       status,
-      resolvedAt: status === "done" ? Date.now() : undefined,
+      resolvedAt: status === "done" || status === "read" ? Date.now() : undefined,
     });
   },
 });

@@ -70,6 +70,8 @@ type AdminMsg = {
   priority: number;
 };
 
+type AdminStatus = "new" | "seen" | "in_progress" | "done" | "read";
+
 function AdminMessageCard({
   msg,
   expanded,
@@ -80,10 +82,15 @@ function AdminMessageCard({
   msg: AdminMsg;
   expanded: boolean;
   onToggle: () => void;
-  onStatus: (s: (typeof ADMIN_STATUSES)[number]) => void;
+  onStatus: (s: AdminStatus) => void;
   t: (k: string) => string;
 }) {
   const color = CAT_COLOR[msg.category] ?? CAT_COLOR.other;
+  // feedback / other are informational: only "read", no workflow.
+  const simple = msg.category === "feedback" || msg.category === "other";
+  const isRead = msg.status === "read";
+  const isClosed = isRead || msg.status === "done";
+
   const catLabel =
     msg.category === "report_user"
       ? t("adminCatReport")
@@ -95,18 +102,25 @@ function AdminMessageCard({
   const statusLabel = (s: string) =>
     s === "done"
       ? t("statusDone")
-      : s === "in_progress"
-        ? t("statusInProgress")
-        : s === "seen"
-          ? t("statusSeen")
-          : t("statusNew");
-  const currentIdx = ADMIN_STATUSES.indexOf(msg.status as any); // -1 for "new"
-
-  const progress = msg.status === "done" ? 3 : currentIdx + 1; // 0..3
+      : s === "read"
+        ? t("statusRead")
+        : s === "in_progress"
+          ? t("statusInProgress")
+          : s === "seen"
+            ? t("statusSeen")
+            : t("statusNew");
+  const currentIdx = ADMIN_STATUSES.indexOf(msg.status as any); // -1 for "new"/"read"
+  const progress = simple
+    ? isRead
+      ? 3
+      : 0
+    : msg.status === "done"
+      ? 3
+      : currentIdx + 1;
 
   return (
     <Pressable
-      style={[styles.adminMsg, { borderLeftColor: color }, msg.status === "done" && styles.adminMsgDone]}
+      style={[styles.adminMsg, { borderLeftColor: color }, isClosed && styles.adminMsgDone]}
       onPress={onToggle}
     >
       <View style={styles.adminMsgTop}>
@@ -115,7 +129,7 @@ function AdminMessageCard({
         </View>
         {msg.category === "bug" && <Text style={styles.prioHigh}>!!!</Text>}
         {msg.category === "report_user" && <Text style={styles.prioLow}>!!</Text>}
-        {msg.status === "done" && <Check size={16} color={Colors.success} />}
+        {isClosed && <Check size={16} color={Colors.success} />}
         <Text style={styles.adminDate}>{new Date(msg.createdAt).toLocaleDateString()}</Text>
       </View>
 
@@ -123,9 +137,9 @@ function AdminMessageCard({
         {msg.message}
       </Text>
 
-      {/* always-visible mini progress bar */}
+      {/* progress bar — 1 segment for informational, 3 for workflow */}
       <View style={styles.miniBar}>
-        {[0, 1, 2].map((i) => (
+        {(simple ? [0] : [0, 1, 2]).map((i) => (
           <View
             key={i}
             style={[
@@ -136,9 +150,21 @@ function AdminMessageCard({
         ))}
       </View>
       <Text style={styles.adminHint}>
-        {statusLabel(msg.status)}
+        {simple ? statusLabel(isRead ? "read" : "new") : statusLabel(msg.status)}
         {!expanded ? ` · ${t("tapForDetails")}` : ""}
       </Text>
+
+      {simple && (
+        <Pressable
+          style={[styles.readBtn, isRead && { backgroundColor: color, borderColor: color }]}
+          onPress={() => onStatus(isRead ? "new" : "read")}
+        >
+          <Check size={14} color={isRead ? Colors.white : Colors.textLight} />
+          <Text style={[styles.readBtnText, isRead && styles.statusStepTextOn]}>
+            {isRead ? t("markUnread") : t("markRead")}
+          </Text>
+        </Pressable>
+      )}
 
       {expanded && (
         <View style={styles.adminDetails}>
@@ -154,22 +180,24 @@ function AdminMessageCard({
             {t("sentAtLabel")}: {new Date(msg.createdAt).toLocaleString()}
           </Text>
 
-          <View style={styles.statusBar}>
-            {ADMIN_STATUSES.map((s, i) => {
-              const active = currentIdx >= i;
-              return (
-                <Pressable
-                  key={s}
-                  style={[styles.statusStep, active && { backgroundColor: color }]}
-                  onPress={() => onStatus(s)}
-                >
-                  <Text style={[styles.statusStepText, active && styles.statusStepTextOn]}>
-                    {statusLabel(s)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {!simple && (
+            <View style={styles.statusBar}>
+              {ADMIN_STATUSES.map((s, i) => {
+                const active = currentIdx >= i;
+                return (
+                  <Pressable
+                    key={s}
+                    style={[styles.statusStep, active && { backgroundColor: color }]}
+                    onPress={() => onStatus(s)}
+                  >
+                    <Text style={[styles.statusStepText, active && styles.statusStepTextOn]}>
+                      {statusLabel(s)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </View>
       )}
     </Pressable>
@@ -563,8 +591,9 @@ export default function SocialScreen() {
           <View style={styles.adminBox}>
             <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
             {(() => {
-              const open = adminInbox.filter((m) => m.status !== "done");
-              const done = adminInbox.filter((m) => m.status === "done");
+              const isClosed = (s: string) => s === "done" || s === "read";
+              const open = adminInbox.filter((m) => !isClosed(m.status));
+              const done = adminInbox.filter((m) => isClosed(m.status));
               const card = (m: (typeof adminInbox)[number]) => (
                 <AdminMessageCard
                   key={m.id}
@@ -803,6 +832,19 @@ const styles = StyleSheet.create({
   },
   statusStepText: { fontSize: 11, fontWeight: "700", color: Colors.textLight },
   statusStepTextOn: { color: Colors.white },
+  readBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 6,
+    paddingVertical: 9,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.cardSecondary,
+  },
+  readBtnText: { fontSize: 12, fontWeight: "700", color: Colors.textLight },
 
   emptyWrap: { alignItems: "center", marginTop: 40, gap: 16 },
   emptyText: { textAlign: "center", color: Colors.textLight, marginTop: 32, fontSize: 15 },
