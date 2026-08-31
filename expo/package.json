@@ -8,8 +8,7 @@
     "start-web-dev": "DEBUG=expo* expo start --web --tunnel"
   },
   "dependencies": {
-    "@auth/core": "^0.37.0",
-    "@convex-dev/auth": "^0.0.90",
+    "@convex-dev/auth": "^0.0.95",
     "@convex-dev/rate-limiter": "^0.3.2",
     "@expo/vector-icons": "^15.0.3",
     "@nkzw/create-context-hook": "^1.1.0",
