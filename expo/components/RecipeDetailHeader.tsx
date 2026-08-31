@@ -7,6 +7,7 @@ import { getTranslation, translateText } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
+import { useRatings } from "@/hooks/use-ratings";
 import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
@@ -20,8 +21,13 @@ interface RecipeDetailHeaderProps {
 export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justPlanned }: RecipeDetailHeaderProps) {
   const { toggleFavorite, favorites } = useDailyChefMateStore();
   const { entries: planEntries } = useMealPlan();
+  const { getRatingStats } = useRatings();
   const { currentLanguage, t } = useLanguage();
   const { showToast } = useToast();
+
+  const ratingStat = getRatingStats(recipe.id);
+  const displayRating = ratingStat && ratingStat.count > 0 ? ratingStat.avg : recipe.rating;
+  const ratingCount = ratingStat?.count ?? 0;
   const [imageError, setImageError] = useState<boolean>(false);
   const showImage = !!recipe.image && !imageError;
 
@@ -140,7 +146,7 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare, justP
 
         <View style={styles.metaRow}>
           <View style={styles.ratingContainer}>
-            <Text style={styles.rating}>★ {recipe.rating.toFixed(1)}</Text>
+            <Text style={styles.rating}>★ {displayRating.toFixed(1)} ({ratingCount})</Text>
           </View>
           <Text style={styles.categoryPlain}>{translatedCategory}</Text>
         </View>

@@ -27,6 +27,7 @@ import CollapsingTabHeader, {
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
 import InlineConfirm from "@/components/InlineConfirm";
+import RatingStars from "@/components/RatingStars";
 import Colors from "@/constants/colors";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -280,7 +281,12 @@ export default function SocialScreen() {
   // ---- Feed ----
   const renderFeedItem = ({ item }: { item: (typeof feed)[number] }) => {
     const name = item.actor.displayName || item.actor.username;
-    const verb = item.type === "created_recipe" ? t("feedCreated") : t("feedShared");
+    const verb =
+      item.type === "created_recipe"
+        ? t("feedCreated")
+        : item.type === "rated_recipe"
+          ? t("feedRated")
+          : t("feedShared");
     return (
       <View style={styles.card}>
         <View style={styles.cardHead}>
@@ -288,6 +294,9 @@ export default function SocialScreen() {
           <Text style={styles.line} numberOfLines={2}>
             <Text style={styles.name}>{name}</Text> {verb}
           </Text>
+          {item.type === "rated_recipe" && item.rating != null && (
+            <RatingStars value={item.rating} size={13} />
+          )}
         </View>
         {item.recipe && (
           <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
@@ -565,6 +574,27 @@ export default function SocialScreen() {
               <Flame size={18} color={Colors.orange} />
             )}
           </View>
+        </View>
+      );
+    }
+
+    if (item.kind === "recipe_rated") {
+      const name = item.from?.displayName || "?";
+      return (
+        <View style={styles.card}>
+          <View style={styles.cardHead}>
+            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Text style={styles.line} numberOfLines={3}>
+              <Text style={styles.name}>{name}</Text> {t("ratedInInbox")}
+              {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
+            </Text>
+          </View>
+          {item.rating != null && (
+            <View style={{ marginTop: 8 }}>
+              <RatingStars value={item.rating} size={16} />
+            </View>
+          )}
+          {!!item.message && <Text style={styles.note}>“{item.message}”</Text>}
         </View>
       );
     }

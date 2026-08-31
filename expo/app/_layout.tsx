@@ -11,6 +11,7 @@ import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
 import { MealPlanContext } from "@/hooks/use-meal-plan";
 import { SocialContext } from "@/hooks/use-social";
+import { RatingsContext } from "@/hooks/use-ratings";
 import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
@@ -91,9 +92,11 @@ export default function RootLayout() {
                   <DailyChefMateContext>
                     <MealPlanContext>
                       <SocialContext>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <RootLayoutNav />
-                        </GestureHandlerRootView>
+                        <RatingsContext>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <RootLayoutNav />
+                          </GestureHandlerRootView>
+                        </RatingsContext>
                       </SocialContext>
                     </MealPlanContext>
                   </DailyChefMateContext>

@@ -10,6 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { ratingSummaryFor } from "./ratings";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
@@ -672,7 +673,13 @@ export const inbox = query({
 
     const items: {
       id: string;
-      kind: "recipe_share" | "friend_accepted" | "info" | "recipe_favorited" | "recipe_cooked";
+      kind:
+        | "recipe_share"
+        | "friend_accepted"
+        | "info"
+        | "recipe_favorited"
+        | "recipe_cooked"
+        | "recipe_rated";
       createdAt: number;
       seen: boolean;
       from: ReturnType<typeof miniProfile> | null;
@@ -681,6 +688,7 @@ export const inbox = query({
       saved?: boolean;
       message?: string;
       recipeName?: string;
+      rating?: number;
     }[] = [];
 
     for (const s of shares) {
@@ -712,6 +720,7 @@ export const inbox = query({
           : null,
         message: n.message ?? "",
         recipeName: n.recipeName ?? "",
+        rating: n.rating,
       });
     }
 
@@ -779,6 +788,7 @@ export const feed = query({
           id: e._id,
           type: e.type,
           recipe: e.recipe ?? null,
+          rating: e.rating ?? null,
           createdAt: e.createdAt,
           actor,
         });
@@ -884,6 +894,7 @@ export const userPublic = query({
     const cookedCount = cookedRows.reduce((sum, r) => sum + r.count, 0);
     const nonAdminFriendRows = friendRows.filter((r) => !admin || r.other !== admin._id);
     const friendsCount = nonAdminFriendRows.length;
+    const ratingSummary = await ratingSummaryFor(ctx, other);
 
     const base = {
       ...miniProfile(doc, other),
@@ -899,6 +910,9 @@ export const userPublic = query({
         createdCount: customRecipes.length,
         cookedCount,
         friendsCount,
+        recipeRatingAvg: ratingSummary.avg,
+        recipeRatingCount: ratingSummary.ratingCount,
+        distinctRaters: ratingSummary.distinctRaters,
       },
     };
 

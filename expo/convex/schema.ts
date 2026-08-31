@@ -183,10 +183,40 @@ export default defineSchema({
   // feed can render and open it without access to the actor's private tables.
   activityEvents: defineTable({
     userId: v.id("users"), // actor
-    type: v.union(v.literal("created_recipe"), v.literal("shared_recipe")),
+    type: v.union(
+      v.literal("created_recipe"),
+      v.literal("shared_recipe"),
+      v.literal("rated_recipe"),
+    ),
     recipe: v.optional(v.object({ id: v.string(), ...recipeFields })),
+    rating: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_user_created", ["userId", "createdAt"]),
+
+  // One row per (user, recipe). recipeId is a customRecipes._id OR an external
+  // id ("mealdb_...", "spoonacular_...", numeric). ownerId is set for custom
+  // recipes and drives the profile "avg rating of my recipes" stat.
+  recipeRatings: defineTable({
+    userId: v.id("users"),
+    recipeId: v.string(),
+    ownerId: v.optional(v.id("users")),
+    rating: v.number(), // 1..5
+    comment: v.optional(v.string()),
+    recipeName: v.string(),
+    recipeImage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_and_recipe", ["userId", "recipeId"])
+    .index("by_recipe", ["recipeId"])
+    .index("by_owner", ["ownerId"]),
+
+  // Aggregate cache — one row per rated recipe.
+  recipeRatingStats: defineTable({
+    recipeId: v.string(),
+    sum: v.number(),
+    count: v.number(),
+  }).index("by_recipe", ["recipeId"]),
 
   blocks: defineTable({
     blocker: v.id("users"),
@@ -206,11 +236,13 @@ export default defineSchema({
       v.literal("info"),
       v.literal("recipe_favorited"),
       v.literal("recipe_cooked"),
+      v.literal("recipe_rated"),
     ),
     actorId: v.optional(v.id("users")),
     actorName: v.optional(v.string()),
     actorInitials: v.optional(v.string()),
     recipeName: v.optional(v.string()),
+    rating: v.optional(v.number()),
     message: v.optional(v.string()),
     createdAt: v.number(),
     seenAt: v.optional(v.number()),

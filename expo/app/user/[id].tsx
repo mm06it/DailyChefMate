@@ -519,6 +519,19 @@ export default function UserProfileScreen() {
                 active={canSeeLists && listMode === "friends"}
                 onPress={canSeeLists ? () => setListMode("friends") : undefined}
               />
+              <View style={[styles.statCard, styles.statCardWide, styles.statWideRow]}>
+                <Star size={18} color={Colors.star} />
+                <View>
+                  <Text style={styles.statValueSmall}>
+                    {(data.stats.recipeRatingCount ?? 0) > 0
+                      ? `★ ${(data.stats.recipeRatingAvg ?? 0).toFixed(1)}`
+                      : "–"}
+                    {"  ·  "}
+                    {data.stats.distinctRaters ?? 0} {t("ratedByPeople")}
+                  </Text>
+                  <Text style={styles.statLabel}>{t("avgRecipeRating")}</Text>
+                </View>
+              </View>
             </View>
 
             {canSeeLists && (

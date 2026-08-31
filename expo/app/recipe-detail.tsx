@@ -1,17 +1,23 @@
 import { useLocalSearchParams, router } from "expo-router";
+import { useQuery } from "convex/react";
 import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, View, TouchableOpacity, Pressable } from "react-native";
-import { Check, Minus, Plus, ChefHat } from "lucide-react-native";
+import { Check, Minus, Plus, ChefHat, Star } from "lucide-react-native";
 
 import AddToPlanModal from "@/components/AddToPlanModal";
 import ShareRecipeSheet from "@/components/ShareRecipeSheet";
+import RateRecipeModal from "@/components/RateRecipeModal";
+import RatingStars from "@/components/RatingStars";
+import Avatar from "@/components/Avatar";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
 import Colors from "@/constants/colors";
+import { api } from "@/convex/_generated/api";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
+import { useRatings } from "@/hooks/use-ratings";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { scaleAmount } from "@/lib/scale-amount";
@@ -21,9 +27,11 @@ const MAX_SERVINGS = 20;
 
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { recipes, customRecipes, favorites, markRecipeAsCooked, recordRecipeView } = useDailyChefMateStore();
-  const { currentLanguage } = useLanguage();
+  const { recipes, customRecipes, favorites, cookedRecipes, markRecipeAsCooked, recordRecipeView } =
+    useDailyChefMateStore();
+  const { currentLanguage, t } = useLanguage();
   const { markPlannedCooked } = useMealPlan();
+  const { myRating } = useRatings();
 
   // Look across every source a recipe can come from: the browse cache
   // (mocks + TheMealDB pages), the user's own recipes, and favorites.
@@ -54,7 +62,11 @@ export default function RecipeDetailScreen() {
   const [isCooking, setIsCooking] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const [shareSheetVisible, setShareSheetVisible] = useState<boolean>(false);
+  const [rateModalVisible, setRateModalVisible] = useState<boolean>(false);
+  const [navigateAfterRate, setNavigateAfterRate] = useState<boolean>(false);
   const [justPlanned, setJustPlanned] = useState<boolean>(false);
+
+  const friendRatings = useQuery(api.ratings.friendRatings, id ? { recipeId: id } : "skip");
 
   const servingsRatio = useMemo(() => {
     const base = recipe?.servings && recipe.servings > 0 ? recipe.servings : 1;
@@ -92,7 +104,16 @@ export default function RecipeDetailScreen() {
   const handleMarkAsCooked = () => {
     markRecipeAsCooked(recipe.id);
     markPlannedCooked(recipe.id);
-    router.push('/(tabs)/(recipes)/all');
+    setNavigateAfterRate(true);
+    setRateModalVisible(true);
+  };
+
+  const closeRateModal = () => {
+    setRateModalVisible(false);
+    if (navigateAfterRate) {
+      setNavigateAfterRate(false);
+      router.push('/(tabs)/(recipes)/all');
+    }
   };
 
   const handleDecreaseServings = () => {
@@ -102,6 +123,10 @@ export default function RecipeDetailScreen() {
   const handleIncreaseServings = () => {
     setServings(prev => Math.min(MAX_SERVINGS, prev + 1));
   };
+
+  const hasCooked = (cookedRecipes[recipe.id] ?? 0) > 0;
+  const myRatingValue = myRating(recipe.id);
+  const friendItems = (friendRatings?.items ?? []).filter((r) => !r.isMe);
 
   return (
     <ScrollView 
@@ -116,6 +141,55 @@ export default function RecipeDetailScreen() {
       />
 
       <ResponsiveContainer maxWidth={720}>
+
+      {(hasCooked || friendItems.length > 0) && (
+        <View style={styles.section}>
+          {hasCooked && myRatingValue === null && (
+            <Pressable
+              style={styles.rateBanner}
+              onPress={() => setRateModalVisible(true)}
+              testID="rate-reminder-banner"
+            >
+              <Star size={18} color={Colors.white} fill={Colors.white} />
+              <Text style={styles.rateBannerText}>{t('rateAfterCooking')}</Text>
+            </Pressable>
+          )}
+
+          {hasCooked && myRatingValue !== null && (
+            <View style={styles.myRatingRow}>
+              <View>
+                <Text style={styles.ratingSubTitle}>{t('yourRating')}</Text>
+                <RatingStars value={myRatingValue} size={22} />
+              </View>
+              <Pressable
+                style={styles.changeRatingBtn}
+                onPress={() => setRateModalVisible(true)}
+                testID="change-rating"
+              >
+                <Text style={styles.changeRatingText}>{t('edit')}</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {friendRatings && friendRatings.count > 0 && (
+            <View style={styles.friendRatingsBox}>
+              <Text style={styles.ratingSubTitle}>
+                {t('friendRatings')} · ★ {friendRatings.avg.toFixed(1)} ({friendRatings.count})
+              </Text>
+              {friendItems.map((r) => (
+                <View key={r.profile.id} style={styles.friendRatingRow}>
+                  <Avatar name={r.profile.displayName || r.profile.username} initials={r.profile.initials} size={28} />
+                  <View style={styles.friendRatingText}>
+                    <RatingStars value={r.rating} size={13} />
+                    {!!r.comment && <Text style={styles.friendRatingComment}>{r.comment}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.section}>
         <View style={styles.ingredientsHeaderRow}>
           <Text style={styles.sectionTitle}>{getTranslation(currentLanguage, 'ingredients')}</Text>
@@ -227,6 +301,13 @@ export default function RecipeDetailScreen() {
         visible={shareSheetVisible}
         onClose={() => setShareSheetVisible(false)}
       />
+
+      <RateRecipeModal
+        recipe={rateModalVisible ? displayRecipe : null}
+        visible={rateModalVisible}
+        onClose={closeRateModal}
+        onDone={closeRateModal}
+      />
     </ScrollView>
   );
 }
@@ -262,6 +343,46 @@ const styles = StyleSheet.create({
     color: Colors.textLight,
     marginTop: 2,
   },
+  rateBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.star,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  rateBannerText: { color: Colors.white, fontSize: 15, fontWeight: '700', flex: 1 },
+  myRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 14,
+  },
+  ratingSubTitle: { fontSize: 13, fontWeight: '700', color: Colors.textLight, marginBottom: 6 },
+  changeRatingBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.cardSecondary,
+  },
+  changeRatingText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  friendRatingsBox: {
+    marginTop: 12,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+  },
+  friendRatingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  friendRatingText: { flex: 1, gap: 2 },
+  friendRatingComment: { fontSize: 13, color: Colors.text },
   ingredientsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',

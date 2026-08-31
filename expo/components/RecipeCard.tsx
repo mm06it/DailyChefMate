@@ -9,6 +9,7 @@ import { translateText, translateIngredientName } from "@/constants/translations
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
+import { useRatings } from "@/hooks/use-ratings";
 import { useToast } from "@/components/Toast";
 import { Recipe } from "@/types/recipe";
 
@@ -17,8 +18,9 @@ interface RecipeCardProps {
 }
 
 export default function RecipeCard({ recipe }: RecipeCardProps) {
-  const { toggleFavorite, favorites } = useDailyChefMateStore();
+  const { toggleFavorite, favorites, cookedRecipes } = useDailyChefMateStore();
   const { entries: planEntries } = useMealPlan();
+  const { getRatingStats, myRatedIds } = useRatings();
   const { currentLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [imageError, setImageError] = useState<boolean>(false);
@@ -36,6 +38,11 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
     () => planEntries.some((e) => e.recipe.id === recipe.id),
     [planEntries, recipe.id],
   );
+
+  const ratingStat = getRatingStats(recipe.id);
+  const displayRating = ratingStat && ratingStat.count > 0 ? ratingStat.avg : recipe.rating;
+  const ratingCount = ratingStat?.count ?? 0;
+  const needsRating = (cookedRecipes[recipe.id] ?? 0) > 0 && !myRatedIds.has(recipe.id);
 
   useEffect(() => {
     if (!justPlanned) return;
@@ -179,11 +186,18 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
         </View>
         <View style={styles.details}>
           <View style={styles.ratingPill}>
-            <Text style={styles.ratingText}>★ {recipe.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingText}>
+              ★ {displayRating.toFixed(1)} ({ratingCount})
+            </Text>
           </View>
           <View style={styles.timePill}>
             <Text style={styles.timeText}>{recipe.cookTime}</Text>
           </View>
+          {needsRating && (
+            <Pressable style={styles.ratePill} onPress={handlePress} testID={`recipe-card-${recipe.id}-rate`}>
+              <Text style={styles.ratePillText}>{t("notRatedYet")}</Text>
+            </Pressable>
+          )}
         </View>
         <View style={styles.badgesRow}>
           <View style={styles.categoryBadge} testID={`recipe-card-${recipe.id}-category-badge`}>
@@ -330,6 +344,17 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     color: Colors.orange,
+    fontWeight: '700',
+  },
+  ratePill: {
+    backgroundColor: Colors.star,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  ratePillText: {
+    fontSize: 12,
+    color: Colors.white,
     fontWeight: '700',
   },
   timePill: {

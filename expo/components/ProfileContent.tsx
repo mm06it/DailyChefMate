@@ -1,9 +1,12 @@
 import { router } from 'expo-router';
+import { useQuery } from 'convex/react';
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { UserCircle, Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useDailyChefMateStore } from '@/hooks/use-dailychefmate-store';
@@ -74,6 +77,10 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
   const { user } = useAuth();
   const { t } = useLanguage();
   const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, customRecipes } = useDailyChefMateStore();
+  const ratingSummary = useQuery(
+    api.ratings.ratingSummary,
+    user?.id ? { userId: user.id as Id<'users'> } : 'skip',
+  );
 
   const profileStats = useMemo(() => {
     const joinDate = user?.created_at ? new Date(user.created_at) : new Date();
@@ -143,6 +150,12 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             icon={<Flame size={24} color={Colors.primary} />}
             title={t('totalRecipes')}
             value={profileStats.cookedTotal}
+          />
+          <StatCard
+            icon={<Star size={24} color={Colors.star} />}
+            title={t('avgRecipeRating')}
+            value={ratingSummary && ratingSummary.ratingCount > 0 ? ratingSummary.avg.toFixed(1) : '–'}
+            subtitle={`${ratingSummary?.distinctRaters ?? 0} ${t('ratedByPeople')}`}
           />
         </View>
       </View>
