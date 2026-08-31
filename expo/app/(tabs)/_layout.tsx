@@ -1,10 +1,11 @@
 import { Tabs } from "expo-router";
-import { BookOpen, CalendarDays, Refrigerator, Settings, Star } from "lucide-react-native";
+import { BookOpen, CalendarDays, Refrigerator, Star, Users } from "lucide-react-native";
 import React from "react";
 import { StyleSheet } from "react-native";
 
 import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
+import { useSocial } from "@/hooks/use-social";
 import { useIsDesktop } from "@/hooks/use-responsive";
 
 // The header is rendered per-screen as <CollapsingTabHeader /> (mobile) so
@@ -12,6 +13,7 @@ import { useIsDesktop } from "@/hooks/use-responsive";
 export default function TabLayout() {
   const { t } = useLanguage();
   const isDesktop = useIsDesktop();
+  const { badgeCount } = useSocial();
 
   return (
     <Tabs
@@ -58,10 +60,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="social"
+        options={{
+          title: t('social'),
+          tabBarIcon: ({ color }) => <Users size={22} color={color} />,
+          tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
-          title: t('settings'),
-          tabBarIcon: ({ color }) => <Settings size={22} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen

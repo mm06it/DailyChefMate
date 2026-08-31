@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View, TouchableOpacity, Pressable } from 
 import { Check, Minus, Plus, ChefHat } from "lucide-react-native";
 
 import AddToPlanModal from "@/components/AddToPlanModal";
+import ShareRecipeSheet from "@/components/ShareRecipeSheet";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
 import Colors from "@/constants/colors";
@@ -52,6 +53,7 @@ export default function RecipeDetailScreen() {
   const [servings, setServings] = useState<number>(recipe?.servings && recipe.servings > 0 ? recipe.servings : 1);
   const [isCooking, setIsCooking] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState<boolean>(false);
 
   const servingsRatio = useMemo(() => {
     const base = recipe?.servings && recipe.servings > 0 ? recipe.servings : 1;
@@ -105,7 +107,11 @@ export default function RecipeDetailScreen() {
       style={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <RecipeDetailHeader recipe={displayRecipe} onAddToPlan={() => setPlanModalVisible(true)} />
+      <RecipeDetailHeader
+        recipe={displayRecipe}
+        onAddToPlan={() => setPlanModalVisible(true)}
+        onShare={() => setShareSheetVisible(true)}
+      />
 
       <ResponsiveContainer maxWidth={720}>
       <View style={styles.section}>
@@ -208,6 +214,12 @@ export default function RecipeDetailScreen() {
         recipe={planModalVisible ? displayRecipe : null}
         visible={planModalVisible}
         onClose={() => setPlanModalVisible(false)}
+      />
+
+      <ShareRecipeSheet
+        recipe={shareSheetVisible ? displayRecipe : null}
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
       />
     </ScrollView>
   );

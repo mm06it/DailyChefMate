@@ -1,5 +1,5 @@
 import { router, usePathname } from 'expo-router';
-import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, Star, UserCircle } from 'lucide-react-native';
+import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, Star, UserCircle, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -51,6 +51,13 @@ export default function DesktopSidebar() {
       label: t('favorites'),
       icon: Star,
       match: (p) => p.includes('/favorites'),
+    },
+    {
+      key: 'social',
+      href: '/(tabs)/social',
+      label: t('social'),
+      icon: Users,
+      match: (p) => p.includes('/social'),
     },
   ];
 

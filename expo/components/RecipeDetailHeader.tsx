@@ -1,4 +1,4 @@
-import { CalendarPlus, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarPlus, Send, Star, Clock, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -11,9 +11,10 @@ import { Recipe } from "@/types/recipe";
 interface RecipeDetailHeaderProps {
   recipe: Recipe;
   onAddToPlan?: () => void;
+  onShare?: () => void;
 }
 
-export default function RecipeDetailHeader({ recipe, onAddToPlan }: RecipeDetailHeaderProps) {
+export default function RecipeDetailHeader({ recipe, onAddToPlan, onShare }: RecipeDetailHeaderProps) {
   const { toggleFavorite } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
   const [imageError, setImageError] = useState<boolean>(false);
@@ -62,6 +63,17 @@ export default function RecipeDetailHeader({ recipe, onAddToPlan }: RecipeDetail
           <View style={[styles.image, styles.imageFallback]}>
             <UtensilsCrossed size={52} color={Colors.textLight} />
           </View>
+        )}
+        {onShare && (
+          <Pressable
+            onPress={onShare}
+            hitSlop={10}
+            style={styles.shareButton}
+            testID={`recipe-detail-${recipe.id}-share`}
+            accessibilityLabel={t('shareRecipe')}
+          >
+            <Send size={20} color={Colors.text} />
+          </Pressable>
         )}
         {onAddToPlan && (
           <Pressable
@@ -208,6 +220,22 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     right: 60,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  shareButton: {
+    position: "absolute",
+    top: 12,
+    right: 108,
     width: 40,
     height: 40,
     borderRadius: 20,

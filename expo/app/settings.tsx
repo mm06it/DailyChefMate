@@ -7,13 +7,15 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, User, Globe, Info, Pencil } from 'lucide-react-native';
+import { LogOut, User, Globe, Info, Pencil, Users, Eye } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useSocial } from '@/hooks/use-social';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import InlineConfirm from '@/components/InlineConfirm';
 import CollapsingTabHeader, {
@@ -40,6 +42,7 @@ export default function SettingsScreen() {
   const { t } = useLanguage();
   const convex = useConvex();
   const updateUsername = useMutation(api.users.updateUsername);
+  const { myProfile, setSocialProfile } = useSocial();
 
   const currentUsername = user?.username ?? '';
 
@@ -49,6 +52,15 @@ export default function SettingsScreen() {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
   const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [displayNameDraft, setDisplayNameDraft] = useState<string>('');
+  const displayNameSeeded = useRef<boolean>(false);
+  useEffect(() => {
+    if (!displayNameSeeded.current && myProfile) {
+      setDisplayNameDraft(myProfile.displayName ?? '');
+      displayNameSeeded.current = true;
+    }
+  }, [myProfile]);
 
   useEffect(() => {
     return () => {
@@ -138,7 +150,7 @@ export default function SettingsScreen() {
         }}
       />
       {/* Settings keeps the header pinned — no hide-on-scroll here. */}
-      {!isDesktop && <CollapsingTabHeader />}
+      {!isDesktop && <CollapsingTabHeader showBack />}
       <ScrollView
         contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}
       >
@@ -236,6 +248,56 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>{t('language')}</Text>
             </View>
             <LanguageSelector />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('socialProfile')}</Text>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <User size={20} color={Colors.textLight} />
+              <Text style={styles.settingLabel}>{t('displayName')}</Text>
+            </View>
+            <TextInput
+              style={styles.usernameInput}
+              value={displayNameDraft}
+              onChangeText={setDisplayNameDraft}
+              maxLength={40}
+              placeholder={user?.username ?? ''}
+              placeholderTextColor={Colors.textLight}
+              onEndEditing={() => setSocialProfile({ displayName: displayNameDraft.trim() })}
+              returnKeyType="done"
+              testID="settings-displayname-input"
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <Users size={20} color={Colors.textLight} />
+              <Text style={styles.settingLabel}>{t('discoverable')}</Text>
+            </View>
+            <Switch
+              value={myProfile ? myProfile.discoverable : true}
+              onValueChange={(val) => {
+                setSocialProfile({ discoverable: val });
+              }}
+              testID="settings-discoverable"
+            />
+          </View>
+
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <Eye size={20} color={Colors.textLight} />
+              <Text style={styles.settingLabel}>{t('showActivity')}</Text>
+            </View>
+            <Switch
+              value={myProfile ? myProfile.feedVisibility !== 'private' : true}
+              onValueChange={(val) => {
+                setSocialProfile({ feedVisibility: val ? 'friends' : 'private' });
+              }}
+              testID="settings-show-activity"
+            />
           </View>
         </View>
 

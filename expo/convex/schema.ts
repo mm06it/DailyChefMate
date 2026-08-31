@@ -53,6 +53,11 @@ export default defineSchema({
     phoneVerificationTime: v.optional(v.number()),
     isAnonymous: v.optional(v.boolean()),
     username: v.optional(v.string()),
+    // Social profile (all optional — no migration for existing rows).
+    displayName: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    discoverable: v.optional(v.boolean()), // missing = findable
+    feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
   })
     .index("email", ["email"])
     .index("phone", ["phone"])
@@ -132,6 +137,63 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_day", ["userId", "day"]),
+
+  // Friendship as two rows (one per direction), kept in sync inside a single
+  // transactional mutation, so "my friends" / "my requests" are one index scan.
+  friendships: defineTable({
+    owner: v.id("users"),
+    other: v.id("users"),
+    status: v.union(
+      v.literal("pending_out"), // owner sent, awaiting `other`
+      v.literal("pending_in"), // `other` sent, owner must respond
+      v.literal("accepted"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["owner"])
+    .index("by_owner_status", ["owner", "status"])
+    .index("by_pair", ["owner", "other"]),
+
+  // "Send a recipe to a friend" — the only message type. Recipe snapshotted
+  // in full like favoriteRecipes.
+  recipeShares: defineTable({
+    fromUser: v.id("users"),
+    toUser: v.id("users"),
+    recipe: v.object({ id: v.string(), ...recipeFields }),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    seenAt: v.optional(v.number()),
+    savedAt: v.optional(v.number()),
+  })
+    .index("by_toUser_created", ["toUser", "createdAt"])
+    .index("by_fromUser", ["fromUser"]),
+
+  // Friend-feed source, append-only. Carries a full recipe snapshot so the
+  // feed can render and open it without access to the actor's private tables.
+  activityEvents: defineTable({
+    userId: v.id("users"), // actor
+    type: v.union(v.literal("created_recipe"), v.literal("shared_recipe")),
+    recipe: v.optional(v.object({ id: v.string(), ...recipeFields })),
+    createdAt: v.number(),
+  }).index("by_user_created", ["userId", "createdAt"]),
+
+  blocks: defineTable({
+    blocker: v.id("users"),
+    blocked: v.id("users"),
+    createdAt: v.number(),
+  })
+    .index("by_blocker", ["blocker"])
+    .index("by_pair", ["blocker", "blocked"]),
+
+  reports: defineTable({
+    reporter: v.id("users"),
+    targetUser: v.id("users"),
+    context: v.string(), // "share" | "feed" | "profile"
+    refId: v.optional(v.string()),
+    reason: v.string(),
+    createdAt: v.number(),
+  }).index("by_created", ["createdAt"]),
 
   // Shared cache of machine translations for browse/search recipes so each
   // recipe is only ever sent to the LLM once per language. `key` is

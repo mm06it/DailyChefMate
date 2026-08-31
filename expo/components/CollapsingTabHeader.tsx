@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Settings } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import {
   Animated,
@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
 import { useLanguage } from '@/hooks/use-language';
-import { LanguageSelector } from '@/components/LanguageSelector';
 import ProfileMenuButton from '@/components/ProfileMenuButton';
 
 // Height of the header content below the status bar.
@@ -110,7 +109,15 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
               <ChevronLeft size={28} color={Colors.text} />
             </Pressable>
           ) : (
-            <LanguageSelector />
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={12}
+              testID="header-settings"
+              accessibilityRole="button"
+              accessibilityLabel={t('settings')}
+            >
+              <Settings size={24} color={Colors.text} />
+            </Pressable>
           )}
         </View>
         <Pressable

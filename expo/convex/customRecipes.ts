@@ -55,11 +55,23 @@ export const add = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
-    return await ctx.db.insert("customRecipes", {
+    const id = await ctx.db.insert("customRecipes", {
       userId,
       isFavorite: false,
       ...args,
     });
+
+    // Friend-feed event (unless the user hid their activity).
+    const user = await ctx.db.get(userId);
+    if (user?.feedVisibility !== "private") {
+      await ctx.db.insert("activityEvents", {
+        userId,
+        type: "created_recipe",
+        recipe: { id, ...args },
+        createdAt: Date.now(),
+      });
+    }
+    return id;
   },
 });
 
