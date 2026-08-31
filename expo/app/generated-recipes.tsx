@@ -21,7 +21,8 @@ import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
 export default function GeneratedRecipesScreen() {
   const { t, currentLanguage } = useLanguage();
-  const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
+  const { generateRecipesFromIngredients, getSelectedIngredients, cacheRecipes } =
+    useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -113,8 +114,20 @@ export default function GeneratedRecipesScreen() {
         console.log('Loading random recipes as fallback');
         newRecipes = await themealdb.getRandomMeals(8);
       }
-      
+
+      // Drop half-hydrated results (a failed lookup.php leaves a recipe with no
+      // ingredients / no real steps) — they render as a blank detail page.
+      newRecipes = newRecipes.filter(
+        (r) =>
+          r.ingredients.length > 0 &&
+          r.steps.some((s) => s.trim() && s !== 'No instructions available'),
+      );
+
       if (newRecipes.length > 0) {
+        // Put them in the shared store too — recipe-detail resolves a recipe
+        // by id from that cache, so without this the "load more" results open
+        // a blank page.
+        cacheRecipes(newRecipes);
         setOnlineRecipes(prev => {
           const existingIds = new Set(prev.map(r => r.id));
           const uniqueNewRecipes = newRecipes.filter(r => !existingIds.has(r.id));
@@ -129,7 +142,7 @@ export default function GeneratedRecipesScreen() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [isLoadingMore, hasMoreRecipes, currentPage, selectedIngredients, recipeCategories, commonIngredients]);
+  }, [isLoadingMore, hasMoreRecipes, currentPage, selectedIngredients, recipeCategories, commonIngredients, cacheRecipes]);
 
   useEffect(() => {
     if (selectedIngredients.length > 0 && onlineRecipes.length === 0) {
