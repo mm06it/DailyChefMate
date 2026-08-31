@@ -12,6 +12,7 @@ export interface PlanEntry {
   recipe: Recipe;
   servings: number;
   cookedAt: number | null;
+  boughtAt: number | null;
   checkedIngredients: string[];
 }
 
@@ -39,6 +40,8 @@ export const [MealPlanContext, useMealPlan] = createContextHook(() => {
   const setServingsMutation = useMutation(api.mealPlan.setServings);
   const setCookedMutation = useMutation(api.mealPlan.setCooked);
   const toggleIngredientMutation = useMutation(api.mealPlan.toggleIngredient);
+  const setAllIngredientsCheckedMutation = useMutation(api.mealPlan.setAllIngredientsChecked);
+  const setBoughtMutation = useMutation(api.mealPlan.setBought);
 
   const isLoading = isAuthenticated && convexEntries === undefined;
 
@@ -52,6 +55,7 @@ export const [MealPlanContext, useMealPlan] = createContextHook(() => {
           recipe,
           servings: e.servings ?? recipe.servings ?? 1,
           cookedAt: e.cookedAt ?? null,
+          boughtAt: e.boughtAt ?? null,
           checkedIngredients: e.checkedIngredients ?? [],
         };
       }),
@@ -105,6 +109,19 @@ export const [MealPlanContext, useMealPlan] = createContextHook(() => {
     }).catch((e) => console.error("toggleIngredient failed", e));
   };
 
+  const setAllIngredientsChecked = (entryId: string, checked: boolean) => {
+    setAllIngredientsCheckedMutation({
+      id: entryId as Id<"mealPlanEntries">,
+      checked,
+    }).catch((e) => console.error("setAllIngredientsChecked failed", e));
+  };
+
+  const setBought = (entryId: string, bought: boolean) => {
+    setBoughtMutation({ id: entryId as Id<"mealPlanEntries">, bought }).catch((e) =>
+      console.error("setBought failed", e),
+    );
+  };
+
   // Called from the cooking flow: mark the soonest still-uncooked planned
   // instance of this recipe as done.
   const markPlannedCooked = (recipeId: string) => {
@@ -124,6 +141,8 @@ export const [MealPlanContext, useMealPlan] = createContextHook(() => {
     setServings,
     setCooked,
     toggleIngredient,
+    setAllIngredientsChecked,
+    setBought,
     markPlannedCooked,
   };
 });

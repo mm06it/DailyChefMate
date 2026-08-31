@@ -117,3 +117,27 @@ export const toggleIngredient = mutation({
     await ctx.db.patch(id, { checkedIngredients: next });
   },
 });
+
+// Tick / untick every ingredient of a planned recipe at once.
+export const setAllIngredientsChecked = mutation({
+  args: { id: v.id("mealPlanEntries"), checked: v.boolean() },
+  handler: async (ctx, { id, checked }) => {
+    const userId = await requireUserId(ctx);
+    const entry = await ctx.db.get(id);
+    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    const all = (entry.recipe.ingredients ?? []).map((i) => i.id);
+    await ctx.db.patch(id, { checkedIngredients: checked ? all : [] });
+  },
+});
+
+// Mark the recipe's ingredients as bought — leaves the shopping list but
+// stays in the week plan.
+export const setBought = mutation({
+  args: { id: v.id("mealPlanEntries"), bought: v.boolean() },
+  handler: async (ctx, { id, bought }) => {
+    const userId = await requireUserId(ctx);
+    const entry = await ctx.db.get(id);
+    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    await ctx.db.patch(id, { boughtAt: bought ? Date.now() : undefined });
+  },
+});

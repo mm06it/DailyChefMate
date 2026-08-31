@@ -109,6 +109,12 @@ export const TRANSLATIONS = {
     portions: 'Portionen',
     markCooked: 'Als gekocht markieren',
     checkOffRecipe: 'Ganzes Rezept abhaken',
+    allIngredientsChecked: 'Alle Zutaten abgehakt',
+    recipeBought: 'Rezept ist eingekauft',
+    confirmShoppingDone: 'Einkauf für dieses Rezept abschließen?',
+    shoppingDoneBtn: 'Einkauf fertig',
+    shoppingDoneToast: 'Eingekauft – viel Spaß beim Kochen! 🛒',
+    boughtChip: 'Eingekauft',
 
     // Social
     social: 'Freunde',
@@ -1132,6 +1138,12 @@ export const TRANSLATIONS = {
     portions: 'Servings',
     markCooked: 'Mark as cooked',
     checkOffRecipe: 'Check off whole recipe',
+    allIngredientsChecked: 'All ingredients checked',
+    recipeBought: 'Recipe is bought',
+    confirmShoppingDone: 'Finish shopping for this recipe?',
+    shoppingDoneBtn: 'Shopping done',
+    shoppingDoneToast: 'All bought — enjoy cooking! 🛒',
+    boughtChip: 'Bought',
 
     // Social
     social: 'Friends',

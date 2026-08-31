@@ -137,6 +137,9 @@ export default defineSchema({
     recipe: v.object({ id: v.string(), ...recipeFields }),
     servings: v.optional(v.number()),
     cookedAt: v.optional(v.number()),
+    // Ingredients bought — removes the recipe from the shopping list but
+    // keeps it in the week plan.
+    boughtAt: v.optional(v.number()),
     checkedIngredients: v.optional(v.array(v.string())),
     addedAt: v.number(),
   })

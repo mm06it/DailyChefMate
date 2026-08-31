@@ -19,6 +19,8 @@ import CollapsingTabHeader, {
   resetHeader,
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
+import InlineConfirm from "@/components/InlineConfirm";
+import { useToast } from "@/components/Toast";
 import Colors from "@/constants/colors";
 import { translateAmount, translateIngredientName } from "@/constants/translations";
 import { useLanguage } from "@/hooks/use-language";
@@ -63,6 +65,8 @@ export default function PlannerScreen() {
 
   const [view, setView] = useState<PlannerView>("plan");
   const [monday, setMonday] = useState<string>(thisMondayIso());
+  const [confirmBought, setConfirmBought] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const {
     entries,
@@ -71,6 +75,8 @@ export default function PlannerScreen() {
     setServings,
     setCooked,
     toggleIngredient,
+    setAllIngredientsChecked,
+    setBought,
   } = useMealPlan();
 
   const days = useMemo(() => weekDates(monday), [monday]);
@@ -93,7 +99,7 @@ export default function PlannerScreen() {
   // first ("next to cook" on top). Amounts are scaled to the entry's servings.
   const shopSections: ShopSection[] = useMemo(() => {
     return entries
-      .filter((e) => !e.cookedAt)
+      .filter((e) => !e.cookedAt && !e.boughtAt)
       .sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id))
       .map((entry) => {
         const recipe = localizedById.get(entry.recipe.id) ?? entry.recipe;
@@ -189,9 +195,17 @@ export default function PlannerScreen() {
                     <Text style={[styles.mealName, cooked && styles.mealNameCooked]} numberOfLines={2}>
                       {r.name}
                     </Text>
-                    <Text style={styles.mealServings}>
-                      {entry.servings} {t("portions")}
-                    </Text>
+                    <View style={styles.mealMetaRow}>
+                      <Text style={styles.mealServings}>
+                        {entry.servings} {t("portions")}
+                      </Text>
+                      {!!entry.boughtAt && !cooked && (
+                        <View style={styles.boughtChip}>
+                          <ShoppingCart size={11} color={Colors.success} />
+                          <Text style={styles.boughtChipText}>{t("boughtChip")}</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </Pressable>
                 {cooked ? (
@@ -274,36 +288,65 @@ export default function PlannerScreen() {
             </View>
           </View>
           <Pressable
-            onPress={() => setCooked(entry.id, true)}
+            onPress={() => setAllIngredientsChecked(entry.id, !allChecked)}
             hitSlop={8}
             style={[styles.recipeCheck, allChecked && styles.recipeCheckReady]}
-            testID={`shop-recipe-done-${entry.id}`}
+            testID={`shop-recipe-checkall-${entry.id}`}
             accessibilityLabel={t("checkOffRecipe")}
           >
             <Check size={18} color={allChecked ? Colors.white : Colors.textLight} />
           </Pressable>
         </View>
 
-        <View style={styles.shopLines}>
-          {item.lines.map((line) => (
-            <Pressable
-              key={line.id}
-              style={styles.shopLine}
-              onPress={() => toggleIngredient(entry.id, line.id)}
-              testID={`shop-line-${entry.id}-${line.id}`}
-            >
-              <View style={[styles.bullet, line.checked && styles.bulletChecked]}>
-                {line.checked && <Check size={12} color={Colors.white} />}
-              </View>
-              <Text style={[styles.lineName, line.checked && styles.lineChecked]} numberOfLines={2}>
-                {line.name}
-              </Text>
-              {!!line.amount && (
-                <Text style={[styles.lineAmount, line.checked && styles.lineChecked]}>{line.amount}</Text>
-              )}
-            </Pressable>
-          ))}
-        </View>
+        {allChecked ? (
+          <View style={styles.boughtWrap}>
+            <Text style={styles.boughtNote}>
+              {t("allIngredientsChecked")} · {item.lines.length}
+            </Text>
+            {confirmBought === entry.id ? (
+              <InlineConfirm
+                question={t("confirmShoppingDone")}
+                confirmLabel={t("shoppingDoneBtn")}
+                onConfirm={() => {
+                  setBought(entry.id, true);
+                  setConfirmBought(null);
+                  showToast(t("shoppingDoneToast"), { icon: "check" });
+                }}
+                onCancel={() => setConfirmBought(null)}
+              />
+            ) : (
+              <Pressable
+                style={styles.boughtBtn}
+                onPress={() => setConfirmBought(entry.id)}
+                testID={`shop-bought-${entry.id}`}
+              >
+                <ShoppingCart size={16} color={Colors.white} />
+                <Text style={styles.boughtBtnText}>{t("recipeBought")}</Text>
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <View style={styles.shopLines}>
+            {item.lines.map((line) => (
+              <Pressable
+                key={line.id}
+                style={styles.shopLine}
+                onPress={() => toggleIngredient(entry.id, line.id)}
+                testID={`shop-line-${entry.id}-${line.id}`}
+              >
+                <View style={[styles.bullet, line.checked && styles.bulletChecked]}>
+                  {line.checked && <Check size={12} color={Colors.white} />}
+                </View>
+                <Text style={[styles.lineName, line.checked && styles.lineChecked]} numberOfLines={2}>
+                  {line.name}
+                </Text>
+                {!!line.amount && (
+                  <Text style={[styles.lineAmount, line.checked && styles.lineChecked]}>{line.amount}</Text>
+                )}
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -421,6 +464,17 @@ const styles = StyleSheet.create({
   mealName: { fontSize: 15, fontWeight: "600", color: Colors.text },
   mealNameCooked: { textDecorationLine: "line-through", color: Colors.textLight },
   mealServings: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  mealMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  boughtChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#E9F7EF",
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  boughtChipText: { fontSize: 10, fontWeight: "700", color: Colors.success },
   mealRemove: { padding: 8 },
 
   // Shopping view
@@ -474,6 +528,18 @@ const styles = StyleSheet.create({
   miniStepValue: { fontSize: 14, fontWeight: "700", color: Colors.text, minWidth: 16, textAlign: "center" },
   miniStepUnit: { fontSize: 12, color: Colors.textLight },
   shopLines: { gap: 2 },
+  boughtWrap: { gap: 10, marginTop: 4 },
+  boughtNote: { fontSize: 12, color: Colors.textLight, fontWeight: "600" },
+  boughtBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: Colors.success,
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  boughtBtnText: { color: Colors.white, fontWeight: "800", fontSize: 14 },
   shopLine: {
     flexDirection: "row",
     alignItems: "center",
