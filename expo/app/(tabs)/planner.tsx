@@ -236,6 +236,7 @@ export default function PlannerScreen() {
 
   const renderSection = ({ item }: { item: ShopSection }) => {
     const { entry, recipe } = item;
+    const allChecked = item.lines.length > 0 && item.lines.every((l) => l.checked);
     return (
       <View style={styles.shopCard}>
         <View style={styles.shopCardHead}>
@@ -272,6 +273,15 @@ export default function PlannerScreen() {
               </View>
             </View>
           </View>
+          <Pressable
+            onPress={() => setCooked(entry.id, true)}
+            hitSlop={8}
+            style={[styles.recipeCheck, allChecked && styles.recipeCheckReady]}
+            testID={`shop-recipe-done-${entry.id}`}
+            accessibilityLabel={t("checkOffRecipe")}
+          >
+            <Check size={18} color={allChecked ? Colors.white : Colors.textLight} />
+          </Pressable>
         </View>
 
         <View style={styles.shopLines}>
@@ -422,7 +432,17 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
   },
-  shopCardHead: { flexDirection: "row", gap: 12, marginBottom: 10 },
+  shopCardHead: { flexDirection: "row", gap: 12, marginBottom: 10, alignItems: "flex-start" },
+  recipeCheck: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: Colors.textLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  recipeCheckReady: { backgroundColor: Colors.success, borderColor: Colors.success },
   shopThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.border },
   shopHeadText: { flex: 1 },
   shopRecipeName: { fontSize: 16, fontWeight: "700", color: Colors.text },
