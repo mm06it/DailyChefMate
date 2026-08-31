@@ -128,6 +128,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       totalTime: r.totalTime,
       mode: r.mode,
       ovenMode: r.ovenMode,
+      visibility: r.visibility,
     }));
   }, [convexCustomRecipes]);
 
@@ -394,6 +395,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       totalTime: recipe.totalTime,
       mode: recipe.mode,
       ovenMode: recipe.ovenMode,
+      visibility: recipe.visibility === "private" ? "private" : "public",
     }).catch((e) => console.error("addCustomRecipe failed", e));
   };
 
@@ -415,6 +417,7 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       totalTime: updatedRecipe.totalTime,
       mode: updatedRecipe.mode,
       ovenMode: updatedRecipe.ovenMode,
+      visibility: updatedRecipe.visibility === "private" ? "private" : "public",
     }).catch((e) => console.error("updateCustomRecipe failed", e));
   };
 

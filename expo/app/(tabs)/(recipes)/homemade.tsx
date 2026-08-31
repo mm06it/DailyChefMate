@@ -102,31 +102,27 @@ export default function HomemadeRecipesScreen() {
   return (
     <View style={styles.container}>
       {customRecipes.length > 0 ? (
-        <>
-          <FlatList
-            ref={listRef}
-            key={columns}
-            data={customRecipes}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            numColumns={columns}
-            columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            testID="custom-recipes-list"
-          />
-          <View style={styles.bottomButtonContainer}>
-            <Pressable style={styles.addButton} onPress={handleAddRecipe}>
-              <Plus size={20} color={Colors.white} />
-              <Text style={styles.addButtonText}>{t('addRecipe')}</Text>
-            </Pressable>
-          </View>
-        </>
+        <FlatList
+          ref={listRef}
+          key={columns}
+          data={customRecipes}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={columns}
+          columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 96 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          testID="custom-recipes-list"
+        />
       ) : (
         renderEmptyState()
       )}
+
+      <Pressable style={styles.fab} onPress={handleAddRecipe} testID="homemade-fab" accessibilityLabel={t('addRecipe')}>
+        <Plus size={26} color={Colors.white} />
+      </Pressable>
     </View>
   );
 }
@@ -135,6 +131,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
   },
   addButton: {
     flexDirection: 'row',

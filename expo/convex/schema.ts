@@ -25,6 +25,7 @@ const recipeFields = {
   totalTime: v.optional(v.string()),
   mode: v.optional(v.string()),
   ovenMode: v.optional(v.string()),
+  visibility: v.optional(v.string()), // custom recipes: "private" | "public"
 };
 
 // A recipe from the ingredient search (convex/recipes.ts) with per-search

@@ -26,6 +26,7 @@ const recipeArgs = {
   totalTime: v.optional(v.string()),
   mode: v.optional(v.string()),
   ovenMode: v.optional(v.string()),
+  visibility: v.optional(v.union(v.literal("private"), v.literal("public"))),
 };
 
 async function requireOwnRecipe(ctx: MutationCtx, id: Id<"customRecipes">) {
@@ -61,9 +62,10 @@ export const add = mutation({
       ...args,
     });
 
-    // Friend-feed event (unless the user hid their activity).
+    // Friend-feed event — only for public recipes, and only if the user
+    // hasn't hidden their activity globally.
     const user = await ctx.db.get(userId);
-    if (user?.feedVisibility !== "private") {
+    if (args.visibility === "public" && user?.feedVisibility !== "private") {
       await ctx.db.insert("activityEvents", {
         userId,
         type: "created_recipe",

@@ -20,9 +20,17 @@ import { Recipe } from "@/types/recipe";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 
 type RecipeMode = "cooking" | "baking";
+type Visibility = "private" | "public";
+
+interface FormIngredient {
+  name: string;
+  qty: string;
+  unit: string;
+}
 
 interface RecipeFormData {
   name: string;
+  visibility: Visibility | null;
   mode: RecipeMode | null;
   prepTime: string; // Vorbereitungszeit — both modes
   cookTime: string; // Kochzeit — cooking only
@@ -31,7 +39,7 @@ interface RecipeFormData {
   ovenMode: string; // Ofenmodus — baking only
   servings: string; // Portionen — cooking only
   category: string;
-  ingredients: { name: string; amount: string }[];
+  ingredients: FormIngredient[];
   steps: string[];
 }
 
@@ -47,6 +55,30 @@ const OVEN_MODES = [
   'Grill',
   'Umluftgrill',
 ];
+
+// Amount units for the ingredient picker. "" = no unit (bare number).
+const AMOUNT_UNITS = [
+  'g', 'kg', 'ml', 'l', 'Stück', 'EL', 'TL', 'Prise', 'Tasse', 'Bund',
+  'Dose', 'Packung', 'Zehe', 'Scheibe', 'nach Geschmack',
+];
+const NO_QTY_UNITS = new Set(['nach Geschmack']);
+
+const composeAmount = (ing: FormIngredient): string => {
+  if (NO_QTY_UNITS.has(ing.unit)) return ing.unit;
+  return [ing.qty.trim(), ing.unit.trim()].filter(Boolean).join(' ').trim();
+};
+
+// Split a stored amount string ("250 g", "1 Prise", "etwas") back into qty + unit.
+const parseAmount = (amount: string): { qty: string; unit: string } => {
+  const raw = (amount ?? '').trim();
+  if (!raw) return { qty: '', unit: '' };
+  const m = raw.match(/^([\d]+(?:[.,]\d+)?(?:\s*\/\s*\d+)?)\s*(.*)$/);
+  if (m) {
+    const unit = m[2].trim();
+    return { qty: m[1].trim(), unit: AMOUNT_UNITS.includes(unit) ? unit : unit };
+  }
+  return { qty: '', unit: NO_QTY_UNITS.has(raw) ? raw : raw };
+};
 
 const num = (v: string) => parseInt((v ?? '').replace(/[^0-9]/g, '') || '0', 10) || 0;
 
@@ -73,7 +105,7 @@ const freshModeSlice = (): ModeSlice => ({
   ovenMode: '',
   servings: '',
   category: '',
-  ingredients: [{ name: '', amount: '' }],
+  ingredients: [{ name: '', qty: '', unit: '' }],
   steps: [''],
 });
 
@@ -96,6 +128,7 @@ export default function AddRecipeScreen() {
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
+    visibility: null,
     mode: null,
     prepTime: "0",
     cookTime: "0",
@@ -104,12 +137,13 @@ export default function AddRecipeScreen() {
     ovenMode: "",
     servings: "",
     category: "",
-    ingredients: [{ name: "", amount: "" }],
+    ingredients: [{ name: "", qty: "", unit: "" }],
     steps: [""],
   });
 
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
   const [showOvenModePicker, setShowOvenModePicker] = useState<boolean>(false);
+  const [openUnitRow, setOpenUnitRow] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -130,7 +164,7 @@ export default function AddRecipeScreen() {
       if (prev.mode === next) return prev;
       if (prev.mode) savedByMode.current[prev.mode] = pickModeSlice(prev);
       const restored = savedByMode.current[next] ?? freshModeSlice();
-      return { name: prev.name, mode: next, ...restored };
+      return { name: prev.name, visibility: prev.visibility, mode: next, ...restored };
     });
   };
 
@@ -141,9 +175,12 @@ export default function AddRecipeScreen() {
   const invalid = useMemo(() => {
     const base = {
       name: isEmpty(formData.name),
+      visibility: formData.visibility === null,
       mode: formData.mode === null,
       category: isEmpty(formData.category),
-      ingredients: formData.ingredients.some((ing) => isEmpty(ing.name) || isEmpty(ing.amount)),
+      ingredients: formData.ingredients.some(
+        (ing) => isEmpty(ing.name) || isEmpty(composeAmount(ing)),
+      ),
       steps: formData.steps.some((step) => isEmpty(step)),
       cookTime: false,
       ovenTime: false,
@@ -180,6 +217,7 @@ export default function AddRecipeScreen() {
               : 'cooking';
         setFormData({
           name: recipe.name,
+          visibility: recipe.visibility === 'private' ? 'private' : 'public',
           mode: inferredMode,
           prepTime: recipe.prepTime?.replace(/[^0-9]/g, '') || '0',
           cookTime: recipe.cookTime?.replace(/[^0-9]/g, '') || '0',
@@ -188,7 +226,10 @@ export default function AddRecipeScreen() {
           ovenMode: recipe.ovenMode ?? '',
           servings: recipe.servings ? String(recipe.servings) : '',
           category: recipe.category,
-          ingredients: recipe.ingredients.map((ing) => ({ name: ing.name, amount: ing.amount })),
+          ingredients: recipe.ingredients.map((ing) => ({
+            name: ing.name,
+            ...parseAmount(ing.amount),
+          })),
           steps: recipe.steps.length ? recipe.steps : [''],
         });
       }
@@ -220,10 +261,11 @@ export default function AddRecipeScreen() {
       ovenMode: mode === 'baking' ? formData.ovenMode : undefined,
       servings: mode === 'cooking' ? num(formData.servings) : 1,
       category: formData.category,
+      visibility: formData.visibility ?? 'public',
       ingredients: formData.ingredients.map((ing, index) => ({
         id: `ingredient_${index}`,
         name: ing.name.trim(),
-        amount: ing.amount.trim(),
+        amount: composeAmount(ing),
         category: 'Custom',
       })),
       steps: formData.steps.map((step) => step.trim()),
@@ -247,7 +289,10 @@ export default function AddRecipeScreen() {
   };
 
   const addIngredient = () => {
-    setFormData((prev) => ({ ...prev, ingredients: [...prev.ingredients, { name: "", amount: "" }] }));
+    setFormData((prev) => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { name: "", qty: "", unit: "" }],
+    }));
   };
 
   const removeIngredient = (index: number) => {
@@ -259,10 +304,10 @@ export default function AddRecipeScreen() {
     }
   };
 
-  const updateIngredient = (index: number, field: 'name' | 'amount', value: string) => {
+  const updateIngredient = (index: number, patch: Partial<FormIngredient>) => {
     setFormData((prev) => ({
       ...prev,
-      ingredients: prev.ingredients.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)),
+      ingredients: prev.ingredients.map((ing, i) => (i === index ? { ...ing, ...patch } : ing)),
     }));
   };
 
@@ -391,7 +436,42 @@ export default function AddRecipeScreen() {
             />
           </View>
 
-          {/* Cooking vs. baking — nothing below shows until one is picked */}
+          {/* Private vs. public — nothing below shows until this is picked */}
+          <View style={styles.section}>
+            <Text style={styles.label}>
+              {t('recipeVisibility')} {invalid.visibility && (<Text style={styles.required}>*</Text>)}
+            </Text>
+            <View style={styles.modeRow}>
+              <Pressable
+                testID="visibility-private"
+                style={[styles.modeButton, formData.visibility === 'private' && styles.modeButtonActive]}
+                onPress={() => setFormData((prev) => ({ ...prev, visibility: 'private' }))}
+              >
+                <Text style={[styles.modeButtonText, formData.visibility === 'private' && styles.modeButtonTextActive]}>
+                  {t('visibilityPrivate')}
+                </Text>
+              </Pressable>
+              <Pressable
+                testID="visibility-public"
+                style={[styles.modeButton, formData.visibility === 'public' && styles.modeButtonActive]}
+                onPress={() => setFormData((prev) => ({ ...prev, visibility: 'public' }))}
+              >
+                <Text style={[styles.modeButtonText, formData.visibility === 'public' && styles.modeButtonTextActive]}>
+                  {t('visibilityPublic')}
+                </Text>
+              </Pressable>
+            </View>
+            <Text style={styles.visibilityHint}>
+              {formData.visibility === 'private'
+                ? t('visibilityPrivateHint')
+                : formData.visibility === 'public'
+                  ? t('visibilityPublicHint')
+                  : ''}
+            </Text>
+          </View>
+
+          {/* Cooking vs. baking — only after visibility is chosen */}
+          {formData.visibility !== null && (
           <View style={styles.section}>
             <Text style={styles.label}>
               {t('chooseRecipeType')} {invalid.mode && (<Text style={styles.required}>*</Text>)}
@@ -417,8 +497,9 @@ export default function AddRecipeScreen() {
               </Pressable>
             </View>
           </View>
+          )}
 
-          {formData.mode !== null && (
+          {formData.visibility !== null && formData.mode !== null && (
             <>
               {/* Times */}
               {renderTimeField('prepTime', t('preparationTime'), t('enterPreparationTime'), false)}
@@ -557,35 +638,81 @@ export default function AddRecipeScreen() {
                   </Pressable>
                 </View>
 
-                {formData.ingredients.map((ingredient, index) => (
-                  <View key={index} style={styles.ingredientRow}>
-                    <TextInput
-                      testID={`input-ingredient-name-${index}`}
-                      style={[styles.input, styles.ingredientNameInput]}
-                      value={ingredient.name}
-                      onChangeText={(text) => updateIngredient(index, 'name', text)}
-                      placeholder={t('enterIngredientName')}
-                      placeholderTextColor={Colors.textLight}
-                    />
-                    <TextInput
-                      testID={`input-ingredient-amount-${index}`}
-                      style={[styles.input, styles.ingredientAmountInput]}
-                      value={ingredient.amount}
-                      onChangeText={(text) => updateIngredient(index, 'amount', text)}
-                      placeholder={t('enterAmount')}
-                      placeholderTextColor={Colors.textLight}
-                    />
-                    {formData.ingredients.length > 1 && (
-                      <Pressable
-                        testID={`button-remove-ingredient-${index}`}
-                        onPress={() => removeIngredient(index)}
-                        style={styles.removeButton}
-                      >
-                        <Minus size={16} color="#ef4444" />
-                      </Pressable>
-                    )}
-                  </View>
-                ))}
+                {formData.ingredients.map((ingredient, index) => {
+                  const noQty = NO_QTY_UNITS.has(ingredient.unit);
+                  return (
+                    <View key={index}>
+                      <View style={styles.ingredientRow}>
+                        <TextInput
+                          testID={`input-ingredient-name-${index}`}
+                          style={[styles.input, styles.ingredientNameInput]}
+                          value={ingredient.name}
+                          onChangeText={(text) => updateIngredient(index, { name: text })}
+                          placeholder={t('enterIngredientName')}
+                          placeholderTextColor={Colors.textLight}
+                        />
+                        {!noQty && (
+                          <TextInput
+                            testID={`input-ingredient-qty-${index}`}
+                            style={[styles.input, styles.ingredientQtyInput]}
+                            value={ingredient.qty}
+                            onChangeText={(text) =>
+                              updateIngredient(index, { qty: text.replace(/[^0-9.,/]/g, '') })
+                            }
+                            placeholder={t('amountShort')}
+                            placeholderTextColor={Colors.textLight}
+                            keyboardType="numeric"
+                          />
+                        )}
+                        <Pressable
+                          testID={`button-ingredient-unit-${index}`}
+                          style={[styles.input, styles.ingredientUnitButton, noQty && styles.ingredientUnitWide]}
+                          onPress={() => setOpenUnitRow(openUnitRow === index ? null : index)}
+                        >
+                          <Text
+                            style={[styles.categoryText, !ingredient.unit && styles.placeholder]}
+                            numberOfLines={1}
+                          >
+                            {ingredient.unit
+                              ? translateText(currentLanguage, ingredient.unit)
+                              : t('unitLabel')}
+                          </Text>
+                        </Pressable>
+                        {formData.ingredients.length > 1 && (
+                          <Pressable
+                            testID={`button-remove-ingredient-${index}`}
+                            onPress={() => removeIngredient(index)}
+                            style={styles.removeButton}
+                          >
+                            <Minus size={16} color="#ef4444" />
+                          </Pressable>
+                        )}
+                      </View>
+                      {openUnitRow === index && (
+                        <View style={styles.categoryPicker}>
+                          {AMOUNT_UNITS.map((u) => (
+                            <Pressable
+                              key={u}
+                              testID={`option-unit-${index}-${u}`}
+                              style={styles.categoryOption}
+                              onPress={() => {
+                                updateIngredient(index, {
+                                  unit: u,
+                                  ...(NO_QTY_UNITS.has(u) ? { qty: '' } : {}),
+                                });
+                                setOpenUnitRow(null);
+                              }}
+                            >
+                              <Text style={styles.categoryOptionText}>
+                                {translateText(currentLanguage, u)}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
 
               {/* Steps */}
@@ -803,8 +930,23 @@ const styles = StyleSheet.create({
   ingredientNameInput: {
     flex: 2,
   },
-  ingredientAmountInput: {
+  ingredientQtyInput: {
+    width: 56,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  ingredientUnitButton: {
+    width: 96,
+    justifyContent: 'center',
+  },
+  ingredientUnitWide: {
     flex: 1,
+    width: undefined,
+  },
+  visibilityHint: {
+    fontSize: 13,
+    color: Colors.textLight,
+    marginTop: 8,
   },
   stepRow: {
     flexDirection: 'row',

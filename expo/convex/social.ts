@@ -912,9 +912,15 @@ export const userPublic = query({
       };
     }
 
+    // Private custom recipes are hidden from friends (only the owner sees them).
+    const visibleCustom = isSelf
+      ? customRecipes
+      : customRecipes.filter((r) => r.visibility !== "private");
+    const visibleCustomFavs = visibleCustom.filter((r) => r.isFavorite);
+
     // Cooked list: only the custom recipes we can resolve (external cooked
     // recipes aren't snapshotted per user). Count stat stays the full total.
-    const customById = new Map(customRecipes.map((r) => [r._id as string, r]));
+    const customById = new Map(visibleCustom.map((r) => [r._id as string, r]));
     const cooked = cookedRows
       .map((row) => {
         const cr = customById.get(row.recipeId);
@@ -943,8 +949,8 @@ export const userPublic = query({
 
     return {
       ...base,
-      recipes: customRecipes.map(customToRecipe),
-      favorites: [...favRows.map((r) => r.recipe), ...customFavs.map(customToRecipe)],
+      recipes: visibleCustom.map(customToRecipe),
+      favorites: [...favRows.map((r) => r.recipe), ...visibleCustomFavs.map(customToRecipe)],
       cooked,
       friendsList,
     };

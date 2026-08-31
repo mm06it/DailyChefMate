@@ -21,6 +21,8 @@ export interface Recipe {
   // Add Recipe form shows. `ovenMode` is the oven setting for baking recipes.
   mode?: string;
   ovenMode?: string;
+  // Custom recipes only: 'private' (not shown to friends) or 'public'.
+  visibility?: string;
   // Set only on results from the ingredient search: which of the picked
   // ingredients this recipe uses, and which it still needs.
   usedIngredients?: string[];

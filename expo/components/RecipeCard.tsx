@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { CalendarCheck, CalendarPlus, Star, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Globe, Lock, Star, UtensilsCrossed } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -134,33 +134,47 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             <Text style={styles.name}>{translatedName}</Text>
           </View>
           <View style={styles.cardActions}>
-            <Pressable
-              onPress={() => setPlanModalVisible(true)}
-              hitSlop={10}
-              style={styles.favoriteButton}
-              testID={`recipe-card-${recipe.id}-plan`}
-              accessibilityLabel={t('addToWeekPlan')}
-            >
-              <Animated.View style={{ transform: [{ scale: planPulse }] }}>
-                {justPlanned || inPlan ? (
-                  <CalendarCheck size={22} color={Colors.success} />
+            <View style={styles.cardActionIcons}>
+              <Pressable
+                onPress={() => setPlanModalVisible(true)}
+                hitSlop={10}
+                style={styles.favoriteButton}
+                testID={`recipe-card-${recipe.id}-plan`}
+                accessibilityLabel={t('addToWeekPlan')}
+              >
+                <Animated.View style={{ transform: [{ scale: planPulse }] }}>
+                  {justPlanned || inPlan ? (
+                    <CalendarCheck size={22} color={Colors.success} />
+                  ) : (
+                    <CalendarPlus size={22} color={Colors.textLight} />
+                  )}
+                </Animated.View>
+              </Pressable>
+              <Pressable
+                onPress={handleFavoritePress}
+                hitSlop={10}
+                style={styles.favoriteButton}
+                testID={`recipe-card-${recipe.id}-favorite`}
+              >
+                <Star
+                  size={22}
+                  color={favorited ? Colors.star : Colors.textLight}
+                  fill={favorited ? Colors.star : "none"}
+                />
+              </Pressable>
+            </View>
+            {(recipe.visibility === "private" || recipe.visibility === "public") && (
+              <View style={styles.visibilityRow}>
+                {recipe.visibility === "private" ? (
+                  <Lock size={12} color={Colors.textLight} />
                 ) : (
-                  <CalendarPlus size={22} color={Colors.textLight} />
+                  <Globe size={12} color={Colors.textLight} />
                 )}
-              </Animated.View>
-            </Pressable>
-            <Pressable
-              onPress={handleFavoritePress}
-              hitSlop={10}
-              style={styles.favoriteButton}
-              testID={`recipe-card-${recipe.id}-favorite`}
-            >
-              <Star
-                size={22}
-                color={favorited ? Colors.star : Colors.textLight}
-                fill={favorited ? Colors.star : "none"}
-              />
-            </Pressable>
+                <Text style={styles.visibilityText}>
+                  {recipe.visibility === "private" ? t("visibilityPrivate") : t("visibilityPublic")}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
         <View style={styles.details}>
@@ -276,9 +290,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cardActions: {
+    alignItems: "flex-end",
+  },
+  cardActionIcons: {
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
+  },
+  visibilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginTop: 2,
+  },
+  visibilityText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textLight,
   },
   favoriteButton: {
     padding: 6,
