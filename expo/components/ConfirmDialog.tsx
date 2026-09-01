@@ -1,7 +1,11 @@
 import React, { memo } from 'react';
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
-import Colors from '@/constants/colors';
+import { Modal, View, StyleSheet } from 'react-native';
+
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useLanguage } from '@/hooks/use-language';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -9,6 +13,7 @@ interface ConfirmDialogProps {
   message?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   testID?: string;
@@ -20,39 +25,44 @@ function ConfirmDialogComponent({
   message,
   confirmLabel,
   cancelLabel,
+  destructive = true,
   onConfirm,
   onCancel,
   testID,
 }: ConfirmDialogProps) {
   const { t } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onCancel}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card} testID={testID ?? 'confirm-dialog'}>
-          {!!title && <Text style={styles.title}>{title}</Text>}
-          {!!message && <Text style={styles.message}>{message}</Text>}
+          {!!title && (
+            <Text variant="h3" center>
+              {title}
+            </Text>
+          )}
+          {!!message && (
+            <Text variant="body" color="secondary" center style={styles.message}>
+              {message}
+            </Text>
+          )}
 
           <View style={styles.actions}>
-            <Pressable
-              style={[styles.button, styles.cancel]}
+            <Button
+              label={cancelLabel ?? t('cancel') ?? 'Abbrechen'}
+              variant="secondary"
               onPress={onCancel}
               testID="confirm-dialog-cancel"
-            >
-              <Text style={styles.cancelText}>{cancelLabel ?? t('cancel') ?? 'Abbrechen'}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.button, styles.confirm]}
+              style={styles.flex}
+            />
+            <Button
+              label={confirmLabel ?? t('delete') ?? 'OK'}
+              variant={destructive ? 'danger' : 'primary'}
               onPress={onConfirm}
               testID="confirm-dialog-confirm"
-            >
-              <Text style={styles.confirmText}>{confirmLabel ?? t('delete') ?? 'OK'}</Text>
-            </Pressable>
+              style={styles.flex}
+            />
           </View>
         </View>
       </View>
@@ -60,63 +70,30 @@ function ConfirmDialogComponent({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    padding: 20,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    color: Colors.text,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  cancel: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  confirm: {
-    backgroundColor: Colors.primary,
-  },
-  cancelText: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  confirmText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: t.space[6],
+    },
+    card: {
+      width: '100%',
+      maxWidth: 420,
+      backgroundColor: t.surfaceRaised,
+      borderRadius: t.radius.lg,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      padding: t.space[6],
+      gap: t.space[3],
+      ...t.elevation.lg,
+    },
+    message: { marginBottom: t.space[3] },
+    actions: { flexDirection: 'row', gap: t.space[3] },
+    flex: { flex: 1 },
+  });
 
 export const ConfirmDialog = memo(ConfirmDialogComponent);
 export type { ConfirmDialogProps };

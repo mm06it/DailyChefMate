@@ -2,7 +2,7 @@ import { Star } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import { useTheme } from "@/hooks/use-theme";
 
 interface RatingStarsProps {
   value: number; // 0..5 (may be fractional for display)
@@ -12,6 +12,7 @@ interface RatingStarsProps {
 }
 
 export default function RatingStars({ value, size = 18, onChange, gap = 2 }: RatingStarsProps) {
+  const { theme } = useTheme();
   const rounded = Math.round(value);
   return (
     <View style={[styles.row, { gap }]}>
@@ -20,8 +21,8 @@ export default function RatingStars({ value, size = 18, onChange, gap = 2 }: Rat
         const star = (
           <Star
             size={size}
-            color={filled ? Colors.star : Colors.textLight}
-            fill={filled ? Colors.star : "none"}
+            color={filled ? theme.star : theme.textMuted}
+            fill={filled ? theme.star : "none"}
           />
         );
         return onChange ? (

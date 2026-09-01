@@ -23,7 +23,7 @@ import React, {
 import { Animated, Pressable, StyleSheet, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Colors from "@/constants/colors";
+import { useTheme } from "@/hooks/use-theme";
 
 export type ToastIcon =
   | "check"
@@ -77,6 +77,7 @@ interface ToastState {
 const VISIBLE_MS = 2600;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
   const [toast, setToast] = useState<ToastState | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,7 +113,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   };
 
   const Icon = toast ? ICONS[toast.icon] : null;
-  const accent = toast?.variant === "info" ? Colors.accent : Colors.success;
+  const accent = toast?.variant === "info" ? theme.accent : theme.success;
 
   return (
     <ToastCtx.Provider value={{ showToast }}>
@@ -132,11 +133,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             },
           ]}
         >
-          <Pressable style={styles.toast} onPress={dismiss}>
+          <Pressable
+            style={[styles.toast, { backgroundColor: theme.textPrimary, ...theme.elevation.lg }]}
+            onPress={dismiss}
+          >
             <Animated.View style={[styles.iconWrap, { backgroundColor: accent }]}>
-              <Icon size={16} color={Colors.white} />
+              <Icon size={16} color="#FFFFFF" />
             </Animated.View>
-            <Text style={styles.text} numberOfLines={2}>
+            <Text
+              style={[styles.text, { color: theme.bg, fontFamily: theme.font.bodySemibold }]}
+              numberOfLines={2}
+            >
               {toast.message}
             </Text>
           </Pressable>
@@ -159,15 +166,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     maxWidth: 420,
-    backgroundColor: Colors.text,
     borderRadius: 999,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
   },
   iconWrap: {
     width: 26,
@@ -176,5 +177,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  text: { color: Colors.white, fontSize: 14, fontWeight: "600", flexShrink: 1 },
+  text: { fontSize: 14, flexShrink: 1 },
 });

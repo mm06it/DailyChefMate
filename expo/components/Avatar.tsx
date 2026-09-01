@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { AVATAR_COLORS } from "@/constants/avatar";
-import Colors from "@/constants/colors";
+import { useTheme } from "@/hooks/use-theme";
 
 // Deterministic initials avatar — no image upload / file storage. Users can
 // override the background colour and swap the initials for an emoji in
@@ -47,6 +47,7 @@ interface AvatarProps {
 }
 
 export default function Avatar({ name, initials, size = 40, color, emoji }: AvatarProps) {
+  const { theme } = useTheme();
   const { bg, text, light } = useMemo(() => {
     const key = (name || "?").trim().toLowerCase();
     const chosen = color || PALETTE[hash(key) % PALETTE.length];
@@ -62,13 +63,22 @@ export default function Avatar({ name, initials, size = 40, color, emoji }: Avat
       style={[
         styles.circle,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
-        light && { borderWidth: 1, borderColor: Colors.border },
+        light && { borderWidth: 1, borderColor: theme.border },
       ]}
     >
       {emoji ? (
         <Text style={{ fontSize: size * 0.5 }}>{emoji}</Text>
       ) : (
-        <Text style={[styles.text, { fontSize: size * 0.4, color: light ? Colors.text : "#FFFFFF" }]}>
+        <Text
+          style={[
+            styles.text,
+            {
+              fontFamily: theme.font.bodyBold,
+              fontSize: size * 0.4,
+              color: light ? theme.textPrimary : "#FFFFFF",
+            },
+          ]}
+        >
           {text}
         </Text>
       )}
