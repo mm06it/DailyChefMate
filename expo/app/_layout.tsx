@@ -141,7 +141,16 @@ function RootLayoutNav() {
   }
 
   const stack = (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
+    <Stack
+      screenOptions={{
+        headerBackTitle: "Back",
+        headerStyle: { backgroundColor: theme.bg },
+        headerTintColor: theme.textPrimary,
+        headerTitleStyle: { color: theme.textPrimary, fontFamily: theme.font.bodySemibold },
+        headerShadowVisible: false,
+        contentStyle: { backgroundColor: theme.bg },
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="recipe-detail" options={{ title: t('recipeDetail') }} />
       <Stack.Screen name="generated-recipes" options={{ title: t('generatedRecipesTitle') }} />

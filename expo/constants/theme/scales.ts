@@ -166,5 +166,5 @@ export const layout = {
   containerContent: 720,
   containerWide: 1080,
   sidebarWidth: 248,
-  tabBarHeight: 56,
+  tabBarHeight: 64,
 } as const;

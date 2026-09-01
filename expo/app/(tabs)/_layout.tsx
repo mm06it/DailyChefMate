@@ -1,7 +1,6 @@
 import { Tabs } from "expo-router";
 import { BookOpen, CalendarDays, Refrigerator, ShieldCheck, Star, Users } from "lucide-react-native";
 import React from "react";
-import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useLanguage } from "@/hooks/use-language";
@@ -30,7 +29,7 @@ export default function TabLayout() {
           : {
               height: barHeight,
               paddingBottom: insets.bottom,
-              paddingTop: 6,
+              paddingTop: 8,
               backgroundColor: theme.surface,
               borderTopWidth: theme.borderWidth.hairline,
               borderTopColor: theme.border,
@@ -41,8 +40,8 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontFamily: theme.font.bodyMedium,
           fontSize: 11,
-          marginBottom: Platform.OS === "ios" ? 0 : 4,
         },
+        tabBarIconStyle: { marginTop: 2 },
         headerShown: false,
       }}
     >
