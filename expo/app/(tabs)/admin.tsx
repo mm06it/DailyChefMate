@@ -163,7 +163,8 @@ export default function AdminPanelScreen() {
   const ADMIN_TIERS: { key: string; label: string; cats: string[] }[] = [
     { key: "high", label: t("prioTierHigh"), cats: ["bug"] },
     { key: "med", label: t("prioTierMedium"), cats: ["report_user"] },
-    { key: "msg", label: t("prioTierMessages"), cats: ["feedback", "other"] },
+    { key: "feedback", label: t("adminCatFeedback"), cats: ["feedback"] },
+    { key: "other", label: t("adminCatOther"), cats: ["other"] },
   ];
 
   const adminCard = (m: NonNullable<typeof adminInbox>[number]) => (
