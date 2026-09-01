@@ -11,7 +11,9 @@ import CollapsingTabHeader, {
   resetHeader,
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
@@ -22,6 +24,8 @@ import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 const PAGE_SIZE = 8;
 
 export default function GeneratedRecipesScreen() {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { t, currentLanguage } = useLanguage();
   const { generateRecipesFromIngredients, getSelectedIngredients } = useDailyChefMateStore();
   const [onlineRecipes, setOnlineRecipes] = useState<Recipe[]>([]);
@@ -122,7 +126,7 @@ export default function GeneratedRecipesScreen() {
     if (!hasMoreRecipes) {
       return (
         <View style={styles.footerContainer}>
-          <ChefHat size={24} color={Colors.textLight} />
+          <ChefHat size={24} color={theme.textMuted} />
           <Text style={styles.footerText}>
             {t('allRecipesLoaded') || 'You\'ve seen all available recipes!'}
           </Text>
@@ -136,7 +140,7 @@ export default function GeneratedRecipesScreen() {
     if (isLoadingMore) {
       return (
         <View style={styles.loadingMoreContainer}>
-          <ActivityIndicator size="small" color={Colors.primary} />
+          <ActivityIndicator size="small" color={theme.accent} />
           <Text style={styles.loadingMoreText}>
             {t('loadingMoreRecipes') || 'Loading more delicious recipes...'}
           </Text>
@@ -146,7 +150,7 @@ export default function GeneratedRecipesScreen() {
     
     return (
       <Pressable style={styles.loadMoreButton} onPress={loadMoreRecipes}>
-        <ChefHat size={20} color={Colors.white} />
+        <ChefHat size={20} color={theme.textOnAccent} />
         <Text style={styles.loadMoreButtonText}>
           {t('loadMoreRecipes') || 'Load More Recipes'}
         </Text>
@@ -180,9 +184,9 @@ export default function GeneratedRecipesScreen() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <ActivityIndicator size="small" color={Colors.white} />
+              <ActivityIndicator size="small" color={theme.textOnAccent} />
             ) : (
-              <RefreshCw size={16} color={Colors.white} />
+              <RefreshCw size={16} color={theme.textOnAccent} />
             )}
             <Text style={styles.refreshButtonText}>
               {isLoading ? (t('searching') || 'Searching...') : (t('refreshRecipes') || 'Refresh Recipes')}
@@ -193,7 +197,7 @@ export default function GeneratedRecipesScreen() {
       
       {isLoading && allRecipes.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={theme.accent} />
           <Text style={styles.loadingText}>
             {t('searchingRecipes') || 'Searching for recipes with your ingredients...'}
           </Text>
@@ -266,10 +270,10 @@ export default function GeneratedRecipesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: t.bg,
   },
   body: {
     flex: 1,
@@ -280,28 +284,28 @@ const styles = StyleSheet.create({
   },
   ingredientsInfo: {
     padding: 16,
-    backgroundColor: Colors.card,
+    backgroundColor: t.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: t.border,
     gap: 12,
   },
   ingredientsText: {
     fontSize: 14,
-    color: Colors.textLight,
+    color: t.textSecondary,
     lineHeight: 20,
   },
   refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
     gap: 8,
   },
   refreshButtonText: {
-    color: Colors.white,
+    color: t.textOnAccent,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -314,7 +318,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: Colors.textLight,
+    color: t.textSecondary,
     textAlign: 'center',
   },
   listContent: {
@@ -332,13 +336,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: "600",
-    color: Colors.text,
+    color: t.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 16,
-    color: Colors.textLight,
+    color: t.textSecondary,
     textAlign: "center",
     lineHeight: 22,
   },
@@ -349,14 +353,14 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     fontSize: 14,
-    color: Colors.textLight,
+    color: t.textSecondary,
     textAlign: 'center',
   },
   loadMoreButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
     marginHorizontal: 16,
     marginVertical: 20,
     paddingVertical: 12,
@@ -365,7 +369,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadMoreButtonText: {
-    color: Colors.white,
+    color: t.textOnAccent,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -377,12 +381,12 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: t.textPrimary,
     textAlign: 'center',
   },
   footerSubtext: {
     fontSize: 14,
-    color: Colors.textLight,
+    color: t.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },

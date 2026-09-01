@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
   TextInput,
-  TouchableOpacity,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
   Switch,
 } from 'react-native';
@@ -14,11 +11,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile, Moon } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
+
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useTheme, type ThemeMode } from '@/hooks/use-theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useSocial } from '@/hooks/use-social';
 import { useIsDesktop } from '@/hooks/use-responsive';
+import type { Theme } from '@/constants/theme';
 import InlineConfirm from '@/components/InlineConfirm';
 import CollapsingTabHeader, {
   resetHeader,
@@ -27,12 +27,12 @@ import CollapsingTabHeader, {
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 import Avatar from '@/components/Avatar';
-import Colors from '@/constants/colors';
 import { AVATAR_COLORS, AVATAR_EMOJIS } from '@/constants/avatar';
 import { api } from '@/convex/_generated/api';
+import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Text } from '@/components/ui/Text';
 
-// Mirror of convex/users.ts's USERNAME_PATTERN so an obviously bad value is
-// rejected before the round trip.
 const USERNAME_PATTERN = /^[a-z0-9_-]{3,20}$/;
 
 type Feedback = { type: 'error' | 'success'; text: string } | null;
@@ -44,14 +44,10 @@ export default function SettingsScreen() {
 
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
-  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const { theme, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const convex = useConvex();
 
-  const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-    { value: 'system', label: t('themeSystem') },
-    { value: 'light', label: t('themeLight') },
-    { value: 'dark', label: t('themeDark') },
-  ];
   const updateUsername = useMutation(api.users.updateUsername);
   const { myProfile, setSocialProfile } = useSocial();
 
@@ -111,8 +107,6 @@ export default function SettingsScreen() {
     setSaving(true);
     setFeedback(null);
     try {
-      // Convex Auth's prod deployment redacts the mutation's error text, so
-      // check availability up front to give a precise "taken" message.
       const available = await convex.mutation(api.users.usernameAvailable, { username: next });
       if (available === false) {
         setFeedback({ type: 'error', text: t('usernameTaken') });
@@ -132,9 +126,6 @@ export default function SettingsScreen() {
       } else if (message.includes('USERNAME_TAKEN')) {
         setFeedback({ type: 'error', text: t('usernameTaken') });
       } else {
-        // Prod hides the real reason ("Server Error"). Re-check availability
-        // so a race that grabbed the name still shows "taken", not a generic
-        // failure.
         const stillFree = await convex
           .mutation(api.users.usernameAvailable, { username: next })
           .catch(() => null);
@@ -156,514 +147,321 @@ export default function SettingsScreen() {
         options={{
           title: t('settings'),
           headerShown: isDesktop,
-          headerStyle: { backgroundColor: Colors.background },
-          headerTintColor: Colors.text,
+          headerStyle: { backgroundColor: theme.bg },
+          headerTintColor: theme.textPrimary,
         }}
       />
-      {/* Settings keeps the header pinned — no hide-on-scroll here. */}
       {!isDesktop && <CollapsingTabHeader showBack />}
-      <ScrollView
-        contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}
-      >
+      <ScrollView contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}>
         <ResponsiveContainer maxWidth={640}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('account')}</Text>
+          <View style={styles.section}>
+            <Text variant="h2" style={styles.sectionTitle}>{t('account')}</Text>
 
-          <View style={[styles.settingItem, styles.settingItemColumn]}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLeft}>
-                <User size={20} color={Colors.textLight} />
-                <Text style={styles.settingLabel}>{t('username')}</Text>
+            <View style={[styles.settingItem, styles.settingItemColumn]}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <User size={20} color={theme.textMuted} />
+                  <Text variant="body" style={styles.settingLabel}>{t('username')}</Text>
+                </View>
+                {editing ? (
+                  <TextInput
+                    style={styles.usernameInput}
+                    value={draft}
+                    onChangeText={setDraft}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="username"
+                    maxLength={20}
+                    editable={!saving}
+                    onSubmitEditing={saveUsername}
+                    returnKeyType="done"
+                    placeholder={t('username')}
+                    placeholderTextColor={theme.textMuted}
+                    testID="settings-username-input"
+                  />
+                ) : (
+                  <Pressable style={styles.settingValueRow} onPress={startEditing} testID="settings-username-edit">
+                    <Text variant="body" color="secondary">{currentUsername || '-'}</Text>
+                    <Pencil size={16} color={theme.textMuted} />
+                  </Pressable>
+                )}
               </View>
-              {editing ? (
-                <TextInput
-                  style={styles.usernameInput}
-                  value={draft}
-                  onChangeText={setDraft}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="username"
-                  maxLength={20}
-                  editable={!saving}
-                  onSubmitEditing={saveUsername}
-                  returnKeyType="done"
-                  placeholder={t('username')}
-                  placeholderTextColor={Colors.textLight}
-                  testID="settings-username-input"
-                />
-              ) : (
-                <TouchableOpacity
-                  style={styles.settingValueRow}
-                  onPress={startEditing}
-                  testID="settings-username-edit"
+
+              {editing && (
+                <View style={styles.editActions}>
+                  <Button label={t('cancel')} variant="secondary" size="sm" disabled={saving} onPress={cancelEditing} testID="settings-username-cancel" />
+                  <Button label={t('save')} size="sm" loading={saving} onPress={saveUsername} testID="settings-username-save" />
+                </View>
+              )}
+
+              {feedback && (
+                <Text
+                  variant="bodySm"
+                  color={feedback.type === 'error' ? 'danger' : 'success'}
+                  style={styles.feedbackText}
+                  testID="settings-username-feedback"
                 >
-                  <Text style={styles.settingValue}>{currentUsername || '-'}</Text>
-                  <Pencil size={16} color={Colors.textLight} />
-                </TouchableOpacity>
+                  {feedback.text}
+                </Text>
               )}
             </View>
 
-            {editing && (
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  style={[styles.editButton, styles.cancelButton]}
-                  onPress={cancelEditing}
-                  disabled={saving}
-                  testID="settings-username-cancel"
-                >
-                  <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.editButton, styles.saveButton, saving && styles.saveButtonDisabled]}
-                  onPress={saveUsername}
-                  disabled={saving}
-                  testID="settings-username-save"
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.saveButtonText}>{t('save')}</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {feedback && (
-              <Text
-                style={[
-                  styles.feedbackText,
-                  feedback.type === 'error' ? styles.feedbackError : styles.feedbackSuccess,
-                ]}
-                testID="settings-username-feedback"
-              >
-                {feedback.text}
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <User size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('email')}</Text>
-            </View>
-            <Text style={styles.settingValue}>{user?.email}</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('preferences')}</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Globe size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('language')}</Text>
-            </View>
-            <LanguageSelector />
-          </View>
-
-          <View style={[styles.settingItem, styles.settingItemColumn]}>
-            <View style={styles.settingRow}>
+            <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
-                <Moon size={20} color={Colors.textLight} />
-                <Text style={styles.settingLabel}>{t('appearance')}</Text>
+                <User size={20} color={theme.textMuted} />
+                <Text variant="body" style={styles.settingLabel}>{t('email')}</Text>
+              </View>
+              <Text variant="body" color="secondary">{user?.email}</Text>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text variant="h2" style={styles.sectionTitle}>{t('preferences')}</Text>
+
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <Globe size={20} color={theme.textMuted} />
+                <Text variant="body" style={styles.settingLabel}>{t('language')}</Text>
+              </View>
+              <LanguageSelector />
+            </View>
+
+            <View style={[styles.settingItem, styles.settingItemColumn]}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Moon size={20} color={theme.textMuted} />
+                  <Text variant="body" style={styles.settingLabel}>{t('appearance')}</Text>
+                </View>
+              </View>
+              <View style={styles.themeToggle}>
+                <SegmentedControl<ThemeMode>
+                  options={[
+                    { value: 'system', label: t('themeSystem') },
+                    { value: 'light', label: t('themeLight') },
+                    { value: 'dark', label: t('themeDark') },
+                  ]}
+                  value={themeMode}
+                  onChange={setThemeMode}
+                  testID="settings-theme"
+                />
               </View>
             </View>
-            <View style={styles.themeToggle}>
-              {THEME_OPTIONS.map((opt) => {
-                const active = themeMode === opt.value;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    style={[styles.themeOption, active && styles.themeOptionActive]}
-                    onPress={() => setThemeMode(opt.value)}
-                    testID={`settings-theme-${opt.value}`}
-                  >
-                    <Text
-                      style={[styles.themeOptionText, active && styles.themeOptionTextActive]}
-                    >
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('socialProfile')}</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <User size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('displayName')}</Text>
-            </View>
-            <TextInput
-              style={styles.usernameInput}
-              value={displayNameDraft}
-              onChangeText={setDisplayNameDraft}
-              maxLength={40}
-              placeholder={user?.username ?? ''}
-              placeholderTextColor={Colors.textLight}
-              onEndEditing={() => setSocialProfile({ displayName: displayNameDraft.trim() })}
-              returnKeyType="done"
-              testID="settings-displayname-input"
-            />
           </View>
 
-          <View style={styles.avatarBlock}>
-            <View style={styles.settingLeft}>
-              <Smile size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('avatar')}</Text>
-            </View>
+          <View style={styles.section}>
+            <Text variant="h2" style={styles.sectionTitle}>{t('socialProfile')}</Text>
 
-            <View style={styles.avatarPreviewWrap}>
-              <Avatar
-                size={64}
-                name={displayNameDraft || currentUsername || '?'}
-                initials={myProfile?.initials}
-                color={myProfile?.avatarColor ?? undefined}
-                emoji={myProfile?.avatarEmoji ?? undefined}
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <User size={20} color={theme.textMuted} />
+                <Text variant="body" style={styles.settingLabel}>{t('displayName')}</Text>
+              </View>
+              <TextInput
+                style={styles.usernameInput}
+                value={displayNameDraft}
+                onChangeText={setDisplayNameDraft}
+                maxLength={40}
+                placeholder={user?.username ?? ''}
+                placeholderTextColor={theme.textMuted}
+                onEndEditing={() => setSocialProfile({ displayName: displayNameDraft.trim() })}
+                returnKeyType="done"
+                testID="settings-displayname-input"
               />
             </View>
 
-            <Text style={styles.avatarSubLabel}>{t('avatarSymbol')}</Text>
-            <View style={styles.avatarGrid}>
-              <Pressable
-                style={[styles.emojiChip, !myProfile?.avatarEmoji && styles.emojiChipActive]}
-                onPress={() => setSocialProfile({ avatarEmoji: '' })}
-                testID="avatar-emoji-initials"
-              >
-                <Text style={styles.emojiChipAa}>{t('avatarInitialsOption')}</Text>
-              </Pressable>
-              {AVATAR_EMOJIS.map((e) => (
+            <View style={styles.avatarBlock}>
+              <View style={styles.settingLeft}>
+                <Smile size={20} color={theme.textMuted} />
+                <Text variant="body" style={styles.settingLabel}>{t('avatar')}</Text>
+              </View>
+
+              <View style={styles.avatarPreviewWrap}>
+                <Avatar
+                  size={64}
+                  name={displayNameDraft || currentUsername || '?'}
+                  initials={myProfile?.initials}
+                  color={myProfile?.avatarColor ?? undefined}
+                  emoji={myProfile?.avatarEmoji ?? undefined}
+                />
+              </View>
+
+              <Text variant="label" color="secondary" style={styles.avatarSubLabel}>{t('avatarSymbol')}</Text>
+              <View style={styles.avatarGrid}>
                 <Pressable
-                  key={e}
-                  style={[styles.emojiChip, myProfile?.avatarEmoji === e && styles.emojiChipActive]}
-                  onPress={() => setSocialProfile({ avatarEmoji: e })}
-                  testID={`avatar-emoji-${e}`}
+                  style={[styles.emojiChip, !myProfile?.avatarEmoji && styles.emojiChipActive]}
+                  onPress={() => setSocialProfile({ avatarEmoji: '' })}
+                  testID="avatar-emoji-initials"
                 >
-                  <Text style={styles.emojiChipText}>{e}</Text>
+                  <Text variant="label" weight="bold">{t('avatarInitialsOption')}</Text>
                 </Pressable>
-              ))}
+                {AVATAR_EMOJIS.map((e) => (
+                  <Pressable
+                    key={e}
+                    style={[styles.emojiChip, myProfile?.avatarEmoji === e && styles.emojiChipActive]}
+                    onPress={() => setSocialProfile({ avatarEmoji: e })}
+                    testID={`avatar-emoji-${e}`}
+                  >
+                    <Text style={styles.emojiChipText}>{e}</Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              <Text variant="label" color="secondary" style={styles.avatarSubLabel}>{t('avatarBackground')}</Text>
+              <View style={styles.avatarGrid}>
+                {AVATAR_COLORS.map((c) => (
+                  <Pressable
+                    key={c}
+                    style={[
+                      styles.swatch,
+                      c === 'transparent' ? styles.swatchTransparent : { backgroundColor: c },
+                      myProfile?.avatarColor === c && styles.swatchActive,
+                    ]}
+                    onPress={() => setSocialProfile({ avatarColor: c })}
+                    testID={`avatar-color-${c}`}
+                  >
+                    {c === 'transparent' && <Text variant="caption" weight="bold" color="secondary">Aa</Text>}
+                  </Pressable>
+                ))}
+              </View>
             </View>
 
-            <Text style={styles.avatarSubLabel}>{t('avatarBackground')}</Text>
-            <View style={styles.avatarGrid}>
-              {AVATAR_COLORS.map((c) => (
-                <Pressable
-                  key={c}
-                  style={[
-                    styles.swatch,
-                    c === 'transparent'
-                      ? styles.swatchTransparent
-                      : { backgroundColor: c },
-                    myProfile?.avatarColor === c && styles.swatchActive,
-                  ]}
-                  onPress={() => setSocialProfile({ avatarColor: c })}
-                  testID={`avatar-color-${c}`}
-                >
-                  {c === 'transparent' && <Text style={styles.swatchTransparentMark}>Aa</Text>}
-                </Pressable>
-              ))}
+            {(['discoverable', 'showActivity', 'friendListVisible'] as const).map((key) => {
+              const Icon = key === 'showActivity' ? Eye : Users;
+              const value =
+                key === 'discoverable'
+                  ? (myProfile ? myProfile.discoverable : true)
+                  : key === 'showActivity'
+                    ? (myProfile ? myProfile.feedVisibility !== 'private' : true)
+                    : (myProfile ? myProfile.friendListVisible : false);
+              const onChange = (val: boolean) => {
+                if (key === 'discoverable') setSocialProfile({ discoverable: val });
+                else if (key === 'showActivity') setSocialProfile({ feedVisibility: val ? 'friends' : 'private' });
+                else setSocialProfile({ friendListVisible: val });
+              };
+              return (
+                <View key={key} style={styles.settingItem}>
+                  <View style={styles.settingLeft}>
+                    <Icon size={20} color={theme.textMuted} />
+                    <Text variant="body" style={styles.settingLabel}>{t(key)}</Text>
+                  </View>
+                  <Switch
+                    value={value}
+                    onValueChange={onChange}
+                    trackColor={{ true: theme.accent, false: theme.borderStrong }}
+                    testID={`settings-${key}`}
+                  />
+                </View>
+              );
+            })}
+          </View>
+
+          <View style={styles.section}>
+            <Text variant="h2" style={styles.sectionTitle}>{t('about')}</Text>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <Info size={20} color={theme.textMuted} />
+                <Text variant="body" style={styles.settingLabel}>{t('version')}</Text>
+              </View>
+              <Text variant="body" color="secondary">1.0.0</Text>
             </View>
           </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Users size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('discoverable')}</Text>
-            </View>
-            <Switch
-              value={myProfile ? myProfile.discoverable : true}
-              onValueChange={(val) => {
-                setSocialProfile({ discoverable: val });
-              }}
-              testID="settings-discoverable"
+          {confirmingSignOut ? (
+            <InlineConfirm
+              style={styles.signOutConfirm}
+              question={t('signOutConfirmation')}
+              confirmLabel={t('signOut')}
+              destructive
+              onConfirm={handleSignOut}
+              onCancel={() => setConfirmingSignOut(false)}
+              testID="settings-sign-out-confirm"
             />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Eye size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('showActivity')}</Text>
-            </View>
-            <Switch
-              value={myProfile ? myProfile.feedVisibility !== 'private' : true}
-              onValueChange={(val) => {
-                setSocialProfile({ feedVisibility: val ? 'friends' : 'private' });
-              }}
-              testID="settings-show-activity"
+          ) : (
+            <Button
+              label={t('signOut')}
+              variant="danger"
+              fullWidth
+              leftIcon={<LogOut size={18} color={theme.textOnAccent} />}
+              onPress={() => setConfirmingSignOut(true)}
+              testID="settings-sign-out"
+              style={styles.signOutButton}
             />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Users size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('friendListVisible')}</Text>
-            </View>
-            <Switch
-              value={myProfile ? myProfile.friendListVisible : false}
-              onValueChange={(val) => {
-                setSocialProfile({ friendListVisible: val });
-              }}
-              testID="settings-friendlist-visible"
-            />
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('about')}</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingLeft}>
-              <Info size={20} color={Colors.textLight} />
-              <Text style={styles.settingLabel}>{t('version')}</Text>
-            </View>
-            <Text style={styles.settingValue}>1.0.0</Text>
-          </View>
-        </View>
-
-        {confirmingSignOut ? (
-          <InlineConfirm
-            style={styles.signOutConfirm}
-            question={t('signOutConfirmation')}
-            confirmLabel={t('signOut')}
-            destructive
-            onConfirm={handleSignOut}
-            onCancel={() => setConfirmingSignOut(false)}
-            testID="settings-sign-out-confirm"
-          />
-        ) : (
-          <TouchableOpacity
-            style={styles.signOutButton}
-            onPress={() => setConfirmingSignOut(true)}
-            testID="settings-sign-out"
-          >
-            <LogOut size={20} color="#ef4444" />
-            <Text style={styles.signOutText}>{t('signOut')}</Text>
-          </TouchableOpacity>
-        )}
+          )}
         </ResponsiveContainer>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    padding: 20,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  settingItemColumn: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: Colors.text,
-    marginLeft: 12,
-  },
-  themeToggle: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 14,
-  },
-  themeOption: {
-    flex: 1,
-    paddingVertical: 9,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: Colors.cardSecondary,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  themeOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.background,
-  },
-  themeOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.textLight,
-  },
-  themeOptionTextActive: {
-    color: Colors.primary,
-  },
-  avatarBlock: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-  },
-  avatarPreviewWrap: {
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  avatarSubLabel: {
-    fontSize: 13,
-    color: Colors.textLight,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  emojiChip: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.cardSecondary,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  emojiChipActive: {
-    borderColor: Colors.primary,
-  },
-  emojiChipText: {
-    fontSize: 20,
-  },
-  emojiChipAa: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  swatch: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 3,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  swatchTransparent: {
-    backgroundColor: Colors.background,
-    borderColor: Colors.border,
-  },
-  swatchTransparentMark: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.textLight,
-  },
-  swatchActive: {
-    borderColor: Colors.text,
-  },
-  settingValue: {
-    fontSize: 16,
-    color: Colors.textLight,
-  },
-  settingValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  usernameInput: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
-    color: Colors.text,
-    textAlign: 'right',
-    paddingVertical: 0,
-  },
-  editActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 12,
-  },
-  editButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 88,
-  },
-  cancelButton: {
-    backgroundColor: Colors.cardSecondary,
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  saveButton: {
-    backgroundColor: Colors.primary,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  feedbackText: {
-    fontSize: 13,
-    marginTop: 10,
-  },
-  feedbackError: {
-    color: Colors.error,
-  },
-  feedbackSuccess: {
-    color: Colors.success,
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 32,
-  },
-  signOutConfirm: {
-    marginTop: 32,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ef4444',
-    marginLeft: 8,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bgSubtle },
+    content: { padding: t.space[6] },
+    section: { marginBottom: t.space[8] },
+    sectionTitle: { marginBottom: t.space[4] },
+    settingItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: t.space[4],
+      paddingHorizontal: t.space[4],
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      marginBottom: t.space[2],
+    },
+    settingItemColumn: { flexDirection: 'column', alignItems: 'stretch' },
+    settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%' },
+    settingLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    settingLabel: { marginLeft: t.space[3] },
+    themeToggle: { marginTop: t.space[4] },
+    avatarBlock: {
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      padding: t.space[4],
+      marginBottom: t.space[2],
+    },
+    avatarPreviewWrap: { alignItems: 'center', marginVertical: t.space[4] },
+    avatarSubLabel: { marginTop: t.space[3], marginBottom: t.space[2] },
+    avatarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: t.space[2] },
+    emojiChip: {
+      width: 40,
+      height: 40,
+      borderRadius: t.radius.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: t.surfaceSunken,
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    emojiChipActive: { borderColor: t.accent },
+    emojiChipText: { fontSize: 20 },
+    swatch: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 3,
+      borderColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    swatchTransparent: { backgroundColor: t.surface, borderColor: t.border },
+    swatchActive: { borderColor: t.textPrimary },
+    usernameInput: {
+      flex: 1,
+      marginLeft: t.space[3],
+      fontFamily: t.font.body,
+      fontSize: 15,
+      color: t.textPrimary,
+      textAlign: 'right',
+      paddingVertical: 0,
+    },
+    settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: t.space[2] },
+    editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: t.space[2], marginTop: t.space[3] },
+    feedbackText: { marginTop: t.space[3] },
+    signOutButton: { marginTop: t.space[8] },
+    signOutConfirm: { marginTop: t.space[8] },
+  });

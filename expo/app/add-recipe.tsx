@@ -18,7 +18,9 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { translateText } from "@/constants/translations";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { Recipe } from "@/types/recipe";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 
@@ -125,6 +127,8 @@ const pickModeSlice = (fd: RecipeFormData): ModeSlice => ({
 });
 
 export default function AddRecipeScreen() {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { t, currentLanguage } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
@@ -360,13 +364,13 @@ export default function AddRecipeScreen() {
       <View style={styles.timeRowWrap}>
         <View style={styles.timeRow}>
           <Pressable testID={`${key}-decrement`} onPress={() => stepTime(key, -5)} style={styles.timeButton}>
-            <Minus size={18} color={Colors.text} />
+            <Minus size={18} color={theme.textPrimary} />
           </Pressable>
           <View style={styles.timeValueBox}>
             <Text testID={`${key}-value`} style={styles.timeValueText}>{num(formData[key])} min</Text>
           </View>
           <Pressable testID={`${key}-increment`} onPress={() => stepTime(key, 5)} style={styles.timeButton}>
-            <Plus size={18} color={Colors.text} />
+            <Plus size={18} color={theme.textPrimary} />
           </Pressable>
         </View>
         <TextInput
@@ -375,7 +379,7 @@ export default function AddRecipeScreen() {
           value={formData[key]}
           onChangeText={(text) => setFormData((prev) => ({ ...prev, [key]: text.replace(/[^0-9]/g, '') }))}
           placeholder={placeholder}
-          placeholderTextColor={Colors.textLight}
+          placeholderTextColor={theme.textMuted}
           keyboardType="numeric"
         />
       </View>
@@ -412,7 +416,7 @@ export default function AddRecipeScreen() {
           headerLeft: () => (
             isEditing ? null : (
               <Pressable testID="header-cancel" onPress={() => router.back()} style={styles.headerCancel}>
-                <XIcon size={22} color={Colors.text} />
+                <XIcon size={22} color={theme.textPrimary} />
               </Pressable>
             )
           ),
@@ -425,9 +429,9 @@ export default function AddRecipeScreen() {
               accessibilityLabel={t('save')}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={Colors.success} />
+                <ActivityIndicator size="small" color={theme.success} />
               ) : (
-                <Check size={22} color={Colors.success} />
+                <Check size={22} color={theme.success} />
               )}
             </Pressable>
           ),
@@ -473,7 +477,7 @@ export default function AddRecipeScreen() {
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
               placeholder={t('enterRecipeName')}
-              placeholderTextColor={Colors.textLight}
+              placeholderTextColor={theme.textMuted}
             />
           </View>
 
@@ -520,7 +524,7 @@ export default function AddRecipeScreen() {
                   {photoUri ? (
                     <Image source={{ uri: photoUri }} style={styles.photoPreviewImg} />
                   ) : (
-                    <Camera size={26} color={Colors.textLight} />
+                    <Camera size={26} color={theme.textMuted} />
                   )}
                 </View>
                 <View style={styles.photoActions}>
@@ -531,10 +535,10 @@ export default function AddRecipeScreen() {
                     testID="button-pick-photo"
                   >
                     {uploading ? (
-                      <ActivityIndicator size="small" color={Colors.primary} />
+                      <ActivityIndicator size="small" color={theme.accent} />
                     ) : (
                       <>
-                        <Camera size={16} color={Colors.primary} />
+                        <Camera size={16} color={theme.accent} />
                         <Text style={styles.photoBtnText}>
                           {t(photoUri ? 'changePhoto' : 'addPhoto')}
                         </Text>
@@ -617,7 +621,7 @@ export default function AddRecipeScreen() {
                     value={formData.servings}
                     onChangeText={(text) => setFormData((prev) => ({ ...prev, servings: text.replace(/[^0-9]/g, '') }))}
                     placeholder={t('enterServings')}
-                    placeholderTextColor={Colors.textLight}
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                   />
                 </View>
@@ -634,7 +638,7 @@ export default function AddRecipeScreen() {
                         value={formData.ovenHeat}
                         onChangeText={(text) => setFormData((prev) => ({ ...prev, ovenHeat: text.replace(/[^0-9]/g, '') }))}
                         placeholder={t('enterOvenHeat')}
-                        placeholderTextColor={Colors.textLight}
+                        placeholderTextColor={theme.textMuted}
                         keyboardType="numeric"
                       />
                     </View>
@@ -721,7 +725,7 @@ export default function AddRecipeScreen() {
                     {t('recipeIngredients')} {invalid.ingredients && (<Text style={styles.required}>*</Text>)}
                   </Text>
                   <Pressable testID="button-add-ingredient" onPress={addIngredient} style={styles.addButton}>
-                    <Plus size={16} color={Colors.primary} />
+                    <Plus size={16} color={theme.accent} />
                     <Text style={styles.addButtonText}>{t('addIngredientToRecipe')}</Text>
                   </Pressable>
                 </View>
@@ -737,7 +741,7 @@ export default function AddRecipeScreen() {
                           value={ingredient.name}
                           onChangeText={(text) => updateIngredient(index, { name: text })}
                           placeholder={t('enterIngredientName')}
-                          placeholderTextColor={Colors.textLight}
+                          placeholderTextColor={theme.textMuted}
                         />
                         {!noQty && (
                           <TextInput
@@ -748,7 +752,7 @@ export default function AddRecipeScreen() {
                               updateIngredient(index, { qty: text.replace(/[^0-9.,/]/g, '') })
                             }
                             placeholder={t('amountShort')}
-                            placeholderTextColor={Colors.textLight}
+                            placeholderTextColor={theme.textMuted}
                             keyboardType="numeric"
                           />
                         )}
@@ -810,7 +814,7 @@ export default function AddRecipeScreen() {
                     {t('recipeSteps')} {invalid.steps && (<Text style={styles.required}>*</Text>)}
                   </Text>
                   <Pressable testID="button-add-step" onPress={addStep} style={styles.addButton}>
-                    <Plus size={16} color={Colors.primary} />
+                    <Plus size={16} color={theme.accent} />
                     <Text style={styles.addButtonText}>{t('addStep')}</Text>
                   </Pressable>
                 </View>
@@ -824,7 +828,7 @@ export default function AddRecipeScreen() {
                       value={step}
                       onChangeText={(text) => updateStep(index, text)}
                       placeholder={t('enterStepDescription')}
-                      placeholderTextColor={Colors.textLight}
+                      placeholderTextColor={theme.textMuted}
                       multiline
                       numberOfLines={3}
                     />
@@ -864,10 +868,10 @@ export default function AddRecipeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: t.bg,
   },
   headerSave: {
     flexDirection: 'row',
@@ -880,7 +884,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   primarySaveButton: {
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
@@ -923,7 +927,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: t.textPrimary,
     marginBottom: 8,
   },
   required: {
@@ -931,13 +935,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: Colors.text,
-    backgroundColor: Colors.card,
+    color: t.textPrimary,
+    backgroundColor: t.surface,
   },
   inputDense: {
     paddingVertical: 8,
@@ -959,19 +963,19 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderColor: t.border,
+    backgroundColor: t.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modeButtonActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: t.accent,
+    borderColor: t.accent,
   },
   modeButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.text,
+    color: t.textPrimary,
   },
   modeButtonTextActive: {
     color: '#ffffff',
@@ -981,28 +985,28 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 16,
-    color: Colors.text,
+    color: t.textPrimary,
   },
   placeholder: {
-    color: Colors.textLight,
+    color: t.textSecondary,
   },
   categoryPicker: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
     borderRadius: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: t.surface,
     maxHeight: 240,
   },
   categoryOption: {
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: t.border,
   },
   categoryOptionText: {
     fontSize: 16,
-    color: Colors.text,
+    color: t.textPrimary,
   },
   addButton: {
     flexDirection: 'row',
@@ -1010,7 +1014,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   addButtonText: {
-    color: Colors.primary,
+    color: t.accent,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -1038,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   visibilityHint: {
     fontSize: 13,
-    color: Colors.textLight,
+    color: t.textSecondary,
     marginTop: 8,
   },
   photoRow: {
@@ -1051,8 +1055,8 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderColor: t.border,
+    backgroundColor: t.surface,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -1073,13 +1077,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.cardSecondary,
+    borderColor: t.accent,
+    backgroundColor: t.surfaceSunken,
   },
   photoBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: Colors.primary,
+    color: t.accent,
   },
   photoBtnGhost: {
     flexDirection: 'row',
@@ -1102,7 +1106,7 @@ const styles = StyleSheet.create({
   stepNumber: {
     fontSize: 16,
     fontWeight: '600',
-    color: Colors.text,
+    color: t.textPrimary,
     marginTop: 12,
     minWidth: 24,
   },
@@ -1124,9 +1128,9 @@ const styles = StyleSheet.create({
   timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.card,
+    backgroundColor: t.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -1139,11 +1143,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
   },
   timeValueText: {
     fontSize: 16,
-    color: Colors.text,
+    color: t.textPrimary,
     fontWeight: '600',
   },
   manualInput: {
@@ -1183,7 +1187,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   successBanner: {
-    backgroundColor: Colors.success,
+    backgroundColor: t.success,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,

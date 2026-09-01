@@ -1,17 +1,20 @@
 import { router } from 'expo-router';
 import { useQuery } from 'convex/react';
 import React, { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
 
 import Avatar from '@/components/Avatar';
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useSocial } from '@/hooks/use-social';
 import { useDailyChefMateStore } from '@/hooks/use-dailychefmate-store';
+import { Text } from '@/components/ui/Text';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -22,6 +25,17 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle, onPress }) => {
+  const styles = useThemedStyles(makeStyles);
+  const inner = (
+    <>
+      <View style={styles.statIcon}>{icon}</View>
+      <View style={styles.statContent}>
+        <Text variant="h3">{value}</Text>
+        <Text variant="caption" color="secondary">{title}</Text>
+        {subtitle && <Text variant="caption" color="muted">{subtitle}</Text>}
+      </View>
+    </>
+  );
   if (onPress) {
     return (
       <Pressable
@@ -29,49 +43,24 @@ const StatCard: React.FC<StatCardProps> = ({ icon, title, value, subtitle, onPre
         onPress={onPress}
         testID={`stat-card-${title}`}
       >
-        <View style={styles.statIcon}>
-          {icon}
-        </View>
-        <View style={styles.statContent}>
-          <Text style={styles.statValue}>{value}</Text>
-          <Text style={styles.statTitle}>{title}</Text>
-          {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
-        </View>
+        {inner}
       </Pressable>
     );
   }
-
-  return (
-    <View style={styles.statCard}>
-      <View style={styles.statIcon}>
-        {icon}
-      </View>
-      <View style={styles.statContent}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-        {subtitle && <Text style={styles.statSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-  );
+  return <View style={styles.statCard}>{inner}</View>;
 };
 
-interface InfoRowProps {
-  label: string;
-  value: string;
-}
-
-const InfoRow: React.FC<InfoRowProps> = ({ label, value }) => {
+const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text variant="body" color="secondary" style={styles.infoLabel}>{label}</Text>
+      <Text variant="body" weight="medium" style={styles.infoValue}>{value}</Text>
     </View>
   );
 };
 
 interface ProfileContentProps {
-  // Called right before navigating away (e.g. to close a modal/sheet this
-  // is rendered inside of). No-op by default for the full-page profile.
   onBeforeNavigate?: () => void;
 }
 
@@ -79,6 +68,8 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
   const { user } = useAuth();
   const { myProfile } = useSocial();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, customRecipes } = useDailyChefMateStore();
   const ratingSummary = useQuery(
     api.ratings.ratingSummary,
@@ -91,7 +82,6 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
     const lastActive = new Date().toLocaleDateString();
     const topCookedRecipes = getTopCookedRecipes(3);
     const cookedTotal = Object.values(cookedRecipes).reduce((sum, count) => sum + count, 0);
-
     return {
       memberSince,
       lastActive,
@@ -106,14 +96,15 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
   if (!user) {
     return (
       <View style={styles.centerContent}>
-        <Text style={styles.errorText}>{t('userNotFound')}</Text>
+        <Text variant="body" color="danger" center>{t('userNotFound')}</Text>
       </View>
     );
   }
 
+  const medalBadge = [styles.goldBadge, styles.silverBadge, styles.bronzeBadge];
+
   return (
     <View>
-      {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           <Avatar
@@ -124,8 +115,8 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             size={80}
           />
         </View>
-        <Text style={styles.userName}>{user.username || user.email}</Text>
-        <Text style={styles.userSubtitle}>{t('memberSince')} {profileStats.memberSince}</Text>
+        <Text variant="h1" center>{user.username || user.email}</Text>
+        <Text variant="body" color="secondary" center>{t('memberSince')} {profileStats.memberSince}</Text>
         {!user.username && (
           <Pressable
             style={styles.usernameBanner}
@@ -135,17 +126,18 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
             }}
             testID="set-username-banner"
           >
-            <Text style={styles.usernameBannerText}>{t('setUsernameBanner')}</Text>
+            <Text variant="label" weight="semibold" style={{ color: theme.textOnAccent }}>
+              {t('setUsernameBanner')}
+            </Text>
           </Pressable>
         )}
       </View>
 
-      {/* Statistics Cards */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('personalStats')}</Text>
+        <Text variant="h2" style={styles.sectionTitle}>{t('personalStats')}</Text>
         <View style={styles.statsGrid}>
           <StatCard
-            icon={<Star size={24} color={Colors.primary} />}
+            icon={<Star size={22} color={theme.accent} />}
             title={t('favoriteRecipes')}
             value={profileStats.favoriteCount}
             onPress={() => {
@@ -153,13 +145,9 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
               router.push('/(tabs)/favorites');
             }}
           />
+          <StatCard icon={<Eye size={22} color={theme.accent} />} title={t('recipesViewed')} value={profileStats.recipesViewed} />
           <StatCard
-            icon={<Eye size={24} color={Colors.primary} />}
-            title={t('recipesViewed')}
-            value={profileStats.recipesViewed}
-          />
-          <StatCard
-            icon={<ChefHat size={24} color={Colors.primary} />}
+            icon={<ChefHat size={22} color={theme.accent} />}
             title={t('recipesGenerated')}
             value={profileStats.createdRecipes}
             onPress={() => {
@@ -167,27 +155,22 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
               router.push('/(tabs)/(recipes)/homemade');
             }}
           />
-          <StatCard
-            icon={<Flame size={24} color={Colors.primary} />}
-            title={t('totalRecipes')}
-            value={profileStats.cookedTotal}
-          />
+          <StatCard icon={<Flame size={22} color={theme.accent} />} title={t('totalRecipes')} value={profileStats.cookedTotal} />
         </View>
 
         <View style={styles.ratingStatRow}>
-          <Star size={22} color={Colors.star} fill={Colors.star} />
-          <Text style={styles.ratingStatValue}>
+          <Star size={20} color={theme.star} fill={theme.star} />
+          <Text variant="h3">
             {ratingSummary && ratingSummary.ratingCount > 0 ? `★ ${ratingSummary.avg.toFixed(1)}` : '–'}
           </Text>
-          <Text style={styles.ratingStatLabel}>
+          <Text variant="bodySm" color="secondary">
             {t('avgRecipeRating')} · {ratingSummary?.distinctRaters ?? 0} {t('ratedByPeople')}
           </Text>
         </View>
       </View>
 
-      {/* Account Details */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('accountDetails')}</Text>
+        <Text variant="h2" style={styles.sectionTitle}>{t('accountDetails')}</Text>
         <View style={styles.infoCard}>
           <InfoRow label={t('email')} value={user.email || 'N/A'} />
           <View style={styles.divider} />
@@ -206,30 +189,19 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
         </View>
       </View>
 
-      {/* Top 3 Cooked Dishes */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('topCookedDishes')}</Text>
+        <Text variant="h2" style={styles.sectionTitle}>{t('topCookedDishes')}</Text>
         {profileStats.topCookedRecipes.length > 0 ? (
           <View style={styles.topDishesContainer}>
             {profileStats.topCookedRecipes.map((entry, index) => (
               <View key={entry.recipe.id} style={styles.topDishItem}>
                 <View style={styles.rankContainer}>
-                  <View style={[
-                    styles.rankBadge,
-                    index === 0 && styles.goldBadge,
-                    index === 1 && styles.silverBadge,
-                    index === 2 && styles.bronzeBadge,
-                  ]}>
-                    <Text style={[
-                      styles.rankText,
-                      index === 0 && styles.goldText,
-                      index === 1 && styles.silverText,
-                      index === 2 && styles.bronzeText,
-                    ]}>
+                  <View style={[styles.rankBadge, medalBadge[index]]}>
+                    <Text variant="label" weight="bold" style={{ color: index < 3 ? '#FFFFFF' : theme.textPrimary }}>
                       {index + 1}
                     </Text>
                   </View>
-                  {index === 0 && <Trophy size={16} color="#FFD700" style={styles.trophyIcon} />}
+                  {index === 0 && <Trophy size={16} color={theme.metal.gold} style={styles.trophyIcon} />}
                 </View>
 
                 <View style={styles.dishImageContainer}>
@@ -241,20 +213,16 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
                 </View>
 
                 <View style={styles.dishInfo}>
-                  <Text style={styles.dishName} numberOfLines={2}>
-                    {entry.recipe.name}
-                  </Text>
-                  <Text style={styles.cookedCount}>
-                    {entry.count} {t('cookedTimes')}
-                  </Text>
+                  <Text variant="title" numberOfLines={2}>{entry.recipe.name}</Text>
+                  <Text variant="bodySm" color="secondary">{entry.count} {t('cookedTimes')}</Text>
                 </View>
               </View>
             ))}
           </View>
         ) : (
           <View style={styles.noCookedDishesContainer}>
-            <ChefHat size={48} color={Colors.textLight} />
-            <Text style={styles.noCookedDishesText}>{t('noCookedDishes')}</Text>
+            <ChefHat size={40} color={theme.textMuted} />
+            <Text variant="body" color="secondary" center style={styles.noCookedDishesText}>{t('noCookedDishes')}</Text>
           </View>
         )}
       </View>
@@ -262,259 +230,95 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
   );
 }
 
-const styles = StyleSheet.create({
-  centerContent: {
-    padding: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 16,
-    color: Colors.error,
-    textAlign: 'center',
-  },
-  profileHeader: {
-    alignItems: 'center',
-    marginBottom: 32,
-    paddingVertical: 20,
-  },
-  avatarContainer: {
-    marginBottom: 16,
-    padding: 20,
-    backgroundColor: Colors.card,
-    borderRadius: 60,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    centerContent: { padding: t.space[8], justifyContent: 'center', alignItems: 'center' },
+    profileHeader: { alignItems: 'center', marginBottom: t.space[8], paddingVertical: t.space[6] },
+    avatarContainer: {
+      marginBottom: t.space[4],
+      padding: t.space[5],
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: 60,
+      ...t.elevation.sm,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  userSubtitle: {
-    fontSize: 16,
-    color: Colors.textLight,
-    textAlign: 'center',
-  },
-  usernameBanner: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    backgroundColor: Colors.primary,
-  },
-  usernameBannerText: {
-    color: Colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  ratingStatRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 16,
-    flexWrap: 'wrap',
-  },
-  ratingStatValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  ratingStatLabel: {
-    fontSize: 13,
-    color: Colors.textLight,
-  },
-  statCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '48%',
-    minHeight: 80,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
+    usernameBanner: {
+      marginTop: t.space[3],
+      paddingVertical: t.space[2],
+      paddingHorizontal: t.space[4],
+      borderRadius: t.radius.pill,
+      backgroundColor: t.accent,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  statCardPressed: {
-    opacity: 0.7,
-  },
-  statIcon: {
-    marginRight: 12,
-  },
-  statContent: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  statTitle: {
-    fontSize: 12,
-    color: Colors.textLight,
-    lineHeight: 16,
-  },
-  statSubtitle: {
-    fontSize: 10,
-    color: Colors.textLight,
-    marginTop: 2,
-  },
-  infoCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
+    section: { marginBottom: t.space[8] },
+    sectionTitle: { marginBottom: t.space[4] },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: t.space[3] },
+    ratingStatRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: t.space[2],
+      marginTop: t.space[4],
+      flexWrap: 'wrap',
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  infoLabel: {
-    fontSize: 16,
-    color: Colors.textLight,
-    flex: 1,
-  },
-  infoValue: {
-    fontSize: 16,
-    color: Colors.text,
-    fontWeight: '500',
-    flex: 1,
-    textAlign: 'right',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: -16,
-  },
-  topDishesContainer: {
-    gap: 12,
-  },
-  topDishItem: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
+    statCard: {
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      padding: t.space[4],
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: '48%',
+      minHeight: 80,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  rankContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  goldBadge: {
-    backgroundColor: '#FFD700',
-  },
-  silverBadge: {
-    backgroundColor: '#C0C0C0',
-  },
-  bronzeBadge: {
-    backgroundColor: '#CD7F32',
-  },
-  rankText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  goldText: {
-    color: '#B8860B',
-  },
-  silverText: {
-    color: '#696969',
-  },
-  bronzeText: {
-    color: '#8B4513',
-  },
-  trophyIcon: {
-    marginLeft: 4,
-  },
-  dishImageContainer: {
-    marginRight: 12,
-  },
-  dishImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    backgroundColor: Colors.border,
-  },
-  dishInfo: {
-    flex: 1,
-  },
-  dishName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  cookedCount: {
-    fontSize: 14,
-    color: Colors.textLight,
-  },
-  noCookedDishesContainer: {
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-  },
-  noCookedDishesText: {
-    fontSize: 16,
-    color: Colors.textLight,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-});
+    statCardPressed: { opacity: 0.85 },
+    statIcon: { marginRight: t.space[3] },
+    statContent: { flex: 1 },
+    infoCard: {
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      padding: t.space[4],
+    },
+    infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: t.space[3] },
+    infoLabel: { flex: 1 },
+    infoValue: { flex: 1, textAlign: 'right' },
+    divider: { height: t.borderWidth.hairline, backgroundColor: t.border, marginHorizontal: -t.space[4] },
+    topDishesContainer: { gap: t.space[3] },
+    topDishItem: {
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      padding: t.space[4],
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    rankContainer: { flexDirection: 'row', alignItems: 'center', marginRight: t.space[3] },
+    rankBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: t.surfaceSunken,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    goldBadge: { backgroundColor: t.metal.gold },
+    silverBadge: { backgroundColor: t.metal.silver },
+    bronzeBadge: { backgroundColor: t.metal.bronze },
+    trophyIcon: { marginLeft: 4 },
+    dishImageContainer: { marginRight: t.space[3] },
+    dishImage: { width: 50, height: 50, borderRadius: t.radius.sm, backgroundColor: t.surfaceSunken },
+    dishInfo: { flex: 1 },
+    noCookedDishesContainer: {
+      alignItems: 'center',
+      padding: t.space[8],
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+    },
+    noCookedDishesText: { marginTop: t.space[3] },
+  });

@@ -2,13 +2,15 @@ import React from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useLanguage } from '@/hooks/use-language';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 import ProfileContent from '@/components/ProfileContent';
 
 export default function ProfileScreen() {
   const { t } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -20,12 +22,8 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  contentContainer: {
-    padding: 20,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bgSubtle },
+    contentContainer: { padding: t.space[6] },
+  });
