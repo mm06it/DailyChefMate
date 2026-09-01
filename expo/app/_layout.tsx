@@ -1,7 +1,18 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from "@expo-google-fonts/inter";
+import {
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useMutation } from "convex/react";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
@@ -17,6 +28,7 @@ import { SocialContext } from "@/hooks/use-social";
 import { RatingsContext } from "@/hooks/use-ratings";
 import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
+import { ThemeContext } from "@/hooks/use-theme";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { api } from "@/convex/_generated/api";
@@ -27,6 +39,26 @@ import AuthScreen from "./auth";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Web: paint the page background from the saved theme choice as early as the
+// bundle executes, so a hard reload doesn't flash white before React mounts.
+// (`web.output` is "single", so app/+html.tsx isn't applied — this is the hook.)
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  try {
+    const stored = window.localStorage.getItem("dailychefmate_theme");
+    const mode = stored === "light" || stored === "dark" ? stored : "system";
+    const dark =
+      mode === "dark" ||
+      (mode === "system" &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const bg = dark ? "#121110" : "#FFFFFF";
+    document.documentElement.style.backgroundColor = bg;
+    document.body.style.backgroundColor = bg;
+    (document.documentElement.style as any).colorScheme = dark ? "dark" : "light";
+  } catch {
+    /* SSR / storage blocked — ignore */
+  }
+}
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
@@ -133,30 +165,43 @@ const styles = StyleSheet.create({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
+
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) return null;
 
   return (
     <>
       <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
-        <LanguageContext>
-          <ToastProvider>
-            <AuthProvider>
-              <DailyChefMateContext>
-                <MealPlanContext>
-                  <SocialContext>
-                    <RatingsContext>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </RatingsContext>
-                  </SocialContext>
-                </MealPlanContext>
-              </DailyChefMateContext>
-            </AuthProvider>
-          </ToastProvider>
-        </LanguageContext>
+        <ThemeContext>
+          <LanguageContext>
+            <ToastProvider>
+              <AuthProvider>
+                <DailyChefMateContext>
+                  <MealPlanContext>
+                    <SocialContext>
+                      <RatingsContext>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </RatingsContext>
+                    </SocialContext>
+                  </MealPlanContext>
+                </DailyChefMateContext>
+              </AuthProvider>
+            </ToastProvider>
+          </LanguageContext>
+        </ThemeContext>
       </ConvexAuthProvider>
       {/* Vercel Web Analytics + Speed Insights — web only; these touch
           `document`, which doesn't exist on native. */}

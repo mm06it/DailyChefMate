@@ -11,11 +11,12 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile } from 'lucide-react-native';
+import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile, Moon } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useTheme, type ThemeMode } from '@/hooks/use-theme';
 import { useSocial } from '@/hooks/use-social';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import InlineConfirm from '@/components/InlineConfirm';
@@ -43,7 +44,14 @@ export default function SettingsScreen() {
 
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const convex = useConvex();
+
+  const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+    { value: 'system', label: t('themeSystem') },
+    { value: 'light', label: t('themeLight') },
+    { value: 'dark', label: t('themeDark') },
+  ];
   const updateUsername = useMutation(api.users.updateUsername);
   const { myProfile, setSocialProfile } = useSocial();
 
@@ -251,6 +259,34 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>{t('language')}</Text>
             </View>
             <LanguageSelector />
+          </View>
+
+          <View style={[styles.settingItem, styles.settingItemColumn]}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingLeft}>
+                <Moon size={20} color={Colors.textLight} />
+                <Text style={styles.settingLabel}>{t('appearance')}</Text>
+              </View>
+            </View>
+            <View style={styles.themeToggle}>
+              {THEME_OPTIONS.map((opt) => {
+                const active = themeMode === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    style={[styles.themeOption, active && styles.themeOptionActive]}
+                    onPress={() => setThemeMode(opt.value)}
+                    testID={`settings-theme-${opt.value}`}
+                  >
+                    <Text
+                      style={[styles.themeOptionText, active && styles.themeOptionTextActive]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -460,6 +496,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     marginLeft: 12,
+  },
+  themeToggle: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 14,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: Colors.cardSecondary,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  themeOptionActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.background,
+  },
+  themeOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textLight,
+  },
+  themeOptionTextActive: {
+    color: Colors.primary,
   },
   avatarBlock: {
     backgroundColor: Colors.card,
