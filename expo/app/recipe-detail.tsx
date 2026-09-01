@@ -1,8 +1,8 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "convex/react";
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, TouchableOpacity, Pressable } from "react-native";
-import { Check, Minus, Plus, ChefHat, Star } from "lucide-react-native";
+import { ScrollView, StyleSheet, View, Pressable } from "react-native";
+import { Minus, Plus, ChefHat, Star } from "lucide-react-native";
 
 import AddToPlanModal from "@/components/AddToPlanModal";
 import ShareRecipeSheet from "@/components/ShareRecipeSheet";
@@ -11,9 +11,11 @@ import RatingStars from "@/components/RatingStars";
 import Avatar from "@/components/Avatar";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
@@ -21,6 +23,10 @@ import { useRatings } from "@/hooks/use-ratings";
 import { useRecipeImageUpload } from "@/hooks/use-recipe-image";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Text } from "@/components/ui/Text";
 import { scaleAmount } from "@/lib/scale-amount";
 
 const MIN_SERVINGS = 1;
@@ -31,6 +37,8 @@ export default function RecipeDetailScreen() {
   const { recipes, customRecipes, favorites, cookedRecipes, markRecipeAsCooked, recordRecipeView } =
     useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { markPlannedCooked } = useMealPlan();
   const { myRating } = useRatings();
   const { pickAndUpload, removeImage, uploading } = useRecipeImageUpload();
@@ -78,7 +86,15 @@ export default function RecipeDetailScreen() {
   if (!recipe) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{getTranslation(currentLanguage, 'back')}</Text>
+        <EmptyState
+          icon={<ChefHat size={24} color={theme.textMuted} />}
+          title={t('recipeNotFound')}
+          action={{
+            label: t('back'),
+            variant: 'secondary',
+            onPress: () => (router.canGoBack() ? router.back() : router.replace('/(tabs)/(recipes)/all')),
+          }}
+        />
       </View>
     );
   }
@@ -155,30 +171,24 @@ export default function RecipeDetailScreen() {
               onPress={() => setRateModalVisible(true)}
               testID="rate-reminder-banner"
             >
-              <Star size={18} color={Colors.white} fill={Colors.white} />
-              <Text style={styles.rateBannerText}>{t('rateAfterCooking')}</Text>
+              <Star size={18} color={theme.star} fill={theme.star} />
+              <Text variant="label" style={styles.rateBannerText}>{t('rateAfterCooking')}</Text>
             </Pressable>
           )}
 
           {hasCooked && myRatingValue !== null && (
             <View style={styles.myRatingRow}>
               <View>
-                <Text style={styles.ratingSubTitle}>{t('yourRating')}</Text>
+                <Text variant="label" color="secondary" style={styles.ratingSubTitle}>{t('yourRating')}</Text>
                 <RatingStars value={myRatingValue} size={22} />
               </View>
-              <Pressable
-                style={styles.changeRatingBtn}
-                onPress={() => setRateModalVisible(true)}
-                testID="change-rating"
-              >
-                <Text style={styles.changeRatingText}>{t('edit')}</Text>
-              </Pressable>
+              <Button label={t('edit')} variant="secondary" size="sm" onPress={() => setRateModalVisible(true)} testID="change-rating" />
             </View>
           )}
 
           {friendRatings && friendRatings.count > 0 && (
-            <View style={styles.friendRatingsBox}>
-              <Text style={styles.ratingSubTitle}>
+            <Card style={styles.friendRatingsBox}>
+              <Text variant="label" color="secondary" style={styles.ratingSubTitle}>
                 {t('friendRatings')} · ★ {friendRatings.avg.toFixed(1)} ({friendRatings.count})
               </Text>
               {friendItems.map((r) => (
@@ -192,18 +202,18 @@ export default function RecipeDetailScreen() {
                   />
                   <View style={styles.friendRatingText}>
                     <RatingStars value={r.rating} size={13} />
-                    {!!r.comment && <Text style={styles.friendRatingComment}>{r.comment}</Text>}
+                    {!!r.comment && <Text variant="bodySm">{r.comment}</Text>}
                   </View>
                 </View>
               ))}
-            </View>
+            </Card>
           )}
         </View>
       )}
 
       <View style={styles.section}>
         <View style={styles.ingredientsHeaderRow}>
-          <Text style={styles.sectionTitle}>{getTranslation(currentLanguage, 'ingredients')}</Text>
+          <Text variant="h2">{getTranslation(currentLanguage, 'ingredients')}</Text>
           <View style={styles.servingsStepper}>
             <Pressable
               style={[styles.servingsButton, (isCooking || servings <= MIN_SERVINGS) && styles.servingsButtonDisabled]}
@@ -211,23 +221,25 @@ export default function RecipeDetailScreen() {
               disabled={isCooking || servings <= MIN_SERVINGS}
               testID="servings-decrease"
             >
-              <Minus size={16} color={isCooking || servings <= MIN_SERVINGS ? Colors.textLight : Colors.primary} />
+              <Minus size={16} color={isCooking || servings <= MIN_SERVINGS ? theme.textMuted : theme.accent} />
             </Pressable>
-            <Text style={styles.servingsValue} testID="servings-value">{servings}</Text>
+            <Text variant="title" style={styles.servingsValue} testID="servings-value">{servings}</Text>
             <Pressable
               style={[styles.servingsButton, (isCooking || servings >= MAX_SERVINGS) && styles.servingsButtonDisabled]}
               onPress={handleIncreaseServings}
               disabled={isCooking || servings >= MAX_SERVINGS}
               testID="servings-increase"
             >
-              <Plus size={16} color={isCooking || servings >= MAX_SERVINGS ? Colors.textLight : Colors.primary} />
+              <Plus size={16} color={isCooking || servings >= MAX_SERVINGS ? theme.textMuted : theme.accent} />
             </Pressable>
           </View>
         </View>
         {!isCooking && (
-          <Text style={styles.sectionHint}>{getTranslation(currentLanguage, 'servingsAdjustHint')}</Text>
+          <Text variant="bodySm" color="muted" style={styles.sectionHint}>
+            {getTranslation(currentLanguage, 'servingsAdjustHint')}
+          </Text>
         )}
-        <View style={styles.ingredientsList}>
+        <Card style={styles.ingredientsList}>
           {displayRecipe.ingredients.map((ingredient, index) => {
             const scaledAmount = scaleAmount(ingredient.amount, servingsRatio);
             return (
@@ -235,31 +247,31 @@ export default function RecipeDetailScreen() {
                 styles.ingredientItem,
                 index === displayRecipe.ingredients.length - 1 && styles.lastIngredientItem
               ]}>
-                <Text style={styles.ingredientName}>{translateText(currentLanguage, ingredient.name) || ingredient.name}</Text>
-                <Text style={styles.ingredientAmount}>{translateAmount(currentLanguage, scaledAmount) || scaledAmount}</Text>
+                <Text variant="body" style={styles.ingredientName}>{translateText(currentLanguage, ingredient.name) || ingredient.name}</Text>
+                <Text variant="body" color="secondary">{translateAmount(currentLanguage, scaledAmount) || scaledAmount}</Text>
               </View>
             );
           })}
-        </View>
+        </Card>
       </View>
 
       {!isCooking ? (
         <View style={styles.startCookingContainer}>
-          <TouchableOpacity
-            style={styles.startCookingButton}
+          <Button
+            label={getTranslation(currentLanguage, 'startCooking')}
+            size="lg"
+            fullWidth
+            leftIcon={<ChefHat size={20} color={theme.textOnAccent} />}
             onPress={() => setIsCooking(true)}
             testID="start-cooking-button"
-          >
-            <ChefHat size={22} color={Colors.white} />
-            <Text style={styles.startCookingButtonText}>{getTranslation(currentLanguage, 'startCooking')}</Text>
-          </TouchableOpacity>
+          />
         </View>
       ) : (
         <>
           <View style={styles.section}>
             <View style={styles.sectionTitleContainer}>
-              <Text style={styles.sectionTitle}>{getTranslation(currentLanguage, 'instructions')}</Text>
-              <Text style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
+              <Text variant="h2">{getTranslation(currentLanguage, 'instructions')}</Text>
+              <Text variant="bodySm" color="muted" style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
             </View>
             <View style={styles.stepsList}>
               {displayRecipe.steps.map((step, index) => {
@@ -281,17 +293,15 @@ export default function RecipeDetailScreen() {
             </View>
           </View>
 
-          {/* Done Button */}
           <View style={styles.doneButtonContainer}>
-            <TouchableOpacity
-              style={[styles.doneButton, !areAllStepsCompleted() && styles.doneButtonDisabled]}
-              onPress={handleMarkAsCooked}
+            <Button
+              label={getTranslation(currentLanguage, 'done')}
+              size="lg"
+              fullWidth
               disabled={!areAllStepsCompleted()}
+              onPress={handleMarkAsCooked}
               testID="done-button"
-            >
-              <Check size={24} color={Colors.white} />
-              <Text style={styles.doneButtonText}>{getTranslation(currentLanguage, 'done')}</Text>
-            </TouchableOpacity>
+            />
           </View>
         </>
       )}
@@ -323,186 +333,100 @@ export default function RecipeDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: {
-    fontSize: 18,
-    color: Colors.error,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitleContainer: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  sectionHint: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginTop: 2,
-  },
-  rateBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.star,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  rateBannerText: { color: Colors.white, fontSize: 15, fontWeight: '700', flex: 1 },
-  myRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    padding: 14,
-  },
-  ratingSubTitle: { fontSize: 13, fontWeight: '700', color: Colors.textLight, marginBottom: 6 },
-  changeRatingBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: Colors.cardSecondary,
-  },
-  changeRatingText: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  friendRatingsBox: {
-    marginTop: 12,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-  },
-  friendRatingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  friendRatingText: { flex: 1, gap: 2 },
-  friendRatingComment: { fontSize: 13, color: Colors.text },
-  ingredientsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  servingsStepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: Colors.card,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  servingsButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.cardSecondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  servingsButtonDisabled: {
-    opacity: 0.5,
-  },
-  servingsValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-    minWidth: 20,
-    textAlign: 'center',
-  },
-  startCookingContainer: {
-    padding: 16,
-    marginTop: 8,
-  },
-  startCookingButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  startCookingButtonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  ingredientsList: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 16,
-  },
-  ingredientItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  ingredientName: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  ingredientAmount: {
-    fontSize: 16,
-    color: Colors.textLight,
-  },
-  stepsList: {
-    marginTop: 8,
-  },
-  lastIngredientItem: {
-    borderBottomWidth: 0,
-  },
-  doneButtonContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  doneButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.bg,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  doneButtonDisabled: {
-    backgroundColor: Colors.textLight,
-    opacity: 0.6,
-  },
-  doneButtonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-});
+    errorContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: t.bg,
+    },
+    section: {
+      marginTop: t.space[7],
+      paddingHorizontal: t.space[5],
+    },
+    sectionTitleContainer: {
+      marginBottom: t.space[4],
+    },
+    sectionHint: {
+      marginTop: 2,
+    },
+    rateBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[3],
+      backgroundColor: t.accentSubtle,
+      borderRadius: t.radius.md,
+      paddingVertical: t.space[4],
+      paddingHorizontal: t.space[4],
+    },
+    rateBannerText: { color: t.accent, flex: 1 },
+    myRatingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.lg,
+      padding: t.space[4],
+    },
+    ratingSubTitle: { marginBottom: t.space[2] },
+    friendRatingsBox: {
+      marginTop: t.space[4],
+      gap: t.space[3],
+    },
+    friendRatingRow: { flexDirection: "row", alignItems: "flex-start", gap: t.space[3] },
+    friendRatingText: { flex: 1, gap: 2 },
+    ingredientsHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    servingsStepper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[4],
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space[3],
+      paddingVertical: t.space[1],
+    },
+    servingsButton: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    servingsButtonDisabled: { opacity: 0.5 },
+    servingsValue: { minWidth: 20, textAlign: "center" },
+    startCookingContainer: {
+      padding: t.space[5],
+      marginTop: t.space[3],
+    },
+    ingredientsList: {
+      marginTop: t.space[3],
+    },
+    ingredientItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingVertical: t.space[3],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    ingredientName: { flex: 1, paddingRight: t.space[4] },
+    stepsList: { marginTop: t.space[3] },
+    lastIngredientItem: { borderBottomWidth: 0 },
+    doneButtonContainer: {
+      padding: t.space[5],
+      paddingBottom: t.space[8],
+    },
+  });

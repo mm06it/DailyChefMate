@@ -321,6 +321,7 @@ export const TRANSLATIONS = {
     searching: 'Suche...',
     searchOnline: 'Online suchen',
     noRecipesFound: 'Keine Rezepte gefunden',
+    recipeNotFound: 'Rezept nicht gefunden',
     tryOnlineSearch: 'Versuche online nach mehr Rezepten zu suchen',
     tryDifferentSearch: 'Versuche einen anderen Suchbegriff',
     
@@ -1442,6 +1443,7 @@ export const TRANSLATIONS = {
     searching: 'Searching...',
     searchOnline: 'Search Online',
     noRecipesFound: 'No recipes found',
+    recipeNotFound: 'Recipe not found',
     tryOnlineSearch: 'Try searching online for more recipes',
     tryDifferentSearch: 'Try a different search term',
     

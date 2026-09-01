@@ -1,14 +1,18 @@
-import { CalendarCheck, CalendarPlus, Camera, Send, Star, Clock, Trash2, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Camera, Clock, Send, Star, Trash2, Users, UtensilsCrossed } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { getTranslation, translateText } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
 import { useToast } from "@/components/Toast";
+import { Badge } from "@/components/ui/Badge";
+import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
 
 interface RecipeDetailHeaderProps {
@@ -34,6 +38,8 @@ export default function RecipeDetailHeader({
   const { entries: planEntries } = useMealPlan();
   const { getRatingStats } = useRatings();
   const { currentLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { showToast } = useToast();
 
   const ratingStat = getRatingStats(recipe.id);
@@ -64,142 +70,125 @@ export default function RecipeDetailHeader({
   const translatedCategory = useMemo(() => translateText(currentLanguage, recipe.category) || recipe.category, [currentLanguage, recipe.category]);
 
   const courseLabel = useMemo(() => {
-    const lang = currentLanguage ?? 'de';
+    const lang = currentLanguage ?? "de";
     const labels: Record<string, { starter: string; main: string; dessert: string }> = {
-      de: { starter: 'Vorspeise', main: 'Hauptspeise', dessert: 'Nachspeise' },
-      en: { starter: 'Starter', main: 'Main', dessert: 'Dessert' },
+      de: { starter: "Vorspeise", main: "Hauptspeise", dessert: "Nachspeise" },
+      en: { starter: "Starter", main: "Main", dessert: "Dessert" },
     } as const;
-    const cat = recipe.category?.toLowerCase() ?? '';
-    let key: 'starter' | 'main' | 'dessert' | null = null;
+    const cat = recipe.category?.toLowerCase() ?? "";
+    let key: "starter" | "main" | "dessert" | null = null;
     if (recipe.course) {
       const c = recipe.course.toLowerCase();
-      if (['vorspeise', 'starter', 'entrée', 'entrada', 'antipasto'].includes(c)) key = 'starter';
-      if (['hauptspeise', 'main', 'plat', 'piatto principale'].includes(c)) key = 'main';
-      if (['nachspeise', 'dessert', 'postre'].includes(c)) key = 'dessert';
+      if (["vorspeise", "starter", "entrée", "entrada", "antipasto"].includes(c)) key = "starter";
+      if (["hauptspeise", "main", "plat", "piatto principale"].includes(c)) key = "main";
+      if (["nachspeise", "dessert", "postre"].includes(c)) key = "dessert";
     }
     if (!key) {
-      if (cat === 'dessert') key = 'dessert';
-      else if (cat === 'starter' || cat === 'salad' || cat === 'side' || cat === 'appetizer') key = 'starter';
-      else key = 'main';
+      if (cat === "dessert") key = "dessert";
+      else if (cat === "starter" || cat === "salad" || cat === "side" || cat === "appetizer") key = "starter";
+      else key = "main";
     }
-    const bundle = labels[lang] ?? labels.de;
-    return bundle[key];
+    return (labels[lang] ?? labels.de)[key];
   }, [currentLanguage, recipe.category, recipe.course]);
+
+  const GlassButton = ({ children, onPress, disabled, label, testID }: {
+    children: React.ReactNode;
+    onPress?: () => void;
+    disabled?: boolean;
+    label: string;
+    testID?: string;
+  }) => (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={8}
+      style={styles.glassBtn}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {children}
+    </Pressable>
+  );
 
   return (
     <View style={styles.container}>
       <View style={styles.imageWrap}>
         {showImage ? (
-          <Image
-            source={{ uri: recipe.image }}
-            style={styles.image}
-            onError={() => setImageError(true)}
-          />
+          <Image source={{ uri: recipe.image }} style={styles.image} onError={() => setImageError(true)} />
         ) : (
           <View style={[styles.image, styles.imageFallback]}>
-            <UtensilsCrossed size={52} color={Colors.textLight} />
+            <UtensilsCrossed size={48} color={theme.textMuted} />
           </View>
         )}
+
         {onChangePhoto && (
           <View style={styles.photoControls}>
-            <Pressable
+            <GlassButton
               onPress={onChangePhoto}
               disabled={photoBusy}
-              hitSlop={8}
-              style={styles.photoButton}
+              label={t(showImage ? "changePhoto" : "addPhoto")}
               testID={`recipe-detail-${recipe.id}-photo`}
-              accessibilityLabel={t(showImage ? "changePhoto" : "addPhoto")}
             >
               {photoBusy ? (
-                <ActivityIndicator size="small" color={Colors.text} />
+                <ActivityIndicator size="small" color={theme.textPrimary} />
               ) : (
-                <Camera size={20} color={Colors.text} />
+                <Camera size={19} color={theme.textPrimary} />
               )}
-            </Pressable>
+            </GlassButton>
             {showImage && onRemovePhoto && (
-              <Pressable
+              <GlassButton
                 onPress={onRemovePhoto}
                 disabled={photoBusy}
-                hitSlop={8}
-                style={styles.photoButton}
+                label={t("removePhoto")}
                 testID={`recipe-detail-${recipe.id}-photo-remove`}
-                accessibilityLabel={t("removePhoto")}
               >
-                <Trash2 size={18} color={Colors.error} />
-              </Pressable>
+                <Trash2 size={18} color={theme.danger} />
+              </GlassButton>
             )}
           </View>
         )}
-        {onShare && (
-          <Pressable
-            onPress={onShare}
-            hitSlop={10}
-            style={styles.shareButton}
-            testID={`recipe-detail-${recipe.id}-share`}
-            accessibilityLabel={t('shareRecipe')}
-          >
-            <Send size={20} color={Colors.text} />
-          </Pressable>
-        )}
-        {onAddToPlan && (
-          <Pressable
-            onPress={onAddToPlan}
-            hitSlop={10}
-            style={styles.planButton}
-            testID={`recipe-detail-${recipe.id}-plan`}
-            accessibilityLabel={t('addToWeekPlan')}
-          >
-            {justPlanned || inPlan ? (
-              <CalendarCheck size={22} color={Colors.success} />
-            ) : (
-              <CalendarPlus size={22} color={Colors.text} />
-            )}
-          </Pressable>
-        )}
-        <Pressable
-          onPress={handleFavoritePress}
-          hitSlop={10}
-          style={styles.favoriteButton}
-          testID={`recipe-detail-${recipe.id}-favorite`}
-        >
-          <Star
-            size={24}
-            color={favorited ? Colors.star : Colors.text}
-            fill={favorited ? Colors.star : "none"}
-          />
-        </Pressable>
+
+        <View style={styles.headerActions}>
+          {onShare && (
+            <GlassButton onPress={onShare} label={t("shareRecipe")} testID={`recipe-detail-${recipe.id}-share`}>
+              <Send size={19} color={theme.textPrimary} />
+            </GlassButton>
+          )}
+          {onAddToPlan && (
+            <GlassButton onPress={onAddToPlan} label={t("addToWeekPlan")} testID={`recipe-detail-${recipe.id}-plan`}>
+              {justPlanned || inPlan ? (
+                <CalendarCheck size={20} color={theme.success} />
+              ) : (
+                <CalendarPlus size={20} color={theme.textPrimary} />
+              )}
+            </GlassButton>
+          )}
+          <GlassButton onPress={handleFavoritePress} label={t("favorites")} testID={`recipe-detail-${recipe.id}-favorite`}>
+            <Star size={20} color={favorited ? theme.star : theme.textPrimary} fill={favorited ? theme.star : "none"} />
+          </GlassButton>
+        </View>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleWithBadge}>
-            <Text style={styles.title}>{translatedName}</Text>
-            <View style={styles.badgesRow}>
-              <View style={styles.categoryBadge} testID={`recipe-detail-${recipe.id}-category-badge`}>
-                <Text style={styles.categoryBadgeText}>{translatedCategory}</Text>
-              </View>
-              <View style={styles.courseBadge} testID={`recipe-detail-${recipe.id}-course-badge`}>
-                <Text style={styles.courseBadgeText}>{courseLabel}</Text>
-              </View>
-            </View>
-          </View>
+        <Text variant="h1" style={styles.title}>{translatedName}</Text>
+
+        <View style={styles.badgesRow}>
+          <Badge label={translatedCategory} tone="neutral" testID={`recipe-detail-${recipe.id}-category-badge`} />
+          <Badge label={courseLabel} tone="neutral" testID={`recipe-detail-${recipe.id}-course-badge`} />
+          <Badge label={`★ ${displayRating.toFixed(1)} (${ratingCount})`} tone="star" />
         </View>
 
-        <View style={styles.metaRow}>
-          <View style={styles.ratingContainer}>
-            <Text style={styles.rating}>★ {displayRating.toFixed(1)} ({ratingCount})</Text>
-          </View>
-          <Text style={styles.categoryPlain}>{translatedCategory}</Text>
-        </View>
-        
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <Clock size={18} color={Colors.textLight} />
-            <Text style={styles.infoText}>{recipe.cookTime}</Text>
+            <Clock size={16} color={theme.textMuted} />
+            <Text variant="bodySm" color="secondary">{recipe.cookTime}</Text>
           </View>
           <View style={styles.infoItem}>
-            <Users size={18} color={Colors.textLight} />
-            <Text style={styles.infoText}>{recipe.servings} {getTranslation(currentLanguage, 'servings')}</Text>
+            <Users size={16} color={theme.textMuted} />
+            <Text variant="bodySm" color="secondary">
+              {recipe.servings} {getTranslation(currentLanguage, "servings")}
+            </Text>
           </View>
         </View>
       </View>
@@ -207,168 +196,44 @@ export default function RecipeDetailHeader({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.background,
-  },
-  imageWrap: {
-    position: "relative",
-  },
-  image: {
-    width: "100%",
-    height: 250,
-    resizeMode: "cover",
-  },
-  imageFallback: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.cardSecondary,
-  },
-  content: {
-    padding: 16,
-  },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  titleWithBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: Colors.text,
-    flexShrink: 1,
-  },
-  categoryBadge: {
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  categoryBadgeText: {
-    fontSize: 13,
-    color: Colors.textLight,
-  },
-  courseBadge: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  courseBadgeText: {
-    fontSize: 13,
-    color: Colors.white,
-  },
-  favoriteButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  photoControls: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    flexDirection: "row",
-    gap: 8,
-  },
-  photoButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  planButton: {
-    position: "absolute",
-    top: 12,
-    right: 60,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  shareButton: {
-    position: "absolute",
-    top: 12,
-    right: 108,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 12,
-  },
-  categoryPlain: {
-    fontSize: 16,
-    color: Colors.textLight,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  rating: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: Colors.rating,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  infoText: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginLeft: 6,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: { backgroundColor: t.bg },
+    imageWrap: { position: "relative" },
+    image: { width: "100%", height: 240, resizeMode: "cover" },
+    imageFallback: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: t.surfaceSunken,
+    },
+    headerActions: {
+      position: "absolute",
+      top: t.space[4],
+      right: t.space[4],
+      flexDirection: "row",
+      gap: t.space[2],
+    },
+    photoControls: {
+      position: "absolute",
+      top: t.space[4],
+      left: t.space[4],
+      flexDirection: "row",
+      gap: t.space[2],
+    },
+    glassBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      alignItems: "center",
+      justifyContent: "center",
+      ...t.elevation.sm,
+    },
+    content: { padding: t.space[5], gap: t.space[3] },
+    title: {},
+    badgesRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.space[2] },
+    infoRow: { flexDirection: "row", alignItems: "center", gap: t.space[5], marginTop: t.space[1] },
+    infoItem: { flexDirection: "row", alignItems: "center", gap: t.space[2] },
+  });

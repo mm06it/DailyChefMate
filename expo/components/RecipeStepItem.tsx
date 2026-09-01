@@ -1,10 +1,12 @@
 import React from "react";
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { StyleSheet, View, TouchableOpacity } from "react-native";
 import { Check } from "lucide-react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateText } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
 import { useLanguage } from "@/hooks/use-language";
+import { Text } from "@/components/ui/Text";
 
 interface RecipeStepItemProps {
   step: string;
@@ -16,79 +18,55 @@ interface RecipeStepItemProps {
 
 export default function RecipeStepItem({ step, index, isCompleted, isActive, onToggle }: RecipeStepItemProps) {
   const { currentLanguage } = useLanguage();
-  
+  const styles = useThemedStyles(makeStyles);
+
   return (
-    <TouchableOpacity 
-      style={[styles.container, !isActive && !isCompleted && styles.dimmed]} 
+    <TouchableOpacity
+      style={[styles.container, !isActive && !isCompleted && styles.dimmed]}
       onPress={onToggle}
       disabled={!isActive && !isCompleted}
       testID={`step-${index}`}
     >
-      <View style={[
-        styles.numberContainer,
-        isCompleted && styles.completedNumberContainer
-      ]}>
+      <View style={[styles.number, isCompleted && styles.numberDone]}>
         {isCompleted ? (
-          <Check size={16} color={Colors.white} />
+          <Check size={15} color="#FFFFFF" />
         ) : (
-          <Text style={[
-            styles.number,
-            isCompleted && styles.completedNumber
-          ]}>{index + 1}</Text>
+          <Text variant="label" style={styles.numberText}>
+            {index + 1}
+          </Text>
         )}
       </View>
-      <Text style={[
-        styles.step,
-        !isActive && !isCompleted && styles.dimmedText,
-        isCompleted && styles.completedText
-      ]}>
+      <Text
+        variant="body"
+        color={isActive || isCompleted ? "primary" : "muted"}
+        style={[styles.step, isCompleted && styles.stepDone]}
+      >
         {translateText(currentLanguage, step) || step}
       </Text>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    marginBottom: 16,
-    paddingHorizontal: 16,
-  },
-  dimmed: {
-    opacity: 0.4,
-  },
-  numberContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-    marginTop: 2,
-  },
-  completedNumberContainer: {
-    backgroundColor: Colors.success || '#4CAF50',
-  },
-  number: {
-    color: "#FFF",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  completedNumber: {
-    color: Colors.success || '#4CAF50',
-  },
-  step: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 24,
-    color: Colors.text,
-  },
-  dimmedText: {
-    color: Colors.textLight,
-  },
-  completedText: {
-    textDecorationLine: 'line-through',
-    color: Colors.textLight,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: "row",
+      marginBottom: t.space[4],
+      paddingHorizontal: t.space[5],
+    },
+    dimmed: { opacity: 0.4 },
+    number: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      backgroundColor: t.accent,
+      justifyContent: "center",
+      alignItems: "center",
+      marginRight: t.space[4],
+      marginTop: 2,
+    },
+    numberDone: { backgroundColor: t.success },
+    numberText: { color: "#FFFFFF" },
+    step: { flex: 1 },
+    stepDone: { textDecorationLine: "line-through" },
+  });
