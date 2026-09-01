@@ -20,6 +20,7 @@ export interface BadgeProps {
   size?: BadgeSize;
   /** Solid fill instead of the default tinted/subtle style. */
   solid?: boolean;
+  testID?: string;
 }
 
 export function Badge({
@@ -27,6 +28,7 @@ export function Badge({
   tone = "neutral",
   size = "sm",
   solid = false,
+  testID,
 }: BadgeProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -55,6 +57,7 @@ export function Badge({
 
   return (
     <View
+      testID={testID}
       style={[
         styles.base,
         size === "md" && styles.md,

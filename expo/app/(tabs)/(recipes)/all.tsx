@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Recipe } from "@/types/recipe";
-import { FlatList, StyleSheet, Text, View, ActivityIndicator, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import { FlatList, StyleSheet, View, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { ChefHat } from "lucide-react-native";
 import { useFocusEffect } from "expo-router";
 import { useScrollToTop } from "@react-navigation/native";
@@ -9,13 +9,19 @@ import RecipeCard from "@/components/RecipeCard";
 import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import themealdb from "@/lib/themealdb";
 import { CUISINE_FILTERS } from "@/constants/recipe-filters";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
-import { useGridLayout } from "@/hooks/use-responsive";
+import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SkeletonCard } from "@/components/ui/Skeleton";
+import { Text } from "@/components/ui/Text";
 
 // TheMealDB "areas" (cuisines). Tokens in CUISINE_FILTERS that aren't in here
 // (e.g. "Vegetarian", "Seafood", "Breakfast") are TheMealDB *categories*.
@@ -44,6 +50,9 @@ function shuffleInPlace<T>(a: T[]): T[] {
 // when the API returns nothing.
 export default function AllRecipesScreen() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const isDesktop = useIsDesktop();
   const [onlineResults, setOnlineResults] = useState<Recipe[]>([]);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [searching, setSearching] = useState(false);
@@ -220,41 +229,36 @@ export default function AllRecipesScreen() {
       </View>
     );
   };
-  
+
   const renderFooter = () => {
     if (searchQuery) return null;
     if (!hasMoreRecipes) {
       return (
         <View style={styles.footerContainer}>
-          <ChefHat size={24} color={Colors.textLight} />
-          <Text style={styles.footerText}>
-            {t('allRecipesLoaded') || 'You\'ve discovered all available recipes!'}
+          <ChefHat size={22} color={theme.textMuted} />
+          <Text variant="bodySm" color="secondary" center>
+            {t('allRecipesLoaded') || "You've discovered all available recipes!"}
           </Text>
-          <Text style={styles.footerSubtext}>
+          <Text variant="caption" color="muted" center>
             {t('trySearching') || 'Try searching for specific dishes or ingredients'}
           </Text>
         </View>
       );
     }
-    
-    if (isLoadingMore) {
-      return (
-        <View style={styles.loadingMoreContainer}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.loadingMoreText}>
-            {t('loadingMoreRecipes') || 'Discovering more delicious recipes...'}
-          </Text>
-        </View>
-      );
-    }
-    
+
     return (
-      <Pressable style={styles.loadMoreButton} onPress={loadMore}>
-        <ChefHat size={20} color={Colors.white} />
-        <Text style={styles.loadMoreButtonText}>
-          {t('discoverMore') || 'Discover More Recipes'}
-        </Text>
-      </Pressable>
+      <View style={styles.footerContainer}>
+        <Button
+          label={
+            isLoadingMore
+              ? (t('loadingMoreRecipes') || 'Loading…')
+              : (t('discoverMore') || 'Discover more recipes')
+          }
+          variant="secondary"
+          loading={isLoadingMore}
+          onPress={loadMore}
+        />
+      </View>
     );
   };
   
@@ -274,16 +278,17 @@ export default function AllRecipesScreen() {
     (!searchQuery && initialLoading && onlineResults.length === 0) ||
     (!!searchQuery && searching && displayedRecipes.length === 0);
 
+  const gridMax = isDesktop ? { maxWidth: theme.layout.containerWide, alignSelf: "center" as const, width: "100%" as const } : null;
+
   return (
     <View style={styles.container}>
       {showSpinner ? (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} style={styles.emptyLoader} />
-          <Text style={styles.emptyText}>
-            {searchQuery
-              ? (t('searching') || 'Searching...')
-              : (t('loadingMoreRecipes') || 'Loading recipes...')}
-          </Text>
+        <View style={[styles.listContent, gridMax, styles.skeletonWrap]}>
+          {Array.from({ length: Math.max(columns * 2, 4) }).map((_, i) => (
+            <View key={i} style={columns > 1 ? { width: itemWidth } : { width: "100%" }}>
+              <SkeletonCard />
+            </View>
+          ))}
         </View>
       ) : displayedRecipes.length > 0 ? (
         <FlatList
@@ -294,7 +299,7 @@ export default function AllRecipesScreen() {
           keyExtractor={(item) => item.id}
           numColumns={columns}
           columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, gridMax]}
           showsVerticalScrollIndicator={false}
           testID="recipes-list"
           onEndReached={handleEndReached}
@@ -307,90 +312,35 @@ export default function AllRecipesScreen() {
           scrollEventThrottle={16}
         />
       ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            {t('noRecipesFound') || 'No recipes found'}
-          </Text>
-        </View>
+        <EmptyState
+          icon={<ChefHat size={24} color={theme.textMuted} />}
+          title={t('noRecipesFound') || 'No recipes found'}
+        />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  emptyLoader: {
-    marginBottom: 16,
-  },
-  listContent: {
-    padding: 16,
-  },
-  gridRow: {
-    gap: 16,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  emptyText: {
-    fontSize: 18,
-    color: Colors.text,
-    textAlign: 'center',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  loadingMoreContainer: {
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingMoreText: {
-    fontSize: 14,
-    color: Colors.textLight,
-    textAlign: 'center',
-  },
-  loadMoreButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    marginHorizontal: 16,
-    marginVertical: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    gap: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  loadMoreButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerContainer: {
-    padding: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  footerSubtext: {
-    fontSize: 14,
-    color: Colors.textLight,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.bg,
+    },
+    listContent: {
+      padding: t.space[5],
+    },
+    gridRow: {
+      gap: t.space[5],
+    },
+    skeletonWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: t.space[5],
+    },
+    footerContainer: {
+      paddingVertical: t.space[8],
+      alignItems: "center",
+      gap: t.space[3],
+    },
+  });

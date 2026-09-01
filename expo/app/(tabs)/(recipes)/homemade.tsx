@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, View, Pressable, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
-import { Plus, ChefHat, Edit, Trash2 } from "lucide-react-native";
+import { FlatList, StyleSheet, View, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import { Plus, ChefHat, Pencil, Trash2 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useScrollToTop } from "@react-navigation/native";
 
@@ -11,12 +11,19 @@ import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefma
 import { useLanguage } from "@/hooks/use-language";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { Recipe } from "@/types/recipe";
-import { useGridLayout } from "@/hooks/use-responsive";
+import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function HomemadeRecipesScreen() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const isDesktop = useIsDesktop();
   const { search } = useRecipeFilters();
   const { setProgress } = useCollapsibleHeader();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
@@ -25,10 +32,7 @@ export default function HomemadeRecipesScreen() {
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   const listRef = useRef<FlatList<Recipe>>(null);
 
-  // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
   useScrollToTop(listRef);
-
-  // Reset the collapsing search/filter bar when this sub-tab gains focus.
   useFocusEffect(useCallback(() => setProgress(0), [setProgress]));
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -37,16 +41,9 @@ export default function HomemadeRecipesScreen() {
     onHeaderScroll(e);
   }, [setProgress]);
 
-  const handleAddRecipe = () => {
-    router.push("/add-recipe");
-  };
-
-  const handleEditRecipe = (recipe: Recipe) => {
-    router.push({
-      pathname: "/add-recipe",
-      params: { editId: recipe.id }
-    });
-  };
+  const handleAddRecipe = () => router.push("/add-recipe");
+  const handleEditRecipe = (recipe: Recipe) =>
+    router.push({ pathname: "/add-recipe", params: { editId: recipe.id } });
 
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
@@ -67,37 +64,31 @@ export default function HomemadeRecipesScreen() {
           />
         ) : (
           <View style={styles.actionButtons}>
-            <Pressable
-              style={[styles.actionButton, styles.editButton]}
+            <Button
+              label={t('edit')}
+              variant="secondary"
+              size="sm"
+              leftIcon={<Pencil size={15} color={theme.textPrimary} />}
               onPress={() => handleEditRecipe(item)}
-            >
-              <Edit size={16} color={Colors.white} />
-              <Text style={styles.actionButtonText}>{t('edit')}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.actionButton, styles.deleteButton]}
+              style={styles.actionButton}
+            />
+            <Button
+              label={t('delete')}
+              variant="danger"
+              size="sm"
+              leftIcon={<Trash2 size={15} color={theme.textOnAccent} />}
               onPress={() => setConfirmingDeleteId(item.id)}
-            >
-              <Trash2 size={16} color={Colors.white} />
-              <Text style={styles.actionButtonText}>{t('delete')}</Text>
-            </Pressable>
+              style={styles.actionButton}
+            />
           </View>
         )}
       </View>
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <ChefHat size={64} color={Colors.textLight} />
-      <Text style={styles.emptyTitle}>{t('noHomemadeRecipes')}</Text>
-      <Text style={styles.emptySubtitle}>{t('createFirstRecipe')}</Text>
-      <Pressable style={styles.addFirstRecipeButton} onPress={handleAddRecipe}>
-        <Plus size={20} color={Colors.white} />
-        <Text style={styles.addFirstRecipeButtonText}>{t('addRecipe')}</Text>
-      </Pressable>
-    </View>
-  );
+  const gridMax = isDesktop
+    ? { maxWidth: theme.layout.containerWide, alignSelf: "center" as const, width: "100%" as const }
+    : null;
 
   return (
     <View style={styles.container}>
@@ -110,130 +101,54 @@ export default function HomemadeRecipesScreen() {
           keyExtractor={(item) => item.id}
           numColumns={columns}
           columnWrapperStyle={columns > 1 ? styles.gridRow : undefined}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, gridMax]}
           showsVerticalScrollIndicator={false}
           onScroll={onScroll}
           scrollEventThrottle={16}
           testID="custom-recipes-list"
         />
       ) : (
-        renderEmptyState()
+        <EmptyState
+          icon={<ChefHat size={26} color={theme.textMuted} />}
+          title={t('noHomemadeRecipes')}
+          description={t('createFirstRecipe')}
+          action={{
+            label: t('addRecipe'),
+            leftIcon: <Plus size={16} color={theme.textOnAccent} />,
+            onPress: handleAddRecipe,
+          }}
+        />
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 25,
-    gap: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addButtonText: {
-    color: Colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  bottomButtonContainer: {
-    padding: 16,
-    paddingTop: 8,
-    backgroundColor: Colors.background,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  listContent: {
-    padding: 16,
-    // Clear the bottom tab bar (~124pt) so the last recipe's edit/delete
-    // buttons — and the delete-confirm that replaces them — are reachable.
-    paddingBottom: 160,
-  },
-  recipeContainer: {
-    marginBottom: 16,
-  },
-  gridRow: {
-    gap: 16,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 8,
-  },
-  deleteConfirm: {
-    marginTop: 8,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  editButton: {
-    backgroundColor: Colors.primary,
-  },
-  deleteButton: {
-    backgroundColor: '#ef4444',
-  },
-  actionButtonText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: Colors.textLight,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  addFirstRecipeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 25,
-    gap: 8,
-    marginTop: 16,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  addFirstRecipeButtonText: {
-    color: Colors.white,
-    fontSize: 18,
-    fontWeight: '600',
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.bg,
+    },
+    listContent: {
+      padding: t.space[5],
+      // Clear the bottom tab bar so the last card's edit/delete row is reachable.
+      paddingBottom: 140,
+    },
+    recipeContainer: {
+      marginBottom: t.space[5],
+    },
+    gridRow: {
+      gap: t.space[5],
+    },
+    actionButtons: {
+      flexDirection: "row",
+      marginTop: t.space[3],
+      gap: t.space[3],
+    },
+    deleteConfirm: {
+      marginTop: t.space[3],
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });
