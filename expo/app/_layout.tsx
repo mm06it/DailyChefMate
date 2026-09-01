@@ -38,20 +38,24 @@ function RootLayoutNav() {
   // the backend (Convex) is likely unreachable — show a maintenance screen
   // instead of an endless spinner.
   const [tooSlow, setTooSlow] = useState(false);
+  const [retryNonce, setRetryNonce] = useState(0);
   useEffect(() => {
     if (!loading) {
       setTooSlow(false);
       return;
     }
+    setTooSlow(false);
     const id = setTimeout(() => setTooSlow(true), 12000);
     return () => clearTimeout(id);
-  }, [loading]);
+  }, [loading, retryNonce]);
 
   const handleRetry = () => {
     if (Platform.OS === "web" && typeof window !== "undefined") {
       window.location.reload();
     } else {
-      setTooSlow(false);
+      // Native has no full reload — restart the wait so the spinner (and, if
+      // still unreachable, the maintenance screen) comes back.
+      setRetryNonce((n) => n + 1);
     }
   };
 
