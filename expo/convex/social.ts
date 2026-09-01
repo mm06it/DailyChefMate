@@ -10,6 +10,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
+import { isAvatarColor, isAvatarEmoji } from "../constants/avatar";
 import { clampRecipeSnapshot } from "./lib/recipeLimits";
 import { rateLimiter } from "./rateLimits";
 import { ratingSummaryFor } from "./ratings";
@@ -72,6 +73,8 @@ function miniProfile(user: Doc<"users"> | null, id: Id<"users">) {
     username,
     displayName,
     initials: initialsOf(displayName || username || "?"),
+    avatarColor: user?.avatarColor ?? null,
+    avatarEmoji: user?.avatarEmoji ?? null,
     isAdmin: user?.isAdmin === true,
   };
 }
@@ -204,6 +207,8 @@ export const myProfile = query({
       feedVisibility: user.feedVisibility ?? "friends",
       friendListVisible: user.friendListVisible === true,
       initials: initialsOf(user.displayName || user.username || "?"),
+      avatarColor: user.avatarColor ?? null,
+      avatarEmoji: user.avatarEmoji ?? null,
       isAdmin: admin?._id === userId,
       adminId: admin && admin._id !== userId ? admin._id : null,
     };
@@ -217,6 +222,8 @@ export const setSocialProfile = mutation({
     discoverable: v.optional(v.boolean()),
     feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
     friendListVisible: v.optional(v.boolean()),
+    avatarColor: v.optional(v.string()),
+    avatarEmoji: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
@@ -226,6 +233,13 @@ export const setSocialProfile = mutation({
     if (args.discoverable !== undefined) patch.discoverable = args.discoverable;
     if (args.feedVisibility !== undefined) patch.feedVisibility = args.feedVisibility;
     if (args.friendListVisible !== undefined) patch.friendListVisible = args.friendListVisible;
+    // Avatar: only accept values from the predefined sets; "" clears the emoji.
+    if (args.avatarColor !== undefined && isAvatarColor(args.avatarColor)) {
+      patch.avatarColor = args.avatarColor;
+    }
+    if (args.avatarEmoji !== undefined) {
+      patch.avatarEmoji = isAvatarEmoji(args.avatarEmoji) ? args.avatarEmoji : undefined;
+    }
     await ctx.db.patch(userId, patch);
   },
 });
@@ -715,6 +729,9 @@ export const inbox = query({
       });
     }
     for (const n of notifs) {
+      // Name/initials stay from the snapshot; pull the actor's *current*
+      // avatar (colour/emoji) live so it reflects later changes.
+      const actor = n.actorId ? await ctx.db.get(n.actorId) : null;
       items.push({
         id: n._id,
         kind: n.type,
@@ -726,6 +743,8 @@ export const inbox = query({
               username: "",
               displayName: n.actorName ?? "",
               initials: n.actorInitials ?? initialsOf(n.actorName ?? "?"),
+              avatarColor: actor?.avatarColor ?? null,
+              avatarEmoji: actor?.avatarEmoji ?? null,
               isAdmin: false,
             }
           : null,

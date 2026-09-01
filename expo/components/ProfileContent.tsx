@@ -2,13 +2,15 @@ import { router } from 'expo-router';
 import { useQuery } from 'convex/react';
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { UserCircle, Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
+import { Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
 
+import Avatar from '@/components/Avatar';
 import Colors from '@/constants/colors';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useSocial } from '@/hooks/use-social';
 import { useDailyChefMateStore } from '@/hooks/use-dailychefmate-store';
 
 interface StatCardProps {
@@ -75,6 +77,7 @@ interface ProfileContentProps {
 
 export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
+  const { myProfile } = useSocial();
   const { t } = useLanguage();
   const { getTopCookedRecipes, cookedRecipes, favorites, viewedRecipesCount, customRecipes } = useDailyChefMateStore();
   const ratingSummary = useQuery(
@@ -113,7 +116,13 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
       {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
-          <UserCircle size={80} color={Colors.primary} />
+          <Avatar
+            name={myProfile?.displayName || user.username || user.email || '?'}
+            initials={myProfile?.initials}
+            color={myProfile?.avatarColor ?? undefined}
+            emoji={myProfile?.avatarEmoji ?? undefined}
+            size={80}
+          />
         </View>
         <Text style={styles.userName}>{user.username || user.email}</Text>
         <Text style={styles.userSubtitle}>{t('memberSince')} {profileStats.memberSince}</Text>

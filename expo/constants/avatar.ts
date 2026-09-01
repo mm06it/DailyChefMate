@@ -1,0 +1,30 @@
+// Choices for the customizable initials/emoji avatar (components/Avatar.tsx).
+// Pure data + validators — no React Native imports, so the Convex functions
+// can import this too (like constants/colors.ts).
+
+// Background colours. All mid-to-dark saturated so white text / emoji stay
+// readable. The first 8 match the original hash palette for continuity.
+export const AVATAR_COLORS: string[] = [
+  "#FF6B6B", "#F59E0B", "#10B981", "#3B82F6",
+  "#8B5CF6", "#EC4899", "#14B8A6", "#F97316",
+  "#EF4444", "#CA8A04", "#65A30D", "#059669",
+  "#0891B2", "#0EA5E9", "#4F46E5", "#9333EA",
+  "#DB2777", "#E11D48", "#78716C", "#0D9488",
+];
+
+// Kitchen / food themed emoji. Missing selection = fall back to initials.
+export const AVATAR_EMOJIS: string[] = [
+  "🍳", "🥑", "🍕", "🌮", "🍜", "🥗", "🍰", "🧀",
+  "🥐", "🍤", "🥩", "🍎", "🥕", "🍄", "🌶️", "🧅",
+  "🍅", "🥚", "🍞", "🍚", "🍔", "🌭", "🥞", "🧁",
+  "🍪", "🍫", "🍿", "🍷", "☕", "🍯", "🍋", "🍓",
+  "🍇", "🥦", "🍗", "🥘",
+];
+
+export function isAvatarColor(c: string): boolean {
+  return AVATAR_COLORS.includes(c);
+}
+
+export function isAvatarEmoji(e: string): boolean {
+  return AVATAR_EMOJIS.includes(e);
+}

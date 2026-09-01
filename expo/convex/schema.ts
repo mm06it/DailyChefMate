@@ -57,6 +57,8 @@ export default defineSchema({
     // Social profile (all optional — no migration for existing rows).
     displayName: v.optional(v.string()),
     bio: v.optional(v.string()),
+    avatarColor: v.optional(v.string()), // one of constants/avatar.ts AVATAR_COLORS
+    avatarEmoji: v.optional(v.string()), // one of AVATAR_EMOJIS; missing = initials
     discoverable: v.optional(v.boolean()), // missing = findable
     feedVisibility: v.optional(v.union(v.literal("friends"), v.literal("private"))),
     isAdmin: v.optional(v.boolean()),

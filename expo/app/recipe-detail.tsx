@@ -183,7 +183,13 @@ export default function RecipeDetailScreen() {
               </Text>
               {friendItems.map((r) => (
                 <View key={r.profile.id} style={styles.friendRatingRow}>
-                  <Avatar name={r.profile.displayName || r.profile.username} initials={r.profile.initials} size={28} />
+                  <Avatar
+                    name={r.profile.displayName || r.profile.username}
+                    initials={r.profile.initials}
+                    color={r.profile.avatarColor ?? undefined}
+                    emoji={r.profile.avatarEmoji ?? undefined}
+                    size={28}
+                  />
                   <View style={styles.friendRatingText}>
                     <RatingStars value={r.rating} size={13} />
                     {!!r.comment && <Text style={styles.friendRatingComment}>{r.comment}</Text>}

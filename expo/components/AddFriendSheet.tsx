@@ -99,7 +99,13 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
 
     return (
       <View style={styles.resultCard}>
-        <Avatar name={user.displayName || user.username} initials={user.initials} size={44} />
+        <Avatar
+          name={user.displayName || user.username}
+          initials={user.initials}
+          color={user.avatarColor ?? undefined}
+          emoji={user.avatarEmoji ?? undefined}
+          size={44}
+        />
         <View style={styles.resultText}>
           <Text style={styles.resultName} numberOfLines={1}>
             {user.displayName || user.username}

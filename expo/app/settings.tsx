@@ -4,13 +4,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   ScrollView,
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, User, Globe, Info, Pencil, Users, Eye } from 'lucide-react-native';
+import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 import { useAuth } from '@/hooks/use-auth';
@@ -24,7 +25,9 @@ import CollapsingTabHeader, {
 } from '@/components/CollapsingTabHeader';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
+import Avatar from '@/components/Avatar';
 import Colors from '@/constants/colors';
+import { AVATAR_COLORS, AVATAR_EMOJIS } from '@/constants/avatar';
 import { api } from '@/convex/_generated/api';
 
 // Mirror of convex/users.ts's USERNAME_PATTERN so an obviously bad value is
@@ -272,6 +275,60 @@ export default function SettingsScreen() {
             />
           </View>
 
+          <View style={styles.avatarBlock}>
+            <View style={styles.settingLeft}>
+              <Smile size={20} color={Colors.textLight} />
+              <Text style={styles.settingLabel}>{t('avatar')}</Text>
+            </View>
+
+            <View style={styles.avatarPreviewWrap}>
+              <Avatar
+                size={64}
+                name={displayNameDraft || currentUsername || '?'}
+                initials={myProfile?.initials}
+                color={myProfile?.avatarColor ?? undefined}
+                emoji={myProfile?.avatarEmoji ?? undefined}
+              />
+            </View>
+
+            <Text style={styles.avatarSubLabel}>{t('avatarSymbol')}</Text>
+            <View style={styles.avatarGrid}>
+              <Pressable
+                style={[styles.emojiChip, !myProfile?.avatarEmoji && styles.emojiChipActive]}
+                onPress={() => setSocialProfile({ avatarEmoji: '' })}
+                testID="avatar-emoji-initials"
+              >
+                <Text style={styles.emojiChipAa}>{t('avatarInitialsOption')}</Text>
+              </Pressable>
+              {AVATAR_EMOJIS.map((e) => (
+                <Pressable
+                  key={e}
+                  style={[styles.emojiChip, myProfile?.avatarEmoji === e && styles.emojiChipActive]}
+                  onPress={() => setSocialProfile({ avatarEmoji: e })}
+                  testID={`avatar-emoji-${e}`}
+                >
+                  <Text style={styles.emojiChipText}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.avatarSubLabel}>{t('avatarBackground')}</Text>
+            <View style={styles.avatarGrid}>
+              {AVATAR_COLORS.map((c) => (
+                <Pressable
+                  key={c}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: c },
+                    myProfile?.avatarColor === c && styles.swatchActive,
+                  ]}
+                  onPress={() => setSocialProfile({ avatarColor: c })}
+                  testID={`avatar-color-${c}`}
+                />
+              ))}
+            </View>
+          </View>
+
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <Users size={20} color={Colors.textLight} />
@@ -399,6 +456,58 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text,
     marginLeft: 12,
+  },
+  avatarBlock: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+  },
+  avatarPreviewWrap: {
+    alignItems: 'center',
+    marginVertical: 14,
+  },
+  avatarSubLabel: {
+    fontSize: 13,
+    color: Colors.textLight,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  emojiChip: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.cardSecondary,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  emojiChipActive: {
+    borderColor: Colors.primary,
+  },
+  emojiChipText: {
+    fontSize: 20,
+  },
+  emojiChipAa: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  swatch: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 3,
+    borderColor: 'transparent',
+  },
+  swatchActive: {
+    borderColor: Colors.text,
   },
   settingValue: {
     fontSize: 16,

@@ -14,6 +14,8 @@ export interface MiniProfile {
   username: string;
   displayName: string;
   initials: string;
+  avatarColor?: string | null;
+  avatarEmoji?: string | null;
   isAdmin?: boolean;
 }
 
@@ -139,6 +141,8 @@ export const [SocialContext, useSocial] = createContextHook(() => {
       discoverable?: boolean;
       feedVisibility?: "friends" | "private";
       friendListVisible?: boolean;
+      avatarColor?: string;
+      avatarEmoji?: string;
     }) => setProfileMut(args),
     [setProfileMut],
   );

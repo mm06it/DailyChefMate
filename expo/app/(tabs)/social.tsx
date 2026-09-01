@@ -319,7 +319,13 @@ export default function SocialScreen() {
           />
         )}
         <View style={styles.cardHead}>
-          <Avatar name={name} initials={item.actor.initials} size={36} />
+          <Avatar
+            name={name}
+            initials={item.actor.initials}
+            color={item.actor.avatarColor ?? undefined}
+            emoji={item.actor.avatarEmoji ?? undefined}
+            size={36}
+          />
           <Text style={styles.line} numberOfLines={2}>
             <Text style={styles.name}>{name}</Text> {verb}
           </Text>
@@ -422,7 +428,13 @@ export default function SocialScreen() {
             onPress={() => router.push(`/user/${p.id}` as any)}
             testID={`friend-${p.id}`}
           >
-            <Avatar name={name} initials={p.initials} size={40} />
+            <Avatar
+              name={name}
+              initials={p.initials}
+              color={p.avatarColor ?? undefined}
+              emoji={p.avatarEmoji ?? undefined}
+              size={40}
+            />
             <View style={styles.friendText}>
               <Text style={styles.friendName} numberOfLines={1}>
                 {name}
@@ -542,7 +554,13 @@ export default function SocialScreen() {
       return (
         <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
-            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Avatar
+              name={name}
+              initials={item.from?.initials ?? "?"}
+              color={item.from?.avatarColor ?? undefined}
+              emoji={item.from?.avatarEmoji ?? undefined}
+              size={36}
+            />
             <Text style={styles.line} numberOfLines={2}>
               <Text style={styles.name}>{name}</Text> {t("sharedWithYou")}
             </Text>
@@ -592,7 +610,13 @@ export default function SocialScreen() {
       return (
         <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
-            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Avatar
+              name={name}
+              initials={item.from?.initials ?? "?"}
+              color={item.from?.avatarColor ?? undefined}
+              emoji={item.from?.avatarEmoji ?? undefined}
+              size={36}
+            />
             <Text style={styles.line} numberOfLines={2}>
               <Text style={styles.name}>{name}</Text> {t("friendAcceptedYou")}
             </Text>
@@ -616,7 +640,13 @@ export default function SocialScreen() {
       return (
         <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
-            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Avatar
+              name={name}
+              initials={item.from?.initials ?? "?"}
+              color={item.from?.avatarColor ?? undefined}
+              emoji={item.from?.avatarEmoji ?? undefined}
+              size={36}
+            />
             <Text style={styles.line} numberOfLines={3}>
               <Text style={styles.name}>{name}</Text> {verb}
               {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
@@ -636,7 +666,13 @@ export default function SocialScreen() {
       return (
         <View style={[styles.card, styles.cardDeletable]}>
           <View style={styles.cardHead}>
-            <Avatar name={name} initials={item.from?.initials ?? "?"} size={36} />
+            <Avatar
+              name={name}
+              initials={item.from?.initials ?? "?"}
+              color={item.from?.avatarColor ?? undefined}
+              emoji={item.from?.avatarEmoji ?? undefined}
+              size={36}
+            />
             <Text style={styles.line} numberOfLines={3}>
               <Text style={styles.name}>{name}</Text> {t("ratedInInbox")}
               {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}

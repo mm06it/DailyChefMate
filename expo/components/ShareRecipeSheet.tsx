@@ -120,7 +120,13 @@ export default function ShareRecipeSheet({ recipe, visible, onClose }: ShareReci
                     onPress={() => toggle(f.id)}
                     testID={`share-recipe-friend-${f.id}`}
                   >
-                    <Avatar name={f.displayName || f.username} initials={f.initials} size={40} />
+                    <Avatar
+                      name={f.displayName || f.username}
+                      initials={f.initials}
+                      color={f.avatarColor ?? undefined}
+                      emoji={f.avatarEmoji ?? undefined}
+                      size={40}
+                    />
                     <View style={styles.friendText}>
                       <Text style={styles.friendName} numberOfLines={1}>
                         {f.displayName || f.username}

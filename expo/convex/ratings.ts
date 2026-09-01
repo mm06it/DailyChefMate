@@ -28,7 +28,14 @@ function initialsOf(name: string): string {
 function miniProfile(user: Doc<"users"> | null, id: Id<"users">) {
   const username = user?.username ?? "";
   const displayName = user?.displayName ?? username ?? "";
-  return { id, username, displayName, initials: initialsOf(displayName || username || "?") };
+  return {
+    id,
+    username,
+    displayName,
+    initials: initialsOf(displayName || username || "?"),
+    avatarColor: user?.avatarColor ?? null,
+    avatarEmoji: user?.avatarEmoji ?? null,
+  };
 }
 
 function clampRating(n: number) {

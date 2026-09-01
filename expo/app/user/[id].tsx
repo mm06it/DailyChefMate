@@ -140,7 +140,13 @@ export default function UserProfileScreen() {
         <Stack.Screen options={{ title: name || t("friendProfile") }} />
         <View style={styles.adminForm}>
           <View style={styles.header}>
-            <Avatar name={name} initials={data.initials} size={72} />
+            <Avatar
+              name={name}
+              initials={data.initials}
+              color={data.avatarColor ?? undefined}
+              emoji={data.avatarEmoji ?? undefined}
+              size={72}
+            />
             <View style={styles.adminBadge}>
               <ShieldCheck size={14} color={Colors.white} />
               <Text style={styles.adminBadgeText}>Admin</Text>
@@ -345,7 +351,13 @@ export default function UserProfileScreen() {
         style={styles.pfMain}
         onPress={() => router.push(`/user/${f.id}` as any)}
       >
-        <Avatar name={f.displayName || f.username} initials={f.initials} size={40} />
+        <Avatar
+          name={f.displayName || f.username}
+          initials={f.initials}
+          color={f.avatarColor ?? undefined}
+          emoji={f.avatarEmoji ?? undefined}
+          size={40}
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.pfName} numberOfLines={1}>
             {f.displayName || f.username}
@@ -408,7 +420,13 @@ export default function UserProfileScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Avatar name={name} initials={data.initials} size={72} />
+            <Avatar
+              name={name}
+              initials={data.initials}
+              color={data.avatarColor ?? undefined}
+              emoji={data.avatarEmoji ?? undefined}
+              size={72}
+            />
             <Text style={styles.pageName}>{name}</Text>
             {!!data.username && <Text style={styles.handle}>@{data.username}</Text>}
             {!!data.bio && <Text style={styles.bio}>{data.bio}</Text>}

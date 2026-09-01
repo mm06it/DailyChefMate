@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-// Deterministic initials avatar — no image upload / file storage.
-const PALETTE = [
-  "#FF6B6B", "#F59E0B", "#10B981", "#3B82F6",
-  "#8B5CF6", "#EC4899", "#14B8A6", "#F97316",
-];
+import { AVATAR_COLORS } from "@/constants/avatar";
+
+// Deterministic initials avatar — no image upload / file storage. Users can
+// override the background colour and swap the initials for an emoji in
+// Settings (stored on the user doc, flows through miniProfile).
+const PALETTE = AVATAR_COLORS;
 
 function hash(s: string): number {
   let h = 0;
@@ -24,13 +25,20 @@ interface AvatarProps {
   name: string;
   initials?: string;
   size?: number;
+  /** User-chosen background colour; falls back to a hash of `name`. */
+  color?: string;
+  /** User-chosen emoji shown instead of initials. */
+  emoji?: string;
 }
 
-export default function Avatar({ name, initials, size = 40 }: AvatarProps) {
+export default function Avatar({ name, initials, size = 40, color, emoji }: AvatarProps) {
   const { bg, text } = useMemo(() => {
     const key = (name || "?").trim().toLowerCase();
-    return { bg: PALETTE[hash(key) % PALETTE.length], text: initials || initialsOf(name || "?") };
-  }, [name, initials]);
+    return {
+      bg: color || PALETTE[hash(key) % PALETTE.length],
+      text: initials || initialsOf(name || "?"),
+    };
+  }, [name, initials, color]);
 
   return (
     <View
@@ -39,7 +47,11 @@ export default function Avatar({ name, initials, size = 40 }: AvatarProps) {
         { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
       ]}
     >
-      <Text style={[styles.text, { fontSize: size * 0.4 }]}>{text}</Text>
+      {emoji ? (
+        <Text style={{ fontSize: size * 0.5 }}>{emoji}</Text>
+      ) : (
+        <Text style={[styles.text, { fontSize: size * 0.4 }]}>{text}</Text>
+      )}
     </View>
   );
 }
