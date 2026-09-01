@@ -25,7 +25,12 @@ export function scaleAmount(amount: string, ratio: number): string {
   if (!Number.isFinite(value)) return amount;
 
   const scaled = value * ratio;
-  const rounded = Math.round(scaled * 100) / 100;
+  // Whole numbers for anything from 5 upwards ("156.25 g" -> "156 g",
+  // "37.5 g" -> "38 g"). Below that, keep the fraction: rounding would
+  // distort too much ("2.5 g" -> "3 g") and small fractional amounts like
+  // "0.5 l" (half a litre) or "1.25" eggs are meant to stay fractional.
+  const rounded =
+    scaled >= 5 ? Math.round(scaled) : Math.round(scaled * 100) / 100;
   const formatted = Number.isInteger(rounded)
     ? String(rounded)
     : String(rounded.toFixed(2)).replace(/0+$/, '').replace(/\.$/, '');
