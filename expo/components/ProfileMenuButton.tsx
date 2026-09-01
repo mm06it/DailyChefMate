@@ -1,16 +1,21 @@
 import { LogOut, UserCircle, X } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import InlineConfirm from '@/components/InlineConfirm';
 import ProfileContent from '@/components/ProfileContent';
+import { Text } from '@/components/ui/Text';
 
 export default function ProfileMenuButton() {
   const { signOut } = useAuth();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
 
@@ -30,7 +35,7 @@ export default function ProfileMenuButton() {
         }}
         testID="profile-menu-button"
       >
-        <UserCircle size={24} color={Colors.primary} />
+        <UserCircle size={24} color={theme.textPrimary} />
       </TouchableOpacity>
 
       <Modal
@@ -44,9 +49,9 @@ export default function ProfileMenuButton() {
             <View style={styles.grabber} />
 
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{t('profile')}</Text>
+              <Text variant="h3">{t('profile')}</Text>
               <TouchableOpacity onPress={() => setIsVisible(false)} testID="profile-sheet-close">
-                <X size={22} color={Colors.textLight} />
+                <X size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -69,12 +74,14 @@ export default function ProfileMenuButton() {
                     onPress={() => setConfirmingSignOut(true)}
                     testID="profile-sheet-sign-out"
                   >
-                    <LogOut size={20} color={Colors.error} />
-                    <Text style={[styles.footerText, styles.signOutText]}>{t('signOut')}</Text>
+                    <LogOut size={20} color={theme.danger} />
+                    <Text variant="body" style={{ color: theme.danger }}>{t('signOut')}</Text>
                   </TouchableOpacity>
                 )}
 
-                <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
+                <Text variant="bodySm" color="muted" center style={styles.versionText}>
+                  {t('version')} 1.0.0
+                </Text>
               </View>
             </ScrollView>
           </Pressable>
@@ -84,74 +91,60 @@ export default function ProfileMenuButton() {
   );
 }
 
-const styles = StyleSheet.create({
-  headerButton: {
-    padding: 8,
-    marginRight: 8,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    maxHeight: '85%',
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 8,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    marginBottom: 12,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  sheetContent: {
-    padding: 20,
-  },
-  footer: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-  },
-  signOutConfirm: {
-    paddingVertical: 12,
-  },
-  footerText: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  signOutText: {
-    color: Colors.error,
-  },
-  versionText: {
-    fontSize: 13,
-    color: Colors.textLight,
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    headerButton: {
+      padding: 8,
+      marginRight: 8,
+    },
+    overlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'flex-end',
+    },
+    sheet: {
+      maxHeight: '85%',
+      backgroundColor: t.surfaceRaised,
+      borderTopLeftRadius: t.radius.xl,
+      borderTopRightRadius: t.radius.xl,
+      paddingTop: 8,
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: t.borderStrong,
+      marginBottom: 12,
+    },
+    sheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: t.space[6],
+      paddingBottom: t.space[4],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    sheetContent: {
+      padding: t.space[6],
+    },
+    footer: {
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: t.borderWidth.hairline,
+      borderTopColor: t.border,
+    },
+    footerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 14,
+    },
+    signOutConfirm: {
+      paddingVertical: 12,
+    },
+    versionText: {
+      paddingVertical: 12,
+    },
+  });

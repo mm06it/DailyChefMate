@@ -3,7 +3,9 @@ import { ChevronDown, Globe, Plus, Search, UtensilsCrossed, X } from 'lucide-rea
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { translateText } from '@/constants/translations';
 import { CUISINE_FILTERS, COURSE_FILTERS } from '@/constants/recipe-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
@@ -30,6 +32,7 @@ function FilterMenu({
   onClose: () => void;
 }) {
   const { currentLanguage } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.menuBackdrop} onPress={onClose}>
@@ -70,6 +73,8 @@ export default function RecipeFilterBar({
 }) {
   const { progress } = useCollapsibleHeader();
   const { t: translate, currentLanguage } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const {
     search,
     setSearch,
@@ -114,13 +119,13 @@ export default function RecipeFilterBar({
         >
           {fieldMode ? (
             <>
-              <Search size={22} color={Colors.textLight} style={styles.searchIcon} strokeWidth={2.5} />
+              <Search size={22} color={theme.textSecondary} style={styles.searchIcon} strokeWidth={2.5} />
               <TextInput
                 style={styles.inputSearch}
                 value={search}
                 onChangeText={setSearch}
                 placeholder={translate('search')}
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor={theme.textMuted}
                 autoFocus={searchOpen}
                 returnKeyType="search"
               />
@@ -133,7 +138,7 @@ export default function RecipeFilterBar({
                   hitSlop={10}
                   testID="filter-search-close"
                 >
-                  <X size={18} color={Colors.textLight} />
+                  <X size={18} color={theme.textSecondary} />
                 </Pressable>
               )}
               {showFilters && (
@@ -144,7 +149,7 @@ export default function RecipeFilterBar({
                     testID="filter-cuisine-button"
                     accessibilityLabel={translate('cuisine')}
                   >
-                    <Globe size={16} color={selectedCuisine !== 'all' ? Colors.white : Colors.textLight} />
+                    <Globe size={16} color={selectedCuisine !== 'all' ? theme.textOnAccent : theme.textSecondary} />
                   </Pressable>
                   <Pressable
                     style={[styles.pillMini, selectedCourse !== 'all' && styles.pillActive]}
@@ -152,7 +157,7 @@ export default function RecipeFilterBar({
                     testID="filter-course-button"
                     accessibilityLabel={translate('courseType')}
                   >
-                    <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? Colors.white : Colors.textLight} />
+                    <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? theme.textOnAccent : theme.textSecondary} />
                   </Pressable>
                 </View>
               )}
@@ -165,7 +170,7 @@ export default function RecipeFilterBar({
                   accessibilityRole="button"
                   accessibilityLabel={translate('addRecipe')}
                 >
-                  <Plus size={22} color={Colors.white} strokeWidth={2.6} />
+                  <Plus size={22} color={theme.textOnAccent} strokeWidth={2.6} />
                 </Pressable>
               )}
             </>
@@ -179,7 +184,7 @@ export default function RecipeFilterBar({
                 accessibilityRole="button"
                 accessibilityLabel={translate('search')}
               >
-                <Search size={24} color={Colors.text} strokeWidth={2.5} />
+                <Search size={24} color={theme.textPrimary} strokeWidth={2.5} />
               </Pressable>
               <Pressable
                 style={[styles.pill, selectedCuisine !== 'all' && styles.pillActive]}
@@ -194,7 +199,7 @@ export default function RecipeFilterBar({
                 </Text>
                 <ChevronDown
                   size={15}
-                  color={selectedCuisine !== 'all' ? Colors.white : Colors.textLight}
+                  color={selectedCuisine !== 'all' ? theme.textOnAccent : theme.textSecondary}
                 />
               </Pressable>
               <Pressable
@@ -210,7 +215,7 @@ export default function RecipeFilterBar({
                 </Text>
                 <ChevronDown
                   size={15}
-                  color={selectedCourse !== 'all' ? Colors.white : Colors.textLight}
+                  color={selectedCourse !== 'all' ? theme.textOnAccent : theme.textSecondary}
                 />
               </Pressable>
             </>
@@ -244,12 +249,12 @@ export default function RecipeFilterBar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (t: Theme) => StyleSheet.create({
   clip: {
     overflow: 'hidden',
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: t.bg,
+    borderBottomWidth: t.borderWidth.hairline,
+    borderBottomColor: t.border,
   },
   row: {
     flexDirection: 'row',
@@ -264,10 +269,10 @@ const styles = StyleSheet.create({
   searchIconBtn: {
     width: 44,
     height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderRadius: t.radius.md,
+    borderWidth: t.borderWidth.hairline,
+    borderColor: t.border,
+    backgroundColor: t.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -276,22 +281,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   inputSearch: {
     flexGrow: 1,
     flexShrink: 1,
     minWidth: 60,
     maxWidth: 170,
+    fontFamily: t.font.body,
     fontSize: 15,
-    color: Colors.text,
+    color: t.textPrimary,
     paddingVertical: 6,
   },
   miniGroup: {
@@ -302,9 +303,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 34,
     borderRadius: 17,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderWidth: t.borderWidth.hairline,
+    borderColor: t.border,
+    backgroundColor: t.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -316,27 +317,27 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderRadius: t.radius.pill,
+    borderWidth: t.borderWidth.hairline,
+    borderColor: t.border,
+    backgroundColor: t.surfaceSunken,
   },
   pillActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: t.accent,
+    borderColor: t.accent,
   },
   pillText: {
     flexShrink: 1,
+    fontFamily: t.font.bodySemibold,
     fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
+    color: t.textPrimary,
   },
   pillTextActive: {
-    color: Colors.white,
+    color: t.textOnAccent,
   },
   menuBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: t.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -345,31 +346,34 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 380,
     maxHeight: '70%',
-    backgroundColor: Colors.background,
-    borderRadius: 16,
+    backgroundColor: t.surfaceRaised,
+    borderRadius: t.radius.lg,
+    borderWidth: t.borderWidth.hairline,
+    borderColor: t.border,
     padding: 12,
   },
   menuTitle: {
+    fontFamily: t.font.bodyBold,
     fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
+    color: t.textPrimary,
     paddingHorizontal: 8,
     paddingVertical: 8,
   },
   menuOption: {
     paddingHorizontal: 12,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: t.radius.sm,
   },
   menuOptionActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accentSubtle,
   },
   menuOptionText: {
+    fontFamily: t.font.body,
     fontSize: 15,
-    color: Colors.text,
+    color: t.textPrimary,
   },
   menuOptionTextActive: {
-    color: Colors.white,
-    fontWeight: '700',
+    color: t.accent,
+    fontFamily: t.font.bodyBold,
   },
 });

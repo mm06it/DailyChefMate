@@ -28,7 +28,7 @@ import { SocialContext } from "@/hooks/use-social";
 import { RatingsContext } from "@/hooks/use-ratings";
 import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
-import { ThemeContext } from "@/hooks/use-theme";
+import { ThemeContext, useTheme } from "@/hooks/use-theme";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { api } from "@/convex/_generated/api";
@@ -64,6 +64,7 @@ function RootLayoutNav() {
   const { user, loading } = useAuth();
   const isDesktop = useIsDesktop();
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const claimUsername = useMutation(api.users.updateUsername);
 
   // If the app shell has loaded but auth/backend hasn't resolved after a while,
@@ -122,8 +123,15 @@ function RootLayoutNav() {
       return <MaintenanceScreen onRetry={handleRetry} />;
     }
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: theme.bg,
+        }}
+      >
+        <ActivityIndicator size="large" color={theme.accent} />
       </View>
     );
   }
@@ -143,9 +151,11 @@ function RootLayoutNav() {
 
   if (isDesktop) {
     return (
-      <View style={styles.desktopShell}>
+      <View style={[styles.desktopShell, { backgroundColor: theme.bgSubtle }]}>
         <DesktopSidebar />
-        <View style={styles.desktopContent}>{stack}</View>
+        <View style={[styles.desktopContent, { backgroundColor: theme.bg }]}>
+          {stack}
+        </View>
       </View>
     );
   }

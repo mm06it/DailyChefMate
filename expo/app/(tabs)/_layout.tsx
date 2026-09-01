@@ -1,68 +1,84 @@
 import { Tabs } from "expo-router";
 import { BookOpen, CalendarDays, Refrigerator, ShieldCheck, Star, Users } from "lucide-react-native";
 import React from "react";
-import { StyleSheet } from "react-native";
+import { Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import Colors from "@/constants/colors";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
+import { useTheme } from "@/hooks/use-theme";
 import { useIsDesktop } from "@/hooks/use-responsive";
 
 // The header is rendered per-screen as <CollapsingTabHeader /> (mobile) so
 // it can hide on scroll — the built-in tab header is off everywhere.
 export default function TabLayout() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const isDesktop = useIsDesktop();
+  const insets = useSafeAreaInsets();
   const { badgeCount, counts, isAdmin } = useSocial();
+
+  const barHeight = theme.layout.tabBarHeight + insets.bottom;
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textLight,
-        tabBarStyle: isDesktop ? styles.tabBarHidden : styles.tabBar,
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarActiveTintColor: theme.textPrimary,
+        tabBarInactiveTintColor: theme.textMuted,
+        tabBarStyle: isDesktop
+          ? { display: "none" }
+          : {
+              height: barHeight,
+              paddingBottom: insets.bottom,
+              paddingTop: 6,
+              backgroundColor: theme.surface,
+              borderTopWidth: theme.borderWidth.hairline,
+              borderTopColor: theme.border,
+              // No colored glow — a hairline top border is the whole treatment.
+              elevation: 0,
+              shadowOpacity: 0,
+            },
+        tabBarLabelStyle: {
+          fontFamily: theme.font.bodyMedium,
+          fontSize: 11,
+          marginBottom: Platform.OS === "ios" ? 0 : 4,
+        },
         headerShown: false,
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen
         name="(recipes)"
         options={{
-          title: t('recipes'),
+          title: t("recipes"),
           tabBarIcon: ({ color }) => <BookOpen size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="refrigerator"
         options={{
-          title: t('refrigerator'),
+          title: t("refrigerator"),
           tabBarIcon: ({ color }) => <Refrigerator size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="planner"
         options={{
-          title: t('weekPlan'),
+          title: t("weekPlan"),
           tabBarIcon: ({ color }) => <CalendarDays size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
-          title: t('favorites'),
+          title: t("favorites"),
           tabBarIcon: ({ color }) => <Star size={22} color={color} />,
         }}
       />
       <Tabs.Screen
         name="social"
         options={{
-          title: t('social'),
+          title: t("social"),
           tabBarIcon: ({ color }) => <Users size={22} color={color} />,
           tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
         }}
@@ -70,47 +86,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="admin"
         options={{
-          title: t('adminPanel'),
+          title: t("adminPanel"),
           tabBarIcon: ({ color }) => <ShieldCheck size={22} color={color} />,
           tabBarBadge: isAdmin && counts.adminOpen > 0 ? counts.adminOpen : undefined,
           href: isAdmin ? undefined : null,
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-        }}
-      />
+      <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabBarHidden: {
-    display: 'none',
-  },
-  tabBar: {
-    elevation: 10,
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: -2 },
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    height: 64,
-    paddingBottom: 60,
-    paddingTop: 6,
-    backgroundColor: Colors.tabBarTint,
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});

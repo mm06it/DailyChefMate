@@ -1,14 +1,17 @@
 import { router, usePathname } from 'expo-router';
 import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, ShieldCheck, Star, UserCircle, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useSocial } from '@/hooks/use-social';
 import InlineConfirm from '@/components/InlineConfirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
+import { Text } from '@/components/ui/Text';
 
 interface NavItem {
   key: string;
@@ -22,55 +25,19 @@ export default function DesktopSidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { isAdmin, counts } = useSocial();
   const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
 
   const navItems: NavItem[] = [
-    {
-      key: 'recipes',
-      href: '/(tabs)/(recipes)/all',
-      label: t('recipes'),
-      icon: BookOpen,
-      match: (p) => p.includes('/all') || p.includes('/homemade'),
-    },
-    {
-      key: 'refrigerator',
-      href: '/(tabs)/refrigerator',
-      label: t('refrigerator'),
-      icon: Refrigerator,
-      match: (p) => p.includes('/refrigerator'),
-    },
-    {
-      key: 'planner',
-      href: '/(tabs)/planner',
-      label: t('weekPlan'),
-      icon: CalendarDays,
-      match: (p) => p.includes('/planner'),
-    },
-    {
-      key: 'favorites',
-      href: '/(tabs)/favorites',
-      label: t('favorites'),
-      icon: Star,
-      match: (p) => p.includes('/favorites'),
-    },
-    {
-      key: 'social',
-      href: '/(tabs)/social',
-      label: t('social'),
-      icon: Users,
-      match: (p) => p.includes('/social'),
-    },
+    { key: 'recipes', href: '/(tabs)/(recipes)/all', label: t('recipes'), icon: BookOpen, match: (p) => p.includes('/all') || p.includes('/homemade') },
+    { key: 'refrigerator', href: '/(tabs)/refrigerator', label: t('refrigerator'), icon: Refrigerator, match: (p) => p.includes('/refrigerator') },
+    { key: 'planner', href: '/(tabs)/planner', label: t('weekPlan'), icon: CalendarDays, match: (p) => p.includes('/planner') },
+    { key: 'favorites', href: '/(tabs)/favorites', label: t('favorites'), icon: Star, match: (p) => p.includes('/favorites') },
+    { key: 'social', href: '/(tabs)/social', label: t('social'), icon: Users, match: (p) => p.includes('/social') },
     ...(isAdmin
-      ? [
-          {
-            key: 'admin',
-            href: '/(tabs)/admin',
-            label: t('adminPanel'),
-            icon: ShieldCheck,
-            match: (p: string) => p.includes('/admin'),
-          },
-        ]
+      ? [{ key: 'admin', href: '/(tabs)/admin', label: t('adminPanel'), icon: ShieldCheck, match: (p: string) => p.includes('/admin') }]
       : []),
   ];
 
@@ -95,11 +62,17 @@ export default function DesktopSidebar() {
               style={[styles.navItem, active && styles.navItemActive]}
               onPress={() => router.push(item.href as any)}
             >
-              <Icon size={20} color={active ? Colors.primary : Colors.textLight} />
-              <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+              {active && <View style={styles.activeBar} />}
+              <Icon size={20} color={active ? theme.textPrimary : theme.textSecondary} />
+              <Text
+                variant="label"
+                style={[styles.navLabel, active && styles.navLabelActive]}
+              >
+                {item.label}
+              </Text>
               {item.key === 'admin' && counts.adminOpen > 0 && (
                 <View style={styles.navBadge}>
-                  <Text style={styles.navBadgeText}>
+                  <Text variant="caption" style={styles.navBadgeText}>
                     {counts.adminOpen > 99 ? '99+' : counts.adminOpen}
                   </Text>
                 </View>
@@ -116,13 +89,15 @@ export default function DesktopSidebar() {
           style={[styles.navItem, pathname.includes('/profile') && styles.navItemActive]}
           onPress={() => router.push('/profile')}
         >
-          <UserCircle size={20} color={pathname.includes('/profile') ? Colors.primary : Colors.textLight} />
-          <Text style={styles.userName} numberOfLines={1}>{user?.username || user?.email || t('profile')}</Text>
+          <UserCircle size={20} color={pathname.includes('/profile') ? theme.textPrimary : theme.textSecondary} />
+          <Text variant="label" style={styles.navLabel} numberOfLines={1}>
+            {user?.username || user?.email || t('profile')}
+          </Text>
         </Pressable>
 
         <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
-          <Settings size={20} color={Colors.textLight} />
-          <Text style={styles.navLabel}>{t('settings')}</Text>
+          <Settings size={20} color={theme.textSecondary} />
+          <Text variant="label" style={styles.navLabel}>{t('settings')}</Text>
         </Pressable>
 
         {confirmingSignOut ? (
@@ -136,8 +111,10 @@ export default function DesktopSidebar() {
           />
         ) : (
           <Pressable style={styles.navItem} onPress={() => setConfirmingSignOut(true)}>
-            <LogOut size={20} color={Colors.error} />
-            <Text style={[styles.navLabel, styles.signOutText]}>{t('signOut')}</Text>
+            <LogOut size={20} color={theme.danger} />
+            <Text variant="label" style={[styles.navLabel, { color: theme.danger }]}>
+              {t('signOut')}
+            </Text>
           </Pressable>
         )}
       </View>
@@ -145,79 +122,60 @@ export default function DesktopSidebar() {
   );
 }
 
-const styles = StyleSheet.create({
-  sidebar: {
-    width: 248,
-    borderRightWidth: 1,
-    borderRightColor: Colors.border,
-    backgroundColor: Colors.background,
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-  },
-  brand: {
-    alignItems: 'flex-start',
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  logo: {
-    width: 116,
-    height: 74,
-  },
-  nav: {
-    gap: 4,
-  },
-  navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-  },
-  navItemActive: {
-    backgroundColor: Colors.cardSecondary,
-  },
-  navLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.textLight,
-  },
-  navLabelActive: {
-    color: Colors.primary,
-  },
-  navBadge: {
-    marginLeft: 'auto',
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBadgeText: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  footer: {
-    marginTop: 'auto',
-    paddingTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    gap: 4,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    flexShrink: 1,
-  },
-  signOutText: {
-    color: Colors.error,
-  },
-  signOutConfirm: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    sidebar: {
+      width: t.layout.sidebarWidth,
+      borderRightWidth: t.borderWidth.hairline,
+      borderRightColor: t.border,
+      backgroundColor: t.bg,
+      paddingVertical: t.space[7],
+      paddingHorizontal: t.space[4],
+    },
+    brand: {
+      alignItems: 'flex-start',
+      marginBottom: t.space[8],
+      paddingHorizontal: t.space[3],
+    },
+    logo: { width: 116, height: 74 },
+    nav: { gap: t.space[1] },
+    navItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: t.space[4],
+      paddingVertical: t.space[3],
+      paddingHorizontal: t.space[4],
+      borderRadius: t.radius.sm,
+    },
+    navItemActive: { backgroundColor: t.surfaceSunken },
+    activeBar: {
+      position: 'absolute',
+      left: 0,
+      top: 8,
+      bottom: 8,
+      width: 3,
+      borderRadius: 999,
+      backgroundColor: t.accent,
+    },
+    navLabel: { color: t.textSecondary },
+    navLabelActive: { color: t.textPrimary, fontFamily: t.font.bodySemibold },
+    navBadge: {
+      marginLeft: 'auto',
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      backgroundColor: t.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    navBadgeText: { color: t.textOnAccent, fontFamily: t.font.bodyBold },
+    footer: {
+      marginTop: 'auto',
+      paddingTop: t.space[7],
+      borderTopWidth: t.borderWidth.hairline,
+      borderTopColor: t.border,
+      gap: t.space[1],
+    },
+    signOutConfirm: { paddingHorizontal: t.space[4], paddingVertical: t.space[3] },
+  });

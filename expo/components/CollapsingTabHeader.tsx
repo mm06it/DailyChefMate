@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { useLanguage } from '@/hooks/use-language';
 import ProfileMenuButton from '@/components/ProfileMenuButton';
 
@@ -81,6 +83,8 @@ export function useHeaderContentPadding(): number {
 export default function CollapsingTabHeader({ showBack = false }: { showBack?: boolean }) {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   useEffect(() => {
     fullHeight = insets.top + HEADER_BODY_HEIGHT;
@@ -106,7 +110,7 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
               accessibilityRole="button"
               accessibilityLabel={t('back')}
             >
-              <ChevronLeft size={28} color={Colors.text} />
+              <ChevronLeft size={28} color={theme.textPrimary} />
             </Pressable>
           ) : (
             <Pressable
@@ -116,7 +120,7 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
               accessibilityRole="button"
               accessibilityLabel={t('settings')}
             >
-              <Settings size={24} color={Colors.text} />
+              <Settings size={24} color={theme.textPrimary} />
             </Pressable>
           )}
         </View>
@@ -141,30 +145,31 @@ export default function CollapsingTabHeader({ showBack = false }: { showBack?: b
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    backgroundColor: Colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  body: {
-    height: HEADER_BODY_HEIGHT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  side: {
-    minWidth: 44,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 84,
-    height: 52,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    header: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      backgroundColor: t.bg,
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    body: {
+      height: HEADER_BODY_HEIGHT,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: t.space[5],
+    },
+    side: {
+      minWidth: 44,
+      alignItems: 'center',
+    },
+    logo: {
+      width: 84,
+      height: 52,
+    },
+  });

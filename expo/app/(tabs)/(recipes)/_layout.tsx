@@ -13,7 +13,9 @@ import CollapsingTabHeader, {
   useHeaderContentPadding,
 } from '@/components/CollapsingTabHeader';
 import RecipeFilterBar from '@/components/RecipeFilterBar';
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { CollapsibleHeaderProvider } from '@/hooks/use-collapsible-header';
 import { RecipeFiltersProvider } from '@/hooks/use-recipe-filters';
 import { useIsDesktop } from '@/hooks/use-responsive';
@@ -40,32 +42,33 @@ function renderTabBar(props: MaterialTopTabBarProps) {
 
 function TabsWithCollapsibleBar() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
 
   return (
     <MaterialTopTabs
       tabBar={renderTabBar}
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textLight,
+        tabBarActiveTintColor: theme.textPrimary,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarIndicatorStyle: {
-          backgroundColor: Colors.primary,
-          height: 4,
+          backgroundColor: theme.accent,
+          height: 2,
           borderRadius: 999,
           marginHorizontal: 18,
           opacity: 1,
         },
         tabBarStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: theme.bg,
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          borderBottomWidth: theme.borderWidth.hairline,
+          borderBottomColor: theme.border,
           opacity: 1,
           overflow: 'hidden' as const,
         },
         tabBarLabelStyle: {
+          fontFamily: theme.font.bodySemibold,
           fontSize: 14,
-          fontWeight: '700',
           textTransform: 'none',
         },
       }}
@@ -89,6 +92,7 @@ function TabsWithCollapsibleBar() {
 export default function RecipesLayout() {
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
+  const styles = useThemedStyles(makeStyles);
 
   useFocusEffect(useCallback(() => resetHeader(), []));
 
@@ -117,12 +121,13 @@ export default function RecipesLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  tabsWrap: {
-    flex: 1,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: t.bg,
+    },
+    tabsWrap: {
+      flex: 1,
+    },
+  });
