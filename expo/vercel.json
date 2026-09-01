@@ -4,6 +4,9 @@
   "installCommand": "bun install",
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
