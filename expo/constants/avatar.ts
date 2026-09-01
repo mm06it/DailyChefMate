@@ -2,9 +2,12 @@
 // Pure data + validators — no React Native imports, so the Convex functions
 // can import this too (like constants/colors.ts).
 
-// Background colours. All mid-to-dark saturated so white text / emoji stay
-// readable. The first 8 match the original hash palette for continuity.
+// Background colours. "transparent" renders as an outlined circle with dark
+// text (Avatar.tsx switches contrast for light backgrounds). The saturated
+// values keep white text / emoji readable; the first 8 match the original
+// hash palette for continuity.
 export const AVATAR_COLORS: string[] = [
+  "transparent",
   "#FF6B6B", "#F59E0B", "#10B981", "#3B82F6",
   "#8B5CF6", "#EC4899", "#14B8A6", "#F97316",
   "#EF4444", "#CA8A04", "#65A30D", "#059669",

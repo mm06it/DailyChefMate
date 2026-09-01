@@ -319,12 +319,16 @@ export default function SettingsScreen() {
                   key={c}
                   style={[
                     styles.swatch,
-                    { backgroundColor: c },
+                    c === 'transparent'
+                      ? styles.swatchTransparent
+                      : { backgroundColor: c },
                     myProfile?.avatarColor === c && styles.swatchActive,
                   ]}
                   onPress={() => setSocialProfile({ avatarColor: c })}
                   testID={`avatar-color-${c}`}
-                />
+                >
+                  {c === 'transparent' && <Text style={styles.swatchTransparentMark}>Aa</Text>}
+                </Pressable>
               ))}
             </View>
           </View>
@@ -505,6 +509,17 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     borderWidth: 3,
     borderColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  swatchTransparent: {
+    backgroundColor: Colors.background,
+    borderColor: Colors.border,
+  },
+  swatchTransparentMark: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textLight,
   },
   swatchActive: {
     borderColor: Colors.text,
