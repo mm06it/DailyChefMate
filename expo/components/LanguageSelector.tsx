@@ -1,13 +1,18 @@
 import { Languages } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
 import { LANGUAGES, LanguageCode } from '@/constants/languages';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useTheme } from '@/hooks/use-theme';
 import { useLanguage } from '@/hooks/use-language';
+import { Text } from '@/components/ui/Text';
 
 export const LanguageSelector: React.FC = () => {
   const { currentLanguage, changeLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
 
   const handleLanguageSelect = (languageCode: LanguageCode) => {
@@ -22,7 +27,7 @@ export const LanguageSelector: React.FC = () => {
         onPress={() => setIsModalVisible(true)}
         testID="language-selector-button"
       >
-        <Languages size={20} color={Colors.primary} />
+        <Languages size={20} color={theme.textSecondary} />
       </TouchableOpacity>
       <Modal
         visible={isModalVisible}
@@ -30,36 +35,34 @@ export const LanguageSelector: React.FC = () => {
         animationType="fade"
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setIsModalVisible(false)}
-        >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsModalVisible(false)}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('selectLanguage')}</Text>
-            {Object.entries(LANGUAGES).map(([code, language]) => (
-              <TouchableOpacity
-                key={code}
-                style={[
-                  styles.languageOption,
-                  currentLanguage === code && styles.selectedLanguageOption
-                ]}
-                onPress={() => handleLanguageSelect(code as LanguageCode)}
-                testID={`language-option-${code}`}
-              >
-                <Text style={styles.languageFlag}>{language.flag}</Text>
-                <Text style={[
-                  styles.languageName,
-                  currentLanguage === code && styles.selectedLanguageName
-                ]}>
-                  {language.name}
-                </Text>
-                {currentLanguage === code && (
-                  <View style={styles.checkmark}>
-                    <Text style={styles.checkmarkText}>✓</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+            <Text variant="h3" center style={styles.modalTitle}>{t('selectLanguage')}</Text>
+            {Object.entries(LANGUAGES).map(([code, language]) => {
+              const selected = currentLanguage === code;
+              return (
+                <TouchableOpacity
+                  key={code}
+                  style={[styles.languageOption, selected && styles.selectedLanguageOption]}
+                  onPress={() => handleLanguageSelect(code as LanguageCode)}
+                  testID={`language-option-${code}`}
+                >
+                  <Text style={styles.languageFlag}>{language.flag}</Text>
+                  <Text
+                    variant="body"
+                    weight={selected ? 'semibold' : 'regular'}
+                    style={[styles.languageName, selected && { color: theme.accent }]}
+                  >
+                    {language.name}
+                  </Text>
+                  {selected && (
+                    <View style={styles.checkmark}>
+                      <Text style={styles.checkmarkText}>✓</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Pressable>
       </Modal>
@@ -67,74 +70,44 @@ export const LanguageSelector: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  languageButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderRadius: 12,
-    padding: 20,
-    minWidth: 250,
-    maxWidth: 300,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    languageButton: { padding: 8, marginLeft: 8 },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: t.overlay,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  languageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 4,
-  },
-  selectedLanguageOption: {
-    backgroundColor: Colors.primaryLight,
-  },
-  languageFlag: {
-    fontSize: 20,
-    marginRight: 12,
-  },
-  languageName: {
-    fontSize: 16,
-    color: Colors.text,
-    flex: 1,
-  },
-  selectedLanguageName: {
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  checkmark: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkmarkText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-});
+    modalContent: {
+      backgroundColor: t.surfaceRaised,
+      borderRadius: t.radius.lg,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      padding: t.space[6],
+      minWidth: 250,
+      maxWidth: 300,
+      ...t.elevation.lg,
+    },
+    modalTitle: { marginBottom: t.space[4] },
+    languageOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: t.space[3],
+      paddingHorizontal: t.space[4],
+      borderRadius: t.radius.sm,
+      marginBottom: t.space[1],
+    },
+    selectedLanguageOption: { backgroundColor: t.accentSubtle },
+    languageFlag: { fontSize: 20, marginRight: t.space[3] },
+    languageName: { flex: 1 },
+    checkmark: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: t.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    checkmarkText: { color: '#FFFFFF', fontSize: 12, fontFamily: t.font.bodyBold },
+  });

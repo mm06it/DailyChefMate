@@ -1,17 +1,23 @@
 import { Plus, X } from "lucide-react-native";
 import React, { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateText } from "@/constants/translations";
 import { categories } from "@/mocks/categories";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
 
 interface AddIngredientFormProps {
   isVisible: boolean;
   onClose: () => void;
 }
+
+const webNoOutline = { outlineStyle: "none" } as unknown as { [k: string]: string };
 
 export default function AddIngredientForm({ isVisible, onClose }: AddIngredientFormProps) {
   const [name, setName] = useState("");
@@ -21,14 +27,12 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
 
   const { addIngredient } = useDailyChefMateStore();
   const { t, currentLanguage } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const handleSubmit = () => {
     if (name.trim() && category) {
-      addIngredient({
-        name: name.trim(),
-        amount: amount.trim(),
-        category,
-      });
+      addIngredient({ name: name.trim(), amount: amount.trim(), category });
       resetForm();
       onClose();
     }
@@ -52,52 +56,43 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
   };
 
   return (
-    <Modal
-      visible={isVisible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={handleClose}
-      statusBarTranslucent={true}
-    >
+    <Modal visible={isVisible} transparent animationType="slide" onRequestClose={handleClose} statusBarTranslucent>
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t('addNewIngredient')}</Text>
+            <Text variant="h3">{t('addNewIngredient')}</Text>
             <Pressable onPress={handleClose} hitSlop={10}>
-              <X size={24} color={Colors.text} />
+              <X size={22} color={theme.textSecondary} />
             </Pressable>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('ingredientNameLabel')}</Text>
+              <Text variant="label" color="secondary" style={styles.label}>{t('ingredientNameLabel')}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, Platform.OS === "web" && webNoOutline]}
                 value={name}
                 onChangeText={setName}
                 placeholder={t('egIngredientName')}
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor={theme.textMuted}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('amountOptionalLabel')}</Text>
+              <Text variant="label" color="secondary" style={styles.label}>{t('amountOptionalLabel')}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, Platform.OS === "web" && webNoOutline]}
                 value={amount}
                 onChangeText={setAmount}
                 placeholder={t('egIngredientAmount')}
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor={theme.textMuted}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('ingredientCategoryLabel')}</Text>
-              <Pressable
-                style={styles.categorySelector}
-                onPress={() => setShowCategories(!showCategories)}
-              >
-                <Text style={category ? styles.input : styles.placeholderText}>
+              <Text variant="label" color="secondary" style={styles.label}>{t('ingredientCategoryLabel')}</Text>
+              <Pressable style={styles.categorySelector} onPress={() => setShowCategories(!showCategories)}>
+                <Text variant="body" color={category ? "primary" : "muted"}>
                   {category ? translateText(currentLanguage, category) : t('selectCategory')}
                 </Text>
               </Pressable>
@@ -105,29 +100,22 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
               {showCategories && (
                 <View style={styles.categoriesList}>
                   {categories.map((cat) => (
-                    <Pressable
-                      key={cat.id}
-                      style={styles.categoryItem}
-                      onPress={() => selectCategory(cat.name)}
-                    >
-                      <Text style={styles.categoryText}>{translateText(currentLanguage, cat.name)}</Text>
+                    <Pressable key={cat.id} style={styles.categoryItem} onPress={() => selectCategory(cat.name)}>
+                      <Text variant="body">{translateText(currentLanguage, cat.name)}</Text>
                     </Pressable>
                   ))}
                 </View>
               )}
             </View>
 
-            <Pressable
-              style={[
-                styles.addButton,
-                (!name.trim() || !category) && styles.addButtonDisabled
-              ]}
-              onPress={handleSubmit}
+            <Button
+              label={t('addIngredientButton')}
+              fullWidth
               disabled={!name.trim() || !category}
-            >
-              <Plus size={20} color="#FFF" />
-              <Text style={styles.addButtonText}>{t('addIngredientButton')}</Text>
-            </Pressable>
+              leftIcon={<Plus size={18} color={theme.textOnAccent} />}
+              onPress={handleSubmit}
+              style={styles.addButton}
+            />
           </View>
         </View>
       </View>
@@ -135,95 +123,61 @@ export default function AddIngredientForm({ isVisible, onClose }: AddIngredientF
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    paddingTop: 50,
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  form: {
-    paddingTop: 16,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  input: {
-    fontSize: 16,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 12,
-  },
-  categorySelector: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 12,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: Colors.textLight,
-  },
-  categoriesList: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    maxHeight: 200,
-  },
-  categoryItem: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  categoryText: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.primary,
-    borderRadius: 8,
-    padding: 14,
-    marginTop: 8,
-  },
-  addButtonDisabled: {
-    backgroundColor: Colors.textLight,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFF",
-    marginLeft: 8,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: "flex-end",
+      backgroundColor: t.overlay,
+      paddingTop: 50,
+    },
+    modalContent: {
+      backgroundColor: t.surfaceRaised,
+      borderTopLeftRadius: t.radius.xl,
+      borderTopRightRadius: t.radius.xl,
+      paddingHorizontal: t.space[5],
+      paddingBottom: t.space[8],
+      ...t.elevation.lg,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: t.space[5],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    form: { paddingTop: t.space[5] },
+    inputContainer: { marginBottom: t.space[4] },
+    label: { marginBottom: t.space[2] },
+    input: {
+      fontFamily: t.font.body,
+      fontSize: 15,
+      color: t.textPrimary,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      backgroundColor: t.surfaceSunken,
+      padding: t.space[3],
+    },
+    categorySelector: {
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      backgroundColor: t.surfaceSunken,
+      padding: t.space[3],
+    },
+    categoriesList: {
+      marginTop: t.space[2],
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      maxHeight: 200,
+    },
+    categoryItem: {
+      padding: t.space[3],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    addButton: { marginTop: t.space[2] },
+  });

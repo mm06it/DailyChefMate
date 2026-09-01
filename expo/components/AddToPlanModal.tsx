@@ -1,12 +1,15 @@
 import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateText } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useToast } from "@/components/Toast";
+import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
 import {
   addWeeks,
@@ -27,10 +30,10 @@ interface AddToPlanModalProps {
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 20;
 
-// Shared day picker for "add this recipe to the week plan" — used from the
-// recipe card and the recipe detail screen.
 export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: AddToPlanModalProps) {
   const { t, currentLanguage } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { addToPlan, entriesByDay } = useMealPlan();
   const { showToast } = useToast();
   const [monday, setMonday] = useState<string>(thisMondayIso());
@@ -58,28 +61,22 @@ export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: Ad
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-      statusBarTranslucent
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t("pickDay")}</Text>
+            <Text variant="h3">{t("pickDay")}</Text>
             <Pressable onPress={onClose} hitSlop={10} testID="add-to-plan-close">
-              <X size={24} color={Colors.text} />
+              <X size={22} color={theme.textSecondary} />
             </Pressable>
           </View>
 
-          <Text style={styles.recipeName} numberOfLines={1}>
+          <Text variant="bodySm" color="secondary" numberOfLines={1} style={styles.recipeName}>
             {recipe.name}
           </Text>
 
           <View style={styles.servingsRow}>
-            <Text style={styles.servingsLabel}>{t("portions")}</Text>
+            <Text variant="title">{t("portions")}</Text>
             <View style={styles.stepper}>
               <Pressable
                 style={[styles.stepBtn, servings <= MIN_SERVINGS && styles.stepBtnDisabled]}
@@ -87,27 +84,27 @@ export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: Ad
                 disabled={servings <= MIN_SERVINGS}
                 testID="add-to-plan-servings-minus"
               >
-                <Minus size={16} color={servings <= MIN_SERVINGS ? Colors.textLight : Colors.primary} />
+                <Minus size={16} color={servings <= MIN_SERVINGS ? theme.textMuted : theme.accent} />
               </Pressable>
-              <Text style={styles.stepValue}>{servings}</Text>
+              <Text variant="title" style={styles.stepValue}>{servings}</Text>
               <Pressable
                 style={[styles.stepBtn, servings >= MAX_SERVINGS && styles.stepBtnDisabled]}
                 onPress={() => setServings((s) => Math.min(MAX_SERVINGS, s + 1))}
                 disabled={servings >= MAX_SERVINGS}
                 testID="add-to-plan-servings-plus"
               >
-                <Plus size={16} color={servings >= MAX_SERVINGS ? Colors.textLight : Colors.primary} />
+                <Plus size={16} color={servings >= MAX_SERVINGS ? theme.textMuted : theme.accent} />
               </Pressable>
             </View>
           </View>
 
           <View style={styles.weekBar}>
             <Pressable onPress={() => setMonday((m) => addWeeks(m, -1))} hitSlop={10} testID="add-to-plan-prev">
-              <ChevronLeft size={22} color={Colors.text} />
+              <ChevronLeft size={22} color={theme.textPrimary} />
             </Pressable>
-            <Text style={styles.weekRange}>{formatWeekRange(monday, currentLanguage)}</Text>
+            <Text variant="title">{formatWeekRange(monday, currentLanguage)}</Text>
             <Pressable onPress={() => setMonday((m) => addWeeks(m, 1))} hitSlop={10} testID="add-to-plan-next">
-              <ChevronRight size={22} color={Colors.text} />
+              <ChevronRight size={22} color={theme.textPrimary} />
             </Pressable>
           </View>
 
@@ -123,13 +120,13 @@ export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: Ad
                   testID={`add-to-plan-day-${iso}`}
                 >
                   <View style={styles.dayRowHead}>
-                    <Text style={styles.dayLabel}>{formatDayLabel(iso, currentLanguage)}</Text>
-                    {justAdded && <Check size={18} color={Colors.success} />}
+                    <Text variant="title">{formatDayLabel(iso, currentLanguage)}</Text>
+                    {justAdded && <Check size={18} color={theme.success} />}
                   </View>
                   {dayEntries.length > 0 && (
                     <View style={styles.plannedList}>
                       {dayEntries.map((e) => (
-                        <Text key={e.id} style={styles.plannedItem} numberOfLines={1}>
+                        <Text key={e.id} variant="bodySm" color="secondary" numberOfLines={1}>
                           • {translateText(currentLanguage, e.recipe.name) || e.recipe.name}
                         </Text>
                       ))}
@@ -145,116 +142,64 @@ export default function AddToPlanModal({ recipe, visible, onClose, onAdded }: Ad
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  sheet: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 36,
-    maxHeight: "85%",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  recipeName: {
-    fontSize: 14,
-    color: Colors.textLight,
-    marginTop: 4,
-  },
-  servingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  servingsLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: Colors.cardSecondary,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  stepBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepBtnDisabled: {
-    opacity: 0.5,
-  },
-  stepValue: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: Colors.text,
-    minWidth: 20,
-    textAlign: "center",
-  },
-  weekBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  weekRange: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  dayScroll: {
-    flexGrow: 0,
-  },
-  dayRow: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: Colors.cardSecondary,
-    marginBottom: 6,
-  },
-  dayRowToday: {
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  dayRowHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dayLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  plannedList: {
-    marginTop: 6,
-    gap: 2,
-  },
-  plannedItem: {
-    fontSize: 13,
-    color: Colors.textLight,
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },
+    sheet: {
+      backgroundColor: t.surfaceRaised,
+      borderTopLeftRadius: t.radius.xl,
+      borderTopRightRadius: t.radius.xl,
+      padding: t.space[6],
+      paddingBottom: t.space[9],
+      maxHeight: "85%",
+      ...t.elevation.lg,
+    },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    recipeName: { marginTop: 2 },
+    servingsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: t.space[4],
+      marginBottom: t.space[2],
+    },
+    stepper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[4],
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space[3],
+      paddingVertical: t.space[1],
+    },
+    stepBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    stepBtnDisabled: { opacity: 0.5 },
+    stepValue: { minWidth: 20, textAlign: "center" },
+    weekBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: t.space[3],
+      marginBottom: t.space[3],
+    },
+    dayScroll: { flexGrow: 0 },
+    dayRow: {
+      paddingVertical: t.space[4],
+      paddingHorizontal: t.space[4],
+      borderRadius: t.radius.md,
+      backgroundColor: t.surfaceSunken,
+      marginBottom: t.space[2],
+    },
+    dayRowToday: { borderWidth: t.borderWidth.hairline, borderColor: t.accent },
+    dayRowHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+    plannedList: { marginTop: t.space[2], gap: 2 },
+  });

@@ -1,10 +1,14 @@
 import { X } from "lucide-react-native";
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateText } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
 import { Ingredient } from "@/types/recipe";
 
 type Unit = 'g' | 'ml' | 'Stück';
@@ -25,6 +29,8 @@ export default function IngredientQuantityModal({
   const [selectedUnit, setSelectedUnit] = useState<Unit>('g');
   const [selectedAmount, setSelectedAmount] = useState<number>(1);
   const { currentLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const defaultUnitFromIngredient = (ing: Ingredient | null): Unit => {
     const name = (ing?.name ?? '').toLowerCase().trim();
@@ -63,9 +69,7 @@ export default function IngredientQuantityModal({
         setSelectedAmount(existing.amount);
         return;
       }
-      const unit = defaultUnitFromIngredient(ingredient);
-      console.log('IngredientQuantityModal default unit decided', { ingredient: ingredient.name, category: ingredient.category, unit });
-      setSelectedUnit(unit);
+      setSelectedUnit(defaultUnitFromIngredient(ingredient));
       setSelectedAmount(1);
     }
   }, [ingredient, isVisible]);
@@ -87,9 +91,7 @@ export default function IngredientQuantityModal({
 
   const handleConfirm = () => {
     if (ingredient) {
-      const amountString = `${selectedAmount} ${selectedUnit}`;
-      console.log('IngredientQuantityModal confirm', { ingredient: ingredient.name, amountString });
-      onConfirm(ingredient, amountString);
+      onConfirm(ingredient, `${selectedAmount} ${selectedUnit}`);
       setSelectedAmount(1);
       setSelectedUnit('g');
       onClose();
@@ -115,87 +117,69 @@ export default function IngredientQuantityModal({
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t('addQuantity')}</Text>
+            <Text variant="h3">{t('addQuantity')}</Text>
             <Pressable onPress={handleClose} hitSlop={10} testID="quantity-close">
-              <X size={24} color={Colors.text} />
+              <X size={22} color={theme.textSecondary} />
             </Pressable>
           </View>
 
           <View style={styles.content}>
-            <Text style={styles.ingredientName}>
+            <Text variant="title" center style={styles.ingredientName}>
               {translateText(currentLanguage, ingredient.name) || ingredient.name}
             </Text>
-            
+
             <View style={styles.selectorContainer}>
-              <Text style={styles.label}>{t('unitLabel')}</Text>
+              <Text variant="label" color="secondary" style={styles.label}>{t('unitLabel')}</Text>
               <View style={styles.unitSelector}>
-                {units.map((unit) => (
-                  <Pressable
-                    key={unit}
-                    style={[
-                      styles.unitButton,
-                      selectedUnit === unit ? styles.unitButtonSelected : undefined
-                    ]}
-                    onPress={() => {
-                      setSelectedUnit(unit);
-                      setSelectedAmount(1);
-                    }}
-                    testID={`unit-${unit}`}
-                  >
-                    <Text style={[
-                      styles.unitButtonText,
-                      selectedUnit === unit ? styles.unitButtonTextSelected : undefined
-                    ]}>
-                      {translateText(currentLanguage, unit)}
-                    </Text>
-                  </Pressable>
-                ))}
+                {units.map((unit) => {
+                  const sel = selectedUnit === unit;
+                  return (
+                    <Pressable
+                      key={unit}
+                      style={[styles.unitButton, sel && styles.unitButtonSelected]}
+                      onPress={() => {
+                        setSelectedUnit(unit);
+                        setSelectedAmount(1);
+                      }}
+                      testID={`unit-${unit}`}
+                    >
+                      <Text variant="body" style={{ color: sel ? theme.textOnAccent : theme.textPrimary }}>
+                        {translateText(currentLanguage, unit)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
 
             <View style={styles.selectorContainer}>
-              <Text style={styles.label}>{t('amountLabel')}</Text>
-              <ScrollView 
-                style={styles.amountScrollView}
-                showsVerticalScrollIndicator={false}
-              >
-                {amountOptions.map((amount) => (
-                  <Pressable
-                    key={amount}
-                    style={[
-                      styles.amountButton,
-                      selectedAmount === amount ? styles.amountButtonSelected : undefined
-                    ]}
-                    onPress={() => setSelectedAmount(amount)}
-                    testID={`amount-${amount}`}
-                  >
-                    <Text style={[
-                      styles.amountButtonText,
-                      selectedAmount === amount ? styles.amountButtonTextSelected : undefined
-                    ]}>
-                      {amount}
-                    </Text>
-                  </Pressable>
-                ))}
+              <Text variant="label" color="secondary" style={styles.label}>{t('amountLabel')}</Text>
+              <ScrollView style={styles.amountScrollView} showsVerticalScrollIndicator={false}>
+                {amountOptions.map((amount) => {
+                  const sel = selectedAmount === amount;
+                  return (
+                    <Pressable
+                      key={amount}
+                      style={[styles.amountButton, sel && styles.amountButtonSelected]}
+                      onPress={() => setSelectedAmount(amount)}
+                      testID={`amount-${amount}`}
+                    >
+                      <Text
+                        variant="body"
+                        weight={sel ? "semibold" : "regular"}
+                        style={{ color: sel ? theme.textOnAccent : theme.textPrimary }}
+                      >
+                        {amount}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
             </View>
 
             <View style={styles.buttonContainer}>
-              <Pressable 
-                style={[styles.button, styles.cancelButton]}
-                onPress={handleClose}
-                testID="quantity-cancel"
-              >
-                <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
-              </Pressable>
-              
-              <Pressable 
-                style={[styles.button, styles.confirmButton]}
-                onPress={handleConfirm}
-                testID="quantity-confirm"
-              >
-                <Text style={styles.confirmButtonText}>{t('addBtn')}</Text>
-              </Pressable>
+              <Button label={t('cancel')} variant="secondary" onPress={handleClose} testID="quantity-cancel" style={styles.flex} />
+              <Button label={t('addBtn')} onPress={handleConfirm} testID="quantity-confirm" style={styles.flex} />
             </View>
           </View>
         </View>
@@ -204,126 +188,60 @@ export default function IngredientQuantityModal({
   );
 }
 
-const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: Colors.background,
-    borderRadius: 16,
-    width: "100%",
-    maxWidth: 400,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  content: {
-    padding: 20,
-  },
-  ingredientName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: Colors.text,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  selectorContainer: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  unitSelector: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  unitButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    alignItems: "center",
-  },
-  unitButtonSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  unitButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: Colors.text,
-  },
-  unitButtonTextSelected: {
-    color: "#FFF",
-  },
-  amountScrollView: {
-    maxHeight: 150,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-  },
-  amountButton: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    alignItems: "center",
-  },
-  amountButtonSelected: {
-    backgroundColor: Colors.primary,
-  },
-  amountButtonText: {
-    fontSize: 16,
-    color: Colors.text,
-  },
-  amountButtonTextSelected: {
-    color: "#FFF",
-    fontWeight: "600",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  button: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: Colors.text,
-  },
-  confirmButton: {
-    backgroundColor: Colors.primary,
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#FFF",
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    modalContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: t.overlay,
+      paddingHorizontal: t.space[6],
+    },
+    modalContent: {
+      backgroundColor: t.surfaceRaised,
+      borderRadius: t.radius.lg,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      width: "100%",
+      maxWidth: 400,
+      ...t.elevation.lg,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: t.space[6],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+    },
+    content: { padding: t.space[6] },
+    ingredientName: { marginBottom: t.space[6] },
+    selectorContainer: { marginBottom: t.space[7] },
+    label: { marginBottom: t.space[2] },
+    unitSelector: { flexDirection: "row", gap: t.space[2] },
+    unitButton: {
+      flex: 1,
+      padding: t.space[3],
+      borderRadius: t.radius.sm,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      backgroundColor: t.surfaceSunken,
+      alignItems: "center",
+    },
+    unitButtonSelected: { backgroundColor: t.accent, borderColor: t.accent },
+    amountScrollView: {
+      maxHeight: 150,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.sm,
+    },
+    amountButton: {
+      padding: t.space[3],
+      borderBottomWidth: t.borderWidth.hairline,
+      borderBottomColor: t.border,
+      alignItems: "center",
+    },
+    amountButtonSelected: { backgroundColor: t.accent },
+    buttonContainer: { flexDirection: "row", gap: t.space[3] },
+    flex: { flex: 1 },
+  });
