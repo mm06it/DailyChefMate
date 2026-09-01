@@ -727,8 +727,12 @@ export default function SocialScreen() {
               );
               return (
                 <>
-                  {open.length > 0 && <Text style={styles.adminSubhead}>{t("openSection")}</Text>}
-                  {open.map(card)}
+                  <Text style={styles.adminSubhead}>{t("openSection")}</Text>
+                  {open.length > 0 ? (
+                    open.map(card)
+                  ) : (
+                    <Text style={styles.adminEmptyLine}>{t("nothingOpen")}</Text>
+                  )}
                   {done.length > 0 && (
                     <View style={styles.doneDivider}>
                       <Check size={14} color={Colors.success} />
@@ -919,6 +923,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     marginTop: 8,
     marginBottom: 6,
+  },
+  adminEmptyLine: {
+    fontSize: 14,
+    color: Colors.textLight,
+    fontStyle: "italic",
+    paddingVertical: 10,
   },
   doneDivider: {
     flexDirection: "row",

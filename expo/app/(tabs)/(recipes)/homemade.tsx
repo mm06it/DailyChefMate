@@ -157,6 +157,9 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    // Clear the bottom tab bar (~124pt) so the last recipe's edit/delete
+    // buttons — and the delete-confirm that replaces them — are reachable.
+    paddingBottom: 160,
   },
   recipeContainer: {
     marginBottom: 16,
