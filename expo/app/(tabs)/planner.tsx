@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react-native";
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Animated, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, FlatList, Image, Pressable, StyleSheet, Text as RNText, View } from "react-native";
 
 import CollapsingTabHeader, {
   headerTranslateY,
@@ -21,8 +21,10 @@ import CollapsingTabHeader, {
 } from "@/components/CollapsingTabHeader";
 import InlineConfirm from "@/components/InlineConfirm";
 import { useToast } from "@/components/Toast";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateAmount, translateIngredientName } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import { useMealPlan, type PlanEntry } from "@/hooks/use-meal-plan";
@@ -36,6 +38,10 @@ import {
   thisMondayIso,
   weekDates,
 } from "@/lib/week";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
 
 type PlannerView = "plan" | "shopping";
@@ -57,6 +63,8 @@ interface ShopSection {
 
 export default function PlannerScreen() {
   const { t, currentLanguage } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
   const listRef = useRef<FlatList<any>>(null);
@@ -81,8 +89,6 @@ export default function PlannerScreen() {
 
   const days = useMemo(() => weekDates(monday), [monday]);
 
-  // Localize every planned recipe once (names / ingredients), then look them
-  // up by id for both views.
   const allRecipes = useMemo(() => {
     const seen = new Map<string, Recipe>();
     for (const e of entries) if (!seen.has(e.recipe.id)) seen.set(e.recipe.id, e.recipe);
@@ -95,8 +101,6 @@ export default function PlannerScreen() {
     return m;
   }, [localized]);
 
-  // Shopping list: one section per still-uncooked planned recipe, soonest
-  // first ("next to cook" on top). Amounts are scaled to the entry's servings.
   const shopSections: ShopSection[] = useMemo(() => {
     return entries
       .filter((e) => !e.cookedAt && !e.boughtAt)
@@ -116,27 +120,16 @@ export default function PlannerScreen() {
   }, [entries, localizedById, currentLanguage]);
 
   const segment = (
-    <View style={styles.segment}>
-      <Pressable
-        style={[styles.segmentBtn, view === "plan" && styles.segmentBtnActive]}
-        onPress={() => setView("plan")}
-        testID="planner-view-plan"
-      >
-        <Calendar size={16} color={view === "plan" ? Colors.white : Colors.textLight} />
-        <Text style={[styles.segmentText, view === "plan" && styles.segmentTextActive]}>
-          {t("planView")}
-        </Text>
-      </Pressable>
-      <Pressable
-        style={[styles.segmentBtn, view === "shopping" && styles.segmentBtnActive]}
-        onPress={() => setView("shopping")}
-        testID="planner-view-shopping"
-      >
-        <ShoppingCart size={16} color={view === "shopping" ? Colors.white : Colors.textLight} />
-        <Text style={[styles.segmentText, view === "shopping" && styles.segmentTextActive]}>
-          {t("shoppingView")}
-        </Text>
-      </Pressable>
+    <View style={styles.segmentWrap}>
+      <SegmentedControl<PlannerView>
+        options={[
+          { value: "plan", label: t("planView"), icon: <Calendar size={15} color={view === "plan" ? theme.textPrimary : theme.textMuted} /> },
+          { value: "shopping", label: t("shoppingView"), icon: <ShoppingCart size={15} color={view === "shopping" ? theme.textPrimary : theme.textMuted} /> },
+        ]}
+        value={view}
+        onChange={setView}
+        testID="planner-view"
+      />
     </View>
   );
 
@@ -145,13 +138,13 @@ export default function PlannerScreen() {
   const weekBar = (
     <View style={styles.weekBar}>
       <Pressable onPress={() => setMonday((m) => addWeeks(m, -1))} hitSlop={10} testID="planner-week-prev">
-        <ChevronLeft size={22} color={Colors.text} />
+        <ChevronLeft size={22} color={theme.textPrimary} />
       </Pressable>
       <Pressable onPress={() => setMonday(thisMondayIso())} testID="planner-week-today">
-        <Text style={styles.weekRange}>{formatWeekRange(monday, currentLanguage)}</Text>
+        <Text variant="title">{formatWeekRange(monday, currentLanguage)}</Text>
       </Pressable>
       <Pressable onPress={() => setMonday((m) => addWeeks(m, 1))} hitSlop={10} testID="planner-week-next">
-        <ChevronRight size={22} color={Colors.text} />
+        <ChevronRight size={22} color={theme.textPrimary} />
       </Pressable>
     </View>
   );
@@ -160,12 +153,12 @@ export default function PlannerScreen() {
     const dayEntries: PlanEntry[] = entriesByDay[day] ?? [];
     return (
       <View style={styles.daySection}>
-        <Text style={[styles.dayHeader, isTodayIso(day) && styles.dayHeaderToday]}>
+        <RNText style={[styles.dayHeader, isTodayIso(day) && styles.dayHeaderToday]}>
           {formatDayLabel(day, currentLanguage)}
           {isTodayIso(day) ? ` · ${t("today")}` : ""}
-        </Text>
+        </RNText>
         {dayEntries.length === 0 ? (
-          <Text style={styles.emptyDay}>{t("emptyDayHint")}</Text>
+          <Text variant="bodySm" color="muted" style={styles.emptyDay}>{t("emptyDayHint")}</Text>
         ) : (
           dayEntries.map((entry) => {
             const r = localizedById.get(entry.recipe.id) ?? entry.recipe;
@@ -179,7 +172,7 @@ export default function PlannerScreen() {
                   testID={`planner-cook-${entry.id}`}
                   accessibilityLabel={t("markCooked")}
                 >
-                  {cooked && <Check size={14} color={Colors.white} />}
+                  {cooked && <Check size={14} color={theme.textOnAccent} />}
                 </Pressable>
                 <Pressable
                   style={styles.mealMain}
@@ -192,17 +185,17 @@ export default function PlannerScreen() {
                     <View style={[styles.mealThumb, styles.mealThumbFallback]} />
                   )}
                   <View style={styles.mealTextWrap}>
-                    <Text style={[styles.mealName, cooked && styles.mealNameCooked]} numberOfLines={2}>
+                    <Text variant="title" numberOfLines={2} style={cooked ? styles.strikethrough : undefined}>
                       {r.name}
                     </Text>
                     <View style={styles.mealMetaRow}>
-                      <Text style={styles.mealServings}>
+                      <Text variant="caption" color="muted">
                         {entry.servings} {t("portions")}
                       </Text>
                       {!!entry.boughtAt && !cooked && (
                         <View style={styles.boughtChip}>
-                          <ShoppingCart size={11} color={Colors.success} />
-                          <Text style={styles.boughtChipText}>{t("boughtChip")}</Text>
+                          <ShoppingCart size={11} color={theme.success} />
+                          <Text variant="caption" weight="bold" style={{ color: theme.success }}>{t("boughtChip")}</Text>
                         </View>
                       )}
                     </View>
@@ -210,7 +203,7 @@ export default function PlannerScreen() {
                 </Pressable>
                 {cooked ? (
                   <View style={styles.mealRemove}>
-                    <Check size={18} color={Colors.success} />
+                    <Check size={18} color={theme.success} />
                   </View>
                 ) : (
                   <Pressable
@@ -219,7 +212,7 @@ export default function PlannerScreen() {
                     style={styles.mealRemove}
                     testID={`planner-meal-remove-${entry.id}`}
                   >
-                    <X size={18} color={Colors.textLight} />
+                    <X size={18} color={theme.textMuted} />
                   </Pressable>
                 )}
               </View>
@@ -260,11 +253,9 @@ export default function PlannerScreen() {
             <View style={[styles.shopThumb, styles.mealThumbFallback]} />
           )}
           <View style={styles.shopHeadText}>
-            <Text style={styles.shopRecipeName} numberOfLines={2}>
-              {recipe.name}
-            </Text>
+            <Text variant="title" numberOfLines={2}>{recipe.name}</Text>
             <View style={styles.shopHeadMeta}>
-              <Text style={styles.shopDate}>{formatDayLabel(item.day, currentLanguage)}</Text>
+              <Text variant="bodySm" color="muted" style={styles.shrink}>{formatDayLabel(item.day, currentLanguage)}</Text>
               <View style={styles.miniStepper}>
                 <Pressable
                   onPress={() => setServings(entry.id, clampServings(entry.servings - 1))}
@@ -272,18 +263,18 @@ export default function PlannerScreen() {
                   style={styles.miniStepBtn}
                   testID={`shop-servings-minus-${entry.id}`}
                 >
-                  <Minus size={13} color={Colors.primary} />
+                  <Minus size={13} color={theme.accent} />
                 </Pressable>
-                <Text style={styles.miniStepValue}>{entry.servings}</Text>
+                <Text variant="label" weight="bold" style={styles.miniStepValue}>{entry.servings}</Text>
                 <Pressable
                   onPress={() => setServings(entry.id, clampServings(entry.servings + 1))}
                   hitSlop={6}
                   style={styles.miniStepBtn}
                   testID={`shop-servings-plus-${entry.id}`}
                 >
-                  <Plus size={13} color={Colors.primary} />
+                  <Plus size={13} color={theme.accent} />
                 </Pressable>
-                <Text style={styles.miniStepUnit}>{t("portions")}</Text>
+                <Text variant="caption" color="muted">{t("portions")}</Text>
               </View>
             </View>
           </View>
@@ -294,13 +285,13 @@ export default function PlannerScreen() {
             testID={`shop-recipe-checkall-${entry.id}`}
             accessibilityLabel={t("checkOffRecipe")}
           >
-            <Check size={18} color={allChecked ? Colors.white : Colors.textLight} />
+            <Check size={18} color={allChecked ? theme.textOnAccent : theme.textMuted} />
           </Pressable>
         </View>
 
         {allChecked ? (
           <View style={styles.boughtWrap}>
-            <Text style={styles.boughtNote}>
+            <Text variant="caption" color="muted" weight="semibold">
               {t("allIngredientsChecked")} · {item.lines.length}
             </Text>
             {confirmBought === entry.id ? (
@@ -315,14 +306,13 @@ export default function PlannerScreen() {
                 onCancel={() => setConfirmBought(null)}
               />
             ) : (
-              <Pressable
-                style={styles.boughtBtn}
+              <Button
+                label={t("recipeBought")}
+                fullWidth
+                leftIcon={<ShoppingCart size={16} color={theme.textOnAccent} />}
                 onPress={() => setConfirmBought(entry.id)}
                 testID={`shop-bought-${entry.id}`}
-              >
-                <ShoppingCart size={16} color={Colors.white} />
-                <Text style={styles.boughtBtnText}>{t("recipeBought")}</Text>
-              </Pressable>
+              />
             )}
           </View>
         ) : (
@@ -335,13 +325,15 @@ export default function PlannerScreen() {
                 testID={`shop-line-${entry.id}-${line.id}`}
               >
                 <View style={[styles.bullet, line.checked && styles.bulletChecked]}>
-                  {line.checked && <Check size={12} color={Colors.white} />}
+                  {line.checked && <Check size={12} color={theme.textOnAccent} />}
                 </View>
-                <Text style={[styles.lineName, line.checked && styles.lineChecked]} numberOfLines={2}>
+                <Text variant="body" numberOfLines={2} style={[styles.lineName, line.checked && styles.strikethrough]}>
                   {line.name}
                 </Text>
                 {!!line.amount && (
-                  <Text style={[styles.lineAmount, line.checked && styles.lineChecked]}>{line.amount}</Text>
+                  <Text variant="bodySm" color="secondary" style={line.checked ? styles.strikethrough : undefined}>
+                    {line.amount}
+                  </Text>
                 )}
               </Pressable>
             ))}
@@ -357,7 +349,7 @@ export default function PlannerScreen() {
       data={shopSections}
       keyExtractor={(s) => s.entry.id}
       renderItem={renderSection}
-      ListEmptyComponent={<Text style={styles.emptyList}>{t("noPlannedMeals")}</Text>}
+      ListEmptyComponent={<EmptyState icon={<ShoppingCart size={24} color={theme.textMuted} />} title={t("noPlannedMeals")} />}
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
       onScroll={isDesktop ? undefined : onHeaderScroll}
@@ -391,174 +383,134 @@ export default function PlannerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  body: { flex: 1 },
-  segment: {
-    flexDirection: "row",
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: Colors.cardSecondary,
-  },
-  segmentBtnActive: { backgroundColor: Colors.primary },
-  segmentText: { fontSize: 14, fontWeight: "700", color: Colors.textLight },
-  segmentTextActive: { color: Colors.white },
-  listContent: { padding: 16, paddingBottom: 48 },
-  weekBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginBottom: 8,
-  },
-  weekRange: { fontSize: 16, fontWeight: "700", color: Colors.text },
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    body: { flex: 1 },
+    segmentWrap: { marginHorizontal: t.space[5], marginTop: t.space[4], marginBottom: t.space[1] },
+    listContent: { padding: t.space[5], paddingBottom: t.space[10] },
+    weekBar: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: t.space[3],
+      paddingHorizontal: t.space[1],
+      marginBottom: t.space[3],
+    },
+    strikethrough: { textDecorationLine: "line-through" },
 
-  // Plan view
-  daySection: { marginBottom: 18 },
-  dayHeader: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.textLight,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  dayHeaderToday: { color: Colors.primary },
-  emptyDay: { fontSize: 14, color: Colors.textLight, fontStyle: "italic" },
-  mealRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.cardSecondary,
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 8,
-    gap: 8,
-  },
-  mealRowCooked: { backgroundColor: "#E9F7EF" },
-  cookToggle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Colors.textLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cookToggleOn: { backgroundColor: Colors.success, borderColor: Colors.success },
-  mealMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-  mealThumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: Colors.border },
-  mealThumbFallback: { backgroundColor: Colors.border },
-  mealTextWrap: { flex: 1 },
-  mealName: { fontSize: 15, fontWeight: "600", color: Colors.text },
-  mealNameCooked: { textDecorationLine: "line-through", color: Colors.textLight },
-  mealServings: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
-  mealMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
-  boughtChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "#E9F7EF",
-    borderRadius: 999,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  boughtChipText: { fontSize: 10, fontWeight: "700", color: Colors.success },
-  mealRemove: { padding: 8 },
+    // Plan view
+    daySection: { marginBottom: t.space[6] },
+    dayHeader: {
+      fontFamily: t.font.bodyBold,
+      fontSize: 12,
+      color: t.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      marginBottom: t.space[3],
+    },
+    dayHeaderToday: { color: t.accent },
+    emptyDay: { fontStyle: "italic" },
+    mealRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      padding: t.space[3],
+      marginBottom: t.space[3],
+      gap: t.space[3],
+    },
+    mealRowCooked: { backgroundColor: t.successSubtle, borderColor: "transparent" },
+    cookToggle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: t.borderStrong,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    cookToggleOn: { backgroundColor: t.success, borderColor: t.success },
+    mealMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: t.space[3] },
+    mealThumb: { width: 48, height: 48, borderRadius: t.radius.sm, backgroundColor: t.surfaceSunken },
+    mealThumbFallback: { backgroundColor: t.surfaceSunken },
+    mealTextWrap: { flex: 1 },
+    mealMetaRow: { flexDirection: "row", alignItems: "center", gap: t.space[3], marginTop: 2 },
+    boughtChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 3,
+      backgroundColor: t.successSubtle,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    mealRemove: { padding: t.space[3] },
 
-  // Shopping view
-  shopCard: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 14,
-  },
-  shopCardHead: { flexDirection: "row", gap: 12, marginBottom: 10, alignItems: "flex-start" },
-  recipeCheck: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 2,
-    borderColor: Colors.textLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  recipeCheckReady: { backgroundColor: Colors.success, borderColor: Colors.success },
-  shopThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.border },
-  shopHeadText: { flex: 1 },
-  shopRecipeName: { fontSize: 16, fontWeight: "700", color: Colors.text },
-  shopHeadMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 6,
-    gap: 8,
-  },
-  shopDate: { fontSize: 13, color: Colors.textLight, flexShrink: 1 },
-  miniStepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: Colors.cardSecondary,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  miniStepBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.background,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  miniStepValue: { fontSize: 14, fontWeight: "700", color: Colors.text, minWidth: 16, textAlign: "center" },
-  miniStepUnit: { fontSize: 12, color: Colors.textLight },
-  shopLines: { gap: 2 },
-  boughtWrap: { gap: 10, marginTop: 4 },
-  boughtNote: { fontSize: 12, color: Colors.textLight, fontWeight: "600" },
-  boughtBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.success,
-    borderRadius: 12,
-    paddingVertical: 12,
-  },
-  boughtBtnText: { color: Colors.white, fontWeight: "800", fontSize: 14 },
-  shopLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 9,
-  },
-  bullet: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.textLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bulletChecked: { backgroundColor: Colors.success, borderColor: Colors.success },
-  lineName: { flex: 1, fontSize: 15, color: Colors.text },
-  lineAmount: { fontSize: 14, color: Colors.textLight, marginLeft: 8 },
-  lineChecked: { textDecorationLine: "line-through", color: Colors.textLight },
-
-  emptyList: { textAlign: "center", color: Colors.textLight, marginTop: 32, fontSize: 15 },
-});
+    // Shopping view
+    shopCard: {
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.lg,
+      padding: t.space[4],
+      marginBottom: t.space[4],
+    },
+    shopCardHead: { flexDirection: "row", gap: t.space[4], marginBottom: t.space[3], alignItems: "flex-start" },
+    recipeCheck: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      borderWidth: 2,
+      borderColor: t.borderStrong,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    recipeCheckReady: { backgroundColor: t.success, borderColor: t.success },
+    shopThumb: { width: 56, height: 56, borderRadius: t.radius.sm, backgroundColor: t.surfaceSunken },
+    shopHeadText: { flex: 1 },
+    shopHeadMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: t.space[2],
+      gap: t.space[3],
+    },
+    shrink: { flexShrink: 1 },
+    miniStepper: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[3],
+      backgroundColor: t.surfaceSunken,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space[3],
+      paddingVertical: 3,
+    },
+    miniStepBtn: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    miniStepValue: { minWidth: 16, textAlign: "center" },
+    shopLines: { gap: 2 },
+    boughtWrap: { gap: t.space[3], marginTop: t.space[1] },
+    shopLine: { flexDirection: "row", alignItems: "center", gap: t.space[3], paddingVertical: t.space[3] },
+    bullet: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: t.borderStrong,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    bulletChecked: { backgroundColor: t.success, borderColor: t.success },
+    lineName: { flex: 1 },
+  });

@@ -2,7 +2,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useFocusEffect } from "expo-router";
 import { Check, Search, X } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 
 import CollapsingTabHeader, {
   headerTranslateY,
@@ -11,19 +11,38 @@ import CollapsingTabHeader, {
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
 import SelectMenu, { SelectOption } from "@/components/SelectMenu";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
 import { useIsDesktop } from "@/hooks/use-responsive";
+import { Text } from "@/components/ui/Text";
 
-const CAT_COLOR: Record<string, string> = {
-  feedback: "#3B82F6", // blue
-  bug: "#EF4444", // red
-  report_user: "#F59E0B", // amber
-  other: "#8A94A6", // grey
-};
+// Category / status colours are functional signals, so they stay distinct —
+// but sourced from the theme's status tokens so they read in dark mode.
+function catColor(t: Theme, category: string): string {
+  return category === "bug"
+    ? t.danger
+    : category === "report_user"
+      ? t.warning
+      : category === "feedback"
+        ? t.accent
+        : t.textMuted;
+}
+function statusDot(t: Theme, s: string): string {
+  return s === "new"
+    ? t.accent
+    : s === "seen"
+      ? t.accent
+      : s === "in_progress"
+        ? t.warning
+        : s === "done"
+          ? t.success
+          : t.textMuted;
+}
 
 type AdminMsg = {
   id: string;
@@ -37,16 +56,6 @@ type AdminMsg = {
 };
 
 type AdminStatus = "new" | "seen" | "in_progress" | "done" | "read";
-
-// Dot colour per status — "new" (blue) is deliberately distinct from the
-// closed "read" (grey).
-const STATUS_DOT: Record<string, string> = {
-  new: "#3B82F6",
-  seen: "#6366F1",
-  in_progress: "#F59E0B",
-  done: "#10B981",
-  read: "#8A94A6",
-};
 
 const isClosedStatus = (s: string) => s === "done" || s === "read";
 
@@ -62,9 +71,8 @@ function statusLabel(s: string, t: (k: string) => string) {
           : t("statusNew");
 }
 
-// Workflow categories get the full flow, informational ones just new/read.
-function statusOptions(category: string, t: (k: string) => string): SelectOption[] {
-  const mk = (v: string): SelectOption => ({ value: v, label: statusLabel(v, t), dot: STATUS_DOT[v] });
+function statusOptions(theme: Theme, category: string, t: (k: string) => string): SelectOption[] {
+  const mk = (v: string): SelectOption => ({ value: v, label: statusLabel(v, t), dot: statusDot(theme, v) });
   return category === "feedback" || category === "other"
     ? [mk("new"), mk("read")]
     : [mk("new"), mk("seen"), mk("in_progress"), mk("done")];
@@ -93,7 +101,9 @@ function AdminMessageCard({
   onStatus: (s: AdminStatus) => void;
   t: (k: string) => string;
 }) {
-  const color = CAT_COLOR[msg.category] ?? CAT_COLOR.other;
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const color = catColor(theme, msg.category);
   const status = msg.status === "new" || !msg.status ? "new" : msg.status;
   const closed = isClosedStatus(status);
 
@@ -104,38 +114,40 @@ function AdminMessageCard({
     >
       <View style={styles.adminMsgTop}>
         <View style={[styles.catTag, { backgroundColor: color }]}>
-          <Text style={styles.catTagText}>{catLabelOf(msg.category, t)}</Text>
+          <Text variant="caption" weight="bold" style={styles.catTagText}>
+            {catLabelOf(msg.category, t)}
+          </Text>
         </View>
-        {msg.category === "bug" && <Text style={styles.prioHigh}>!!!</Text>}
-        {msg.category === "report_user" && <Text style={styles.prioLow}>!!</Text>}
+        {msg.category === "bug" && <Text variant="label" weight="bold" style={{ color: theme.danger }}>!!!</Text>}
+        {msg.category === "report_user" && <Text variant="label" weight="bold" style={{ color: theme.warning }}>!!</Text>}
         <View style={styles.adminMsgSpacer} />
         <SelectMenu
           compact
           value={status}
-          options={statusOptions(msg.category, t)}
+          options={statusOptions(theme, msg.category, t)}
           onChange={(v) => onStatus(v as AdminStatus)}
           title={t("status")}
           testID={`admin-status-${msg.id}`}
         />
       </View>
 
-      <Text style={styles.adminText} numberOfLines={expanded ? undefined : 3}>
+      <Text variant="bodySm" numberOfLines={expanded ? undefined : 3}>
         {msg.message}
       </Text>
 
-      {!expanded && <Text style={styles.adminHint}>{t("tapForDetails")}</Text>}
+      {!expanded && <Text variant="caption" color="muted" style={styles.adminHint}>{t("tapForDetails")}</Text>}
 
       {expanded && (
         <View style={styles.adminDetails}>
-          <Text style={styles.adminDetailLine}>
+          <Text variant="caption" color="secondary">
             {t("fromLabel")}: {msg.from.username || "—"} ({msg.from.email || "—"})
           </Text>
           {msg.reported && (
-            <Text style={styles.adminDetailLine}>
+            <Text variant="caption" color="secondary">
               {t("reportedUserLabel")}: {msg.reported.username || "—"} ({msg.reported.email || "—"})
             </Text>
           )}
-          <Text style={styles.adminDetailLine}>
+          <Text variant="caption" color="secondary">
             {t("sentAtLabel")}: {new Date(msg.createdAt).toLocaleString()}
           </Text>
         </View>
@@ -146,6 +158,8 @@ function AdminMessageCard({
 
 export default function AdminPanelScreen() {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
   const { myProfile } = useSocial();
@@ -184,7 +198,7 @@ export default function AdminPanelScreen() {
       if (items.length === 0) return null;
       return (
         <View key={tier.key}>
-          <Text style={styles.adminGroupHead}>{tier.label}</Text>
+          <Text variant="label" weight="bold" style={styles.adminGroupHead}>{tier.label}</Text>
           <View style={styles.adminGrid}>{items.map(adminCard)}</View>
         </View>
       );
@@ -205,31 +219,31 @@ export default function AdminPanelScreen() {
     const done = filtered.filter((m) => isClosedStatus(m.status));
     const catFilterOptions: SelectOption[] = [
       { value: "all", label: t("adminCatAll") },
-      { value: "bug", label: t("adminCatBug"), dot: CAT_COLOR.bug },
-      { value: "report_user", label: t("adminCatReport"), dot: CAT_COLOR.report_user },
-      { value: "feedback", label: t("adminCatFeedback"), dot: CAT_COLOR.feedback },
-      { value: "other", label: t("adminCatOther"), dot: CAT_COLOR.other },
+      { value: "bug", label: t("adminCatBug"), dot: theme.danger },
+      { value: "report_user", label: t("adminCatReport"), dot: theme.warning },
+      { value: "feedback", label: t("adminCatFeedback"), dot: theme.accent },
+      { value: "other", label: t("adminCatOther"), dot: theme.textMuted },
     ];
 
     return (
       <View style={styles.adminBox}>
-        <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
+        <Text variant="h3" style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
 
         <View style={styles.filterRow}>
           <View style={styles.searchMini}>
-            <Search size={16} color={Colors.textLight} />
+            <Search size={16} color={theme.textMuted} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, Platform.OS === "web" && webNoOutline]}
               value={adminSearch}
               onChangeText={setAdminSearch}
               placeholder={t("adminSearchPlaceholder")}
-              placeholderTextColor={Colors.textLight}
+              placeholderTextColor={theme.textMuted}
               returnKeyType="search"
               testID="admin-search"
             />
             {adminSearch.length > 0 && (
               <Pressable onPress={() => setAdminSearch("")} hitSlop={8} testID="admin-search-clear">
-                <X size={14} color={Colors.textLight} />
+                <X size={14} color={theme.textSecondary} />
               </Pressable>
             )}
           </View>
@@ -242,25 +256,25 @@ export default function AdminPanelScreen() {
           />
         </View>
 
-        <Text style={styles.adminSubhead}>{t("openSection")}</Text>
+        <Text variant="label" weight="bold" style={styles.adminSubhead}>{t("openSection")}</Text>
         {open.length > 0 ? (
           renderTiers(open)
         ) : (
-          <Text style={styles.adminEmptyLine}>{t("nothingOpen")}</Text>
+          <Text variant="bodySm" color="muted" style={styles.adminEmptyLine}>{t("nothingOpen")}</Text>
         )}
 
         {done.length > 0 && (
           <>
             <View style={styles.doneDivider}>
-              <Check size={14} color={Colors.success} />
-              <Text style={styles.adminSubhead}>{t("doneSection")}</Text>
+              <Check size={14} color={theme.success} />
+              <Text variant="label" weight="bold" style={styles.adminSubhead}>{t("doneSection")}</Text>
             </View>
             {renderTiers(done)}
           </>
         )}
 
         {filtered.length === 0 && (
-          <Text style={styles.adminEmptyLine}>{t("adminNoResults")}</Text>
+          <Text variant="bodySm" color="muted" style={styles.adminEmptyLine}>{t("adminNoResults")}</Text>
         )}
       </View>
     );
@@ -301,78 +315,64 @@ export default function AdminPanelScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  bodyWrap: { flex: 1 },
-  content: { padding: 16, paddingBottom: 160 },
+const webNoOutline = { outlineStyle: "none" } as unknown as { [k: string]: string };
 
-  adminBox: { marginBottom: 16 },
-  adminTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 12 },
-  adminSubhead: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Colors.textLight,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  adminEmptyLine: {
-    fontSize: 14,
-    color: Colors.textLight,
-    fontStyle: "italic",
-    paddingVertical: 10,
-  },
-  doneDivider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 10,
-  },
-  filterRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 14 },
-  searchMini: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    width: 160,
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchInput: { flex: 1, fontSize: 13, color: Colors.text, padding: 0 },
-  adminGroupHead: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.text,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  adminGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  adminMsg: {
-    width: 300,
-    maxWidth: "100%",
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 4,
-    borderRadius: 12,
-    padding: 12,
-  },
-  adminMsgDone: { opacity: 0.55 },
-  adminMsgTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
-  adminMsgSpacer: { flex: 1 },
-  catTag: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  catTagText: { color: Colors.white, fontSize: 11, fontWeight: "800" },
-  prioHigh: { color: "#EF4444", fontSize: 15, fontWeight: "900", letterSpacing: 1 },
-  prioLow: { color: "#F59E0B", fontSize: 14, fontWeight: "900", letterSpacing: 1 },
-  adminText: { fontSize: 14, color: Colors.text },
-  adminHint: { fontSize: 12, color: Colors.textLight, marginTop: 6 },
-  adminDetails: { marginTop: 10, gap: 6 },
-  adminDetailLine: { fontSize: 12, color: Colors.textLight },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: t.bg },
+    bodyWrap: { flex: 1 },
+    content: { padding: t.space[5], paddingBottom: 140 },
+
+    adminBox: { marginBottom: t.space[5] },
+    adminTitle: { marginBottom: t.space[4] },
+    adminSubhead: {
+      color: t.textMuted,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      marginTop: t.space[3],
+      marginBottom: t.space[2],
+    },
+    adminEmptyLine: { fontStyle: "italic", paddingVertical: t.space[3] },
+    doneDivider: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[2],
+      marginTop: t.space[4],
+      borderTopWidth: t.borderWidth.hairline,
+      borderTopColor: t.border,
+      paddingTop: t.space[3],
+    },
+    filterRow: { flexDirection: "row", alignItems: "center", gap: t.space[3], marginBottom: t.space[4] },
+    searchMini: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: t.space[2],
+      width: 160,
+      backgroundColor: t.surfaceSunken,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.pill,
+      paddingHorizontal: t.space[3],
+      paddingVertical: t.space[2],
+    },
+    searchInput: { flex: 1, fontFamily: t.font.body, fontSize: 13, color: t.textPrimary, padding: 0 },
+    adminGroupHead: { color: t.textPrimary, marginTop: t.space[3], marginBottom: t.space[2] },
+    adminGrid: { flexDirection: "row", flexWrap: "wrap", gap: t.space[3] },
+    adminMsg: {
+      width: 300,
+      maxWidth: "100%",
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderLeftWidth: 3,
+      borderRadius: t.radius.md,
+      padding: t.space[3],
+    },
+    adminMsgDone: { opacity: 0.55 },
+    adminMsgTop: { flexDirection: "row", alignItems: "center", gap: t.space[2], marginBottom: t.space[2] },
+    adminMsgSpacer: { flex: 1 },
+    catTag: { borderRadius: t.radius.pill, paddingHorizontal: t.space[3], paddingVertical: 3 },
+    catTagText: { color: "#FFFFFF" },
+    adminHint: { marginTop: t.space[2] },
+    adminDetails: { marginTop: t.space[3], gap: t.space[2] },
+  });
