@@ -18,7 +18,9 @@ import Avatar from "@/components/Avatar";
 import InlineConfirm from "@/components/InlineConfirm";
 import RecipeCard from "@/components/RecipeCard";
 import { useToast } from "@/components/Toast";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
@@ -29,6 +31,8 @@ import { Recipe } from "@/types/recipe";
 const ADMIN_CATS: AdminCategory[] = ["feedback", "bug", "report_user", "other"];
 
 export default function UserProfileScreen() {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useLanguage();
   const {
@@ -148,7 +152,7 @@ export default function UserProfileScreen() {
               size={72}
             />
             <View style={styles.adminBadge}>
-              <ShieldCheck size={14} color={Colors.white} />
+              <ShieldCheck size={14} color={theme.textOnAccent} />
               <Text style={styles.adminBadgeText}>Admin</Text>
             </View>
             <Text style={styles.pageName}>{name}</Text>
@@ -162,7 +166,7 @@ export default function UserProfileScreen() {
                   { transform: [{ scale: checkAnim }], opacity: checkAnim },
                 ]}
               >
-                <Check size={40} color={Colors.white} />
+                <Check size={40} color={theme.textOnAccent} />
               </Animated.View>
               <Text style={styles.sentText}>{t("adminThanks")}</Text>
             </View>
@@ -190,7 +194,7 @@ export default function UserProfileScreen() {
                   value={adminWho}
                   onChangeText={setAdminWho}
                   placeholder={t("adminReportWhoLabel")}
-                  placeholderTextColor={Colors.textLight}
+                  placeholderTextColor={theme.textMuted}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -201,7 +205,7 @@ export default function UserProfileScreen() {
                 value={adminMsg}
                 onChangeText={setAdminMsg}
                 placeholder={isReport ? t("reportReasonMin") : t("yourMessage")}
-                placeholderTextColor={Colors.textLight}
+                placeholderTextColor={theme.textMuted}
                 multiline
                 maxLength={2000}
               />
@@ -449,11 +453,11 @@ export default function UserProfileScreen() {
                 ) : (
                   <>
                     <Pressable style={styles.dangerBtn} onPress={() => setConfirm("block")}>
-                      <Ban size={15} color={Colors.error} />
+                      <Ban size={15} color={theme.danger} />
                       <Text style={styles.dangerText}>{t("blockUser")}</Text>
                     </Pressable>
                     <Pressable style={styles.dangerBtn} onPress={() => setReportOpen((v) => !v)}>
-                      <Flag size={15} color={Colors.error} />
+                      <Flag size={15} color={theme.danger} />
                       <Text style={styles.dangerText}>{t("reportUser")}</Text>
                     </Pressable>
                   </>
@@ -468,7 +472,7 @@ export default function UserProfileScreen() {
                   value={reportReason}
                   onChangeText={setReportReason}
                   placeholder={t("reportReasonMin")}
-                  placeholderTextColor={Colors.textLight}
+                  placeholderTextColor={theme.textMuted}
                   multiline
                   maxLength={2000}
                 />
@@ -503,7 +507,7 @@ export default function UserProfileScreen() {
             {/* Stats */}
             <View style={styles.statsGrid}>
               <View style={[styles.statCard, styles.statCardWide, styles.statWideRow]}>
-                <Calendar size={18} color={Colors.primary} />
+                <Calendar size={18} color={theme.accent} />
                 <View>
                   <Text style={styles.statValueSmall}>{memberSince}</Text>
                   <Text style={styles.statLabel}>{t("memberSince")}</Text>
@@ -512,35 +516,35 @@ export default function UserProfileScreen() {
               {data.stats && (
                 <>
                   <Stat
-                    icon={<ChefHat size={20} color={Colors.primary} />}
+                    icon={<ChefHat size={20} color={theme.accent} />}
                     label={t("createdRecipesCount")}
                     value={data.stats.createdCount}
                     active={canSeeLists && listMode === "created"}
                     onPress={canSeeLists ? () => setListMode("created") : undefined}
                   />
                   <Stat
-                    icon={<Star size={20} color={Colors.primary} />}
+                    icon={<Star size={20} color={theme.accent} />}
                     label={t("favoriteRecipesCount")}
                     value={data.stats.favoritesCount}
                     active={canSeeLists && listMode === "favorites"}
                     onPress={canSeeLists ? () => setListMode("favorites") : undefined}
                   />
                   <Stat
-                    icon={<Flame size={20} color={Colors.primary} />}
+                    icon={<Flame size={20} color={theme.accent} />}
                     label={t("cookedRecipesCount")}
                     value={data.stats.cookedCount}
                     active={canSeeLists && listMode === "cooked"}
                     onPress={canSeeLists ? () => setListMode("cooked") : undefined}
                   />
                   <Stat
-                    icon={<UsersIcon size={20} color={Colors.primary} />}
+                    icon={<UsersIcon size={20} color={theme.accent} />}
                     label={t("friendsCount")}
                     value={data.stats.friendsCount}
                     active={canSeeLists && listMode === "friends"}
                     onPress={canSeeLists ? () => setListMode("friends") : undefined}
                   />
                   <View style={[styles.statCard, styles.statCardWide, styles.statWideRow, styles.statWideRowCenter]}>
-                    <Star size={18} color={Colors.star} fill={Colors.star} />
+                    <Star size={18} color={theme.star} fill={theme.star} />
                     <View style={{ alignItems: "center" }}>
                       <Text style={styles.statValueSmall}>
                         {(data.stats.recipeRatingCount ?? 0) > 0
@@ -590,23 +594,23 @@ export default function UserProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+const makeStyles = (t: Theme) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: t.bg },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  muted: { color: Colors.textLight, fontSize: 15, textAlign: "center", marginTop: 24 },
-  okText: { color: Colors.success, fontSize: 13, fontWeight: "600", marginTop: 8, textAlign: "center" },
+  muted: { color: t.textSecondary, fontSize: 15, textAlign: "center", marginTop: 24 },
+  okText: { color: t.success, fontSize: 13, fontWeight: "600", marginTop: 8, textAlign: "center" },
   listContent: { padding: 16 },
   header: { alignItems: "center", marginBottom: 8 },
-  pageName: { fontSize: 22, fontWeight: "700", color: Colors.text, marginTop: 12 },
-  handle: { fontSize: 14, color: Colors.textLight, marginTop: 2 },
-  bio: { fontSize: 14, color: Colors.text, marginTop: 10, textAlign: "center" },
+  pageName: { fontSize: 22, fontWeight: "700", color: t.textPrimary, marginTop: 12 },
+  handle: { fontSize: 14, color: t.textSecondary, marginTop: 2 },
+  bio: { fontSize: 14, color: t.textPrimary, marginTop: 10, textAlign: "center" },
   statusWrap: { marginTop: 16 },
   blockedWrap: { alignItems: "center", gap: 8 },
   inlineRow: { flexDirection: "row", gap: 8 },
   statusBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 999 },
-  statusPrimary: { backgroundColor: Colors.primary },
-  statusPrimaryText: { color: Colors.white, fontWeight: "700" },
-  statusMuted: { backgroundColor: Colors.cardSecondary },
+  statusPrimary: { backgroundColor: t.accent },
+  statusPrimaryText: { color: t.textOnAccent, fontWeight: "700" },
+  statusMuted: { backgroundColor: t.surfaceSunken },
   statusChip: {
     fontSize: 13,
     fontWeight: "800",
@@ -615,33 +619,33 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     overflow: "hidden",
   },
-  statusChipPending: { backgroundColor: Colors.cardSecondary, color: Colors.textLight },
-  statusChipDeclined: { backgroundColor: "#FDECEC", color: Colors.error },
-  statusChipAccepted: { backgroundColor: "#E9F7EF", color: Colors.success },
+  statusChipPending: { backgroundColor: t.surfaceSunken, color: t.textSecondary },
+  statusChipDeclined: { backgroundColor: t.dangerSubtle, color: t.danger },
+  statusChipAccepted: { backgroundColor: t.successSubtle, color: t.success },
   pfRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: t.border,
   },
   pfMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
-  pfName: { fontSize: 15, fontWeight: "600", color: Colors.text },
-  pfHandle: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  pfName: { fontSize: 15, fontWeight: "600", color: t.textPrimary },
+  pfHandle: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
   pfAddBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
   },
-  pfAddText: { color: Colors.white, fontWeight: "700", fontSize: 12 },
-  pfStatus: { fontSize: 12, color: Colors.textLight, fontWeight: "600" },
-  statusMutedText: { color: Colors.text, fontWeight: "600" },
+  pfAddText: { color: t.textOnAccent, fontWeight: "700", fontSize: 12 },
+  pfStatus: { fontSize: 12, color: t.textSecondary, fontWeight: "600" },
+  statusMutedText: { color: t.textPrimary, fontWeight: "600" },
 
   dangerRow: { flexDirection: "row", gap: 16, marginTop: 16 },
   dangerBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 6 },
-  dangerText: { color: Colors.error, fontSize: 13, fontWeight: "600" },
+  dangerText: { color: t.danger, fontSize: 13, fontWeight: "600" },
   blockConfirm: { marginTop: 16, alignSelf: "stretch" },
   reportBox: { alignSelf: "stretch", marginTop: 12, gap: 10 },
 
@@ -655,45 +659,45 @@ const styles = StyleSheet.create({
   statCard: {
     minWidth: "47%",
     flexGrow: 1,
-    backgroundColor: Colors.card,
+    backgroundColor: t.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
     borderRadius: 12,
     padding: 14,
   },
   statCardWide: { minWidth: "100%" },
   statWideRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   statWideRowCenter: { justifyContent: "center" },
-  statCardActive: { borderColor: Colors.primary, backgroundColor: Colors.cardSecondary },
+  statCardActive: { borderColor: t.accent, backgroundColor: t.surfaceSunken },
   statIconWrap: { marginBottom: 6 },
-  statValue: { fontSize: 20, fontWeight: "800", color: Colors.text },
-  statValueSmall: { fontSize: 15, fontWeight: "700", color: Colors.text },
-  statLabel: { fontSize: 12, color: Colors.textLight, marginTop: 2 },
+  statValue: { fontSize: 20, fontWeight: "800", color: t.textPrimary },
+  statValueSmall: { fontSize: 15, fontWeight: "700", color: t.textPrimary },
+  statLabel: { fontSize: 12, color: t.textSecondary, marginTop: 2 },
 
-  hintText: { fontSize: 12, color: Colors.error, marginTop: -4 },
+  hintText: { fontSize: 12, color: t.danger, marginTop: -4 },
   sentWrap: { alignItems: "center", paddingVertical: 40, gap: 16 },
   sentCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.success,
+    backgroundColor: t.success,
     alignItems: "center",
     justifyContent: "center",
   },
-  sentText: { fontSize: 15, fontWeight: "600", color: Colors.text, textAlign: "center" },
+  sentText: { fontSize: 15, fontWeight: "600", color: t.textPrimary, textAlign: "center" },
 
   sectionTitle: {
     alignSelf: "flex-start",
     fontSize: 16,
     fontWeight: "700",
-    color: Colors.text,
+    color: t.textPrimary,
     marginTop: 24,
     marginBottom: 8,
   },
   sectionTitleMuted: {
     fontSize: 14,
     fontWeight: "600",
-    color: Colors.textLight,
+    color: t.textSecondary,
   },
 
   adminForm: { padding: 16 },
@@ -701,43 +705,43 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: Colors.accent,
+    backgroundColor: t.accent,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 3,
     marginTop: 8,
   },
-  adminBadgeText: { color: Colors.white, fontWeight: "800", fontSize: 12 },
+  adminBadgeText: { color: t.textOnAccent, fontWeight: "800", fontSize: 12 },
   catRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   catChip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
+    borderColor: t.border,
+    backgroundColor: t.surface,
   },
-  catChipOn: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  catChipText: { fontSize: 13, fontWeight: "600", color: Colors.text },
-  catChipTextOn: { color: Colors.white },
+  catChipOn: { backgroundColor: t.accent, borderColor: t.accent },
+  catChipText: { fontSize: 13, fontWeight: "600", color: t.textPrimary },
+  catChipTextOn: { color: t.textOnAccent },
   input: {
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: t.border,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 15,
-    color: Colors.text,
-    backgroundColor: Colors.card,
+    color: t.textPrimary,
+    backgroundColor: t.surface,
     marginBottom: 10,
   },
   textArea: { minHeight: 90, textAlignVertical: "top" },
   primaryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: t.accent,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
   primaryBtnDisabled: { opacity: 0.5 },
-  primaryBtnText: { color: Colors.white, fontWeight: "700", fontSize: 15 },
+  primaryBtnText: { color: t.textOnAccent, fontWeight: "700", fontSize: 15 },
 });

@@ -26,6 +26,9 @@ export default function DebugUI() {
   const styles = useThemedStyles(makeStyles);
   const [seg, setSeg] = useState("feed");
 
+  // Dev-only catalogue — inert in production builds.
+  if (!__DEV__) return null;
+
   return (
     <Screen scroll maxWidth="content" padded={6}>
       <Text variant="display">Design system</Text>

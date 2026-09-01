@@ -1,8 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import Colors from '@/constants/colors';
+import type { Theme } from '@/constants/theme';
+import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useLanguage } from '@/hooks/use-language';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
 
 interface InlineConfirmProps {
   question: string;
@@ -28,69 +31,34 @@ export default function InlineConfirm({
   testID,
 }: InlineConfirmProps) {
   const { t } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
 
   return (
     <View style={[styles.wrap, style]} testID={testID ?? 'inline-confirm'}>
-      <Text style={styles.question}>{question}</Text>
+      <Text variant="title">{question}</Text>
       <View style={styles.row}>
-        <Pressable
-          style={[styles.button, styles.cancel]}
+        <Button
+          label={cancelLabel ?? t('cancel') ?? 'Abbrechen'}
+          variant="secondary"
           onPress={onCancel}
           testID="inline-confirm-cancel"
-        >
-          <Text style={styles.cancelText}>{cancelLabel ?? t('cancel') ?? 'Abbrechen'}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.button, destructive ? styles.destructive : styles.confirm]}
+          style={styles.flex}
+        />
+        <Button
+          label={confirmLabel}
+          variant={destructive ? 'danger' : 'primary'}
           onPress={onConfirm}
           testID="inline-confirm-confirm"
-        >
-          <Text style={styles.confirmText}>{confirmLabel}</Text>
-        </Pressable>
+          style={styles.flex}
+        />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 10,
-  },
-  question: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancel: {
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  confirm: {
-    backgroundColor: Colors.primary,
-  },
-  destructive: {
-    backgroundColor: '#ef4444',
-  },
-  cancelText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  confirmText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    wrap: { gap: t.space[3] },
+    row: { flexDirection: 'row', gap: t.space[2] },
+    flex: { flex: 1 },
+  });

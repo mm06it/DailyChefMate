@@ -552,7 +552,7 @@ export default function AddRecipeScreen() {
                       disabled={uploading}
                       testID="button-remove-photo"
                     >
-                      <Trash2 size={14} color="#ef4444" />
+                      <Trash2 size={14} color={theme.danger} />
                       <Text style={styles.photoBtnGhostText}>{t('removePhoto')}</Text>
                     </Pressable>
                   )}
@@ -776,7 +776,7 @@ export default function AddRecipeScreen() {
                             onPress={() => removeIngredient(index)}
                             style={styles.removeButton}
                           >
-                            <Minus size={16} color="#ef4444" />
+                            <Minus size={16} color={theme.danger} />
                           </Pressable>
                         )}
                       </View>
@@ -838,7 +838,7 @@ export default function AddRecipeScreen() {
                         onPress={() => removeStep(index)}
                         style={styles.removeButton}
                       >
-                        <Minus size={16} color="#ef4444" />
+                        <Minus size={16} color={theme.danger} />
                       </Pressable>
                     )}
                   </View>
@@ -854,7 +854,7 @@ export default function AddRecipeScreen() {
                 style={[styles.primarySaveButton, saving && { opacity: 0.6 }]}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" color={theme.textOnAccent} />
                 ) : (
                   <Text style={styles.primarySaveButtonText}>{t('saveRecipe')}</Text>
                 )}
@@ -892,7 +892,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     marginTop: 8,
   },
   primarySaveButtonText: {
-    color: '#ffffff',
+    color: t.textOnAccent,
     fontSize: 16,
     fontWeight: '700',
   },
@@ -931,7 +931,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     marginBottom: 8,
   },
   required: {
-    color: '#ef4444',
+    color: t.danger,
   },
   input: {
     borderWidth: 1,
@@ -978,7 +978,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     color: t.textPrimary,
   },
   modeButtonTextActive: {
-    color: '#ffffff',
+    color: t.textOnAccent,
   },
   categoryButton: {
     justifyContent: 'center',
@@ -1095,7 +1095,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
   photoBtnGhostText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#ef4444',
+    color: t.danger,
   },
   stepRow: {
     flexDirection: 'row',
@@ -1170,14 +1170,14 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#ef4444',
+    backgroundColor: t.danger,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
     marginBottom: 12,
   },
   errorBannerText: {
-    color: '#ffffff',
+    color: t.textOnAccent,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
@@ -1194,7 +1194,7 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     marginBottom: 12,
   },
   successBannerText: {
-    color: '#ffffff',
+    color: t.textOnAccent,
     fontSize: 14,
     fontWeight: '600',
   },
