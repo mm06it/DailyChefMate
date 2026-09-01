@@ -1,6 +1,6 @@
 import { Check, ChevronDown } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import Colors from '@/constants/colors';
 
@@ -12,23 +12,45 @@ interface Props {
   onChange: (v: string) => void;
   /** Smaller trigger — for use inside a card. */
   compact?: boolean;
-  /** Modal heading. */
+  /** Menu heading. */
   title?: string;
   testID?: string;
 }
 
-// Dot + label dropdown. Trigger pill + fade Modal overlay (portals to the
-// root, so it works inside a FlatList header without clipping). Mirrors the
-// LanguageSelector pattern.
+const MENU_W = 200;
+
+// Dot + label dropdown. The menu is anchored to the trigger (measured in
+// window coords), rendered in a transparent Modal so it isn't clipped by a
+// FlatList/ScrollView.
 export default function SelectMenu({ value, options, onChange, compact, title, testID }: Props) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const triggerRef = useRef<View>(null);
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const current = useMemo(() => options.find((o) => o.value === value) ?? options[0], [options, value]);
+
+  const openMenu = () => {
+    triggerRef.current?.measureInWindow((x, y, w, h) => {
+      setAnchor({ x, y, w, h });
+      setOpen(true);
+    });
+  };
+
+  const pos = useMemo(() => {
+    if (!anchor) return { top: 0, left: 0 };
+    const estH = options.length * 46 + (title ? 32 : 0) + 16;
+    const left = Math.max(8, Math.min(anchor.x, screenW - MENU_W - 8));
+    const below = anchor.y + anchor.h + 4;
+    const top = below + estH + 8 > screenH ? Math.max(8, anchor.y - estH - 4) : below;
+    return { top, left };
+  }, [anchor, options.length, title, screenW, screenH]);
 
   return (
     <>
       <Pressable
+        ref={triggerRef}
         style={[styles.trigger, compact && styles.triggerCompact]}
-        onPress={() => setOpen(true)}
+        onPress={openMenu}
         testID={testID}
       >
         {current?.dot && <View style={[styles.dot, { backgroundColor: current.dot }]} />}
@@ -39,9 +61,9 @@ export default function SelectMenu({ value, options, onChange, compact, title, t
       </Pressable>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          <View style={styles.sheet}>
-            {title && <Text style={styles.sheetTitle}>{title}</Text>}
+        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
+          <View style={[styles.menu, { top: pos.top, left: pos.left, width: MENU_W }]}>
+            {title && <Text style={styles.menuTitle}>{title}</Text>}
             {options.map((o) => {
               const active = o.value === value;
               return (
@@ -97,38 +119,36 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  overlay: {
+  backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
   },
-  sheet: {
+  menu: {
+    position: 'absolute',
     backgroundColor: Colors.background,
     borderRadius: 14,
-    padding: 12,
-    minWidth: 240,
-    maxWidth: 320,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  sheetTitle: {
-    fontSize: 15,
+  menuTitle: {
+    fontSize: 13,
     fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-    paddingVertical: 8,
+    color: Colors.textLight,
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 8,
     borderRadius: 10,
   },
   rowActive: {
@@ -136,7 +156,7 @@ const styles = StyleSheet.create({
   },
   rowText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.text,
   },
   rowTextActive: {

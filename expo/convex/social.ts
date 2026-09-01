@@ -879,7 +879,7 @@ export const socialCounts = query({
   args: {},
   handler: async (ctx) => {
     const me = await getAuthUserId(ctx);
-    if (!me) return { feed: 0, friends: 0, inbox: 0 };
+    if (!me) return { feed: 0, friends: 0, inbox: 0, adminOpen: 0 };
     const meDoc = await ctx.db.get(me);
     const feedSeenAt = meDoc?.feedSeenAt ?? 0;
 
@@ -915,10 +915,26 @@ export const socialCounts = query({
       shares.filter((s) => s.seenAt === undefined).length +
       notifs.filter((n) => n.seenAt === undefined).length;
 
+    // Admin panel badge: open tickets (anything not done/read).
+    const admin = await getAdminUser(ctx);
+    let adminOpen = 0;
+    if (admin && admin._id === me) {
+      const rows = await ctx.db
+        .query("adminMessages")
+        .withIndex("by_created")
+        .order("desc")
+        .take(200);
+      adminOpen = rows.filter((r) => {
+        const s = r.status ?? (r.resolvedAt !== undefined ? "done" : "new");
+        return s !== "done" && s !== "read";
+      }).length;
+    }
+
     return {
       feed: Math.min(feedCount, COUNT_CAP),
       friends: incoming.length,
       inbox: inboxCount,
+      adminOpen,
     };
   },
 });

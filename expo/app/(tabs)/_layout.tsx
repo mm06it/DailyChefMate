@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { BookOpen, CalendarDays, Refrigerator, Star, Users } from "lucide-react-native";
+import { BookOpen, CalendarDays, Refrigerator, ShieldCheck, Star, Users } from "lucide-react-native";
 import React from "react";
 import { StyleSheet } from "react-native";
 
@@ -13,7 +13,7 @@ import { useIsDesktop } from "@/hooks/use-responsive";
 export default function TabLayout() {
   const { t } = useLanguage();
   const isDesktop = useIsDesktop();
-  const { badgeCount } = useSocial();
+  const { badgeCount, counts, isAdmin } = useSocial();
 
   return (
     <Tabs
@@ -65,6 +65,15 @@ export default function TabLayout() {
           title: t('social'),
           tabBarIcon: ({ color }) => <Users size={22} color={color} />,
           tabBarBadge: badgeCount > 0 ? badgeCount : undefined,
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: t('adminPanel'),
+          tabBarIcon: ({ color }) => <ShieldCheck size={22} color={color} />,
+          tabBarBadge: isAdmin && counts.adminOpen > 0 ? counts.adminOpen : undefined,
+          href: isAdmin ? undefined : null,
         }}
       />
       <Tabs.Screen

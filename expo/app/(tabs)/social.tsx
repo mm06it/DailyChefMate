@@ -1,5 +1,5 @@
 import { useScrollToTop } from "@react-navigation/native";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { router, useFocusEffect } from "expo-router";
 import {
   Bell,
@@ -28,11 +28,8 @@ import CollapsingTabHeader, {
 } from "@/components/CollapsingTabHeader";
 import InlineConfirm from "@/components/InlineConfirm";
 import RatingStars from "@/components/RatingStars";
-import SearchBar from "@/components/SearchBar";
-import SelectMenu, { SelectOption } from "@/components/SelectMenu";
 import Colors from "@/constants/colors";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
@@ -64,132 +61,6 @@ function CardDeleteButton({ onPress }: { onPress: () => void }) {
   );
 }
 
-const CAT_COLOR: Record<string, string> = {
-  feedback: "#3B82F6", // blue
-  bug: "#EF4444", // red
-  report_user: "#F59E0B", // amber
-  other: "#8A94A6", // grey
-};
-type AdminMsg = {
-  id: string;
-  category: string;
-  message: string;
-  from: { username: string; email: string };
-  reported: { username: string; email: string } | null;
-  createdAt: number;
-  status: string;
-  priority: number;
-};
-
-type AdminStatus = "new" | "seen" | "in_progress" | "done" | "read";
-
-// Dot colour per status — "new" (blue) is deliberately distinct from the
-// closed "read" (grey).
-const STATUS_DOT: Record<string, string> = {
-  new: "#3B82F6",
-  seen: "#6366F1",
-  in_progress: "#F59E0B",
-  done: "#10B981",
-  read: "#8A94A6",
-};
-
-const isClosedStatus = (s: string) => s === "done" || s === "read";
-
-function statusLabel(s: string, t: (k: string) => string) {
-  return s === "done"
-    ? t("statusDone")
-    : s === "read"
-      ? t("statusRead")
-      : s === "in_progress"
-        ? t("statusInProgress")
-        : s === "seen"
-          ? t("statusSeen")
-          : t("statusNew");
-}
-
-// Status options offered by the card's dropdown — workflow categories get the
-// full flow, informational ones just new/read.
-function statusOptions(category: string, t: (k: string) => string): SelectOption[] {
-  const mk = (v: string): SelectOption => ({ value: v, label: statusLabel(v, t), dot: STATUS_DOT[v] });
-  return category === "feedback" || category === "other"
-    ? [mk("new"), mk("read")]
-    : [mk("new"), mk("seen"), mk("in_progress"), mk("done")];
-}
-
-function catLabelOf(category: string, t: (k: string) => string) {
-  return category === "report_user"
-    ? t("adminCatReport")
-    : category === "bug"
-      ? t("adminCatBug")
-      : category === "feedback"
-        ? t("adminCatFeedback")
-        : t("adminCatOther");
-}
-
-function AdminMessageCard({
-  msg,
-  expanded,
-  onToggle,
-  onStatus,
-  t,
-}: {
-  msg: AdminMsg;
-  expanded: boolean;
-  onToggle: () => void;
-  onStatus: (s: AdminStatus) => void;
-  t: (k: string) => string;
-}) {
-  const color = CAT_COLOR[msg.category] ?? CAT_COLOR.other;
-  const status = msg.status === "new" || !msg.status ? "new" : msg.status;
-  const closed = isClosedStatus(status);
-
-  return (
-    <Pressable
-      style={[styles.adminMsg, { borderLeftColor: color }, closed && styles.adminMsgDone]}
-      onPress={onToggle}
-    >
-      <View style={styles.adminMsgTop}>
-        <View style={[styles.catTag, { backgroundColor: color }]}>
-          <Text style={styles.catTagText}>{catLabelOf(msg.category, t)}</Text>
-        </View>
-        {msg.category === "bug" && <Text style={styles.prioHigh}>!!!</Text>}
-        {msg.category === "report_user" && <Text style={styles.prioLow}>!!</Text>}
-        <View style={styles.adminMsgSpacer} />
-        <SelectMenu
-          compact
-          value={status}
-          options={statusOptions(msg.category, t)}
-          onChange={(v) => onStatus(v as AdminStatus)}
-          title={t("status")}
-          testID={`admin-status-${msg.id}`}
-        />
-      </View>
-
-      <Text style={styles.adminText} numberOfLines={expanded ? undefined : 3}>
-        {msg.message}
-      </Text>
-
-      {!expanded && <Text style={styles.adminHint}>{t("tapForDetails")}</Text>}
-
-      {expanded && (
-        <View style={styles.adminDetails}>
-          <Text style={styles.adminDetailLine}>
-            {t("fromLabel")}: {msg.from.username || "—"} ({msg.from.email || "—"})
-          </Text>
-          {msg.reported && (
-            <Text style={styles.adminDetailLine}>
-              {t("reportedUserLabel")}: {msg.reported.username || "—"} ({msg.reported.email || "—"})
-            </Text>
-          )}
-          <Text style={styles.adminDetailLine}>
-            {t("sentAtLabel")}: {new Date(msg.createdAt).toLocaleString()}
-          </Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
-
 export default function SocialScreen() {
   const { t } = useLanguage();
   const isDesktop = useIsDesktop();
@@ -202,11 +73,6 @@ export default function SocialScreen() {
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [planRecipe, setPlanRecipe] = useState<Recipe | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-  const [expandedMsg, setExpandedMsg] = useState<string | null>(null);
-  const [adminSearch, setAdminSearch] = useState("");
-  const [adminCatFilter, setAdminCatFilter] = useState<
-    "all" | "bug" | "report_user" | "feedback" | "other"
-  >("all");
   // Key of the feed/inbox message currently showing its delete-confirm strip.
   const [confirmDeleteMsg, setConfirmDeleteMsg] = useState<string | null>(null);
 
@@ -229,8 +95,6 @@ export default function SocialScreen() {
 
   const feed = useQuery(api.social.feed) ?? [];
   const inbox = useQuery(api.social.inbox) ?? [];
-  const adminInbox = useQuery(api.social.adminInbox) ?? null;
-  const setAdminMessageStatus = useMutation(api.social.setAdminMessageStatus);
 
   useEffect(() => {
     if (view === "inbox") markInboxSeen().catch(() => {});
@@ -678,115 +542,17 @@ export default function SocialScreen() {
     );
   };
 
-  const ADMIN_TIERS: { key: string; label: string; cats: string[] }[] = [
-    { key: "high", label: t("prioTierHigh"), cats: ["bug"] },
-    { key: "med", label: t("prioTierMedium"), cats: ["report_user"] },
-    { key: "msg", label: t("prioTierMessages"), cats: ["feedback", "other"] },
-  ];
-
-  const adminCard = (m: NonNullable<typeof adminInbox>[number]) => (
-    <AdminMessageCard
-      key={m.id}
-      msg={m}
-      expanded={expandedMsg === m.id}
-      onToggle={() => setExpandedMsg((cur) => (cur === m.id ? null : m.id))}
-      onStatus={(s) => setAdminMessageStatus({ id: m.id as Id<"adminMessages">, status: s })}
-      t={t}
-    />
-  );
-
-  const renderAdminTiers = (list: NonNullable<typeof adminInbox>) =>
-    ADMIN_TIERS.map((tier) => {
-      const items = list.filter((m) => tier.cats.includes(m.category));
-      if (items.length === 0) return null;
-      return (
-        <View key={tier.key}>
-          <Text style={styles.adminGroupHead}>{tier.label}</Text>
-          <View style={styles.adminGrid}>{items.map(adminCard)}</View>
-        </View>
-      );
-    });
-
-  const adminBoard = (() => {
-    if (!adminInbox || adminInbox.length === 0) return null;
-    const q = adminSearch.trim().toLowerCase();
-    const filtered = adminInbox.filter(
-      (m) =>
-        (adminCatFilter === "all" || m.category === adminCatFilter) &&
-        (q === "" ||
-          m.message.toLowerCase().includes(q) ||
-          m.from.username.toLowerCase().includes(q) ||
-          m.from.email.toLowerCase().includes(q)),
-    );
-    const open = filtered.filter((m) => !isClosedStatus(m.status));
-    const done = filtered.filter((m) => isClosedStatus(m.status));
-    const catFilterOptions: SelectOption[] = [
-      { value: "all", label: t("adminCatAll") },
-      { value: "bug", label: t("adminCatBug"), dot: CAT_COLOR.bug },
-      { value: "report_user", label: t("adminCatReport"), dot: CAT_COLOR.report_user },
-      { value: "feedback", label: t("adminCatFeedback"), dot: CAT_COLOR.feedback },
-      { value: "other", label: t("adminCatOther"), dot: CAT_COLOR.other },
-    ];
-
-    return (
-      <View style={styles.adminBox}>
-        <Text style={styles.adminTitle}>{t("adminInboxTitle")}</Text>
-
-        <View style={styles.adminFilterRow}>
-          <SearchBar
-            value={adminSearch}
-            onChangeText={setAdminSearch}
-            placeholder={t("adminSearchPlaceholder")}
-          />
-          <SelectMenu
-            value={adminCatFilter}
-            options={catFilterOptions}
-            onChange={(v) => setAdminCatFilter(v as typeof adminCatFilter)}
-            title={t("adminFilterCategory")}
-            testID="admin-cat-filter"
-          />
-        </View>
-
-        <Text style={styles.adminSubhead}>{t("openSection")}</Text>
-        {open.length > 0 ? (
-          renderAdminTiers(open)
-        ) : (
-          <Text style={styles.adminEmptyLine}>{t("nothingOpen")}</Text>
-        )}
-
-        {done.length > 0 && (
-          <>
-            <View style={styles.doneDivider}>
-              <Check size={14} color={Colors.success} />
-              <Text style={styles.adminSubhead}>{t("doneSection")}</Text>
-            </View>
-            {renderAdminTiers(done)}
-          </>
-        )}
-
-        {filtered.length === 0 && (
-          <Text style={styles.adminEmptyLine}>{t("adminNoResults")}</Text>
-        )}
-      </View>
-    );
-  })();
-
   const inboxList = (
     <FlatList
       ref={listRef}
       data={inbox}
       keyExtractor={(s) => `${s.kind}-${s.id}`}
       renderItem={renderInboxItem}
-      ListHeaderComponent={adminBoard}
       contentContainerStyle={styles.listContent}
       showsVerticalScrollIndicator={false}
       onScroll={isDesktop ? undefined : onHeaderScroll}
       scrollEventThrottle={16}
-      ListEmptyComponent={
-        !adminInbox || adminInbox.length === 0 ? (
-          <Text style={styles.emptyText}>{t("inboxEmpty")}</Text>
-        ) : null
-      }
+      ListEmptyComponent={<Text style={styles.emptyText}>{t("inboxEmpty")}</Text>}
     />
   );
 
@@ -944,89 +710,6 @@ const styles = StyleSheet.create({
   pillPrimary: { backgroundColor: Colors.primary },
   pillMuted: { backgroundColor: Colors.cardSecondary },
   removeConfirm: { paddingVertical: 12 },
-
-  adminBox: { marginBottom: 16 },
-  adminTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 10 },
-  adminSubhead: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: Colors.textLight,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  adminEmptyLine: {
-    fontSize: 14,
-    color: Colors.textLight,
-    fontStyle: "italic",
-    paddingVertical: 10,
-  },
-  doneDivider: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 10,
-  },
-  adminFilterRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
-  adminGroupHead: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.text,
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  adminGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  adminMsg: {
-    width: 300,
-    maxWidth: "100%",
-    backgroundColor: Colors.card,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderLeftWidth: 4,
-    borderRadius: 12,
-    padding: 12,
-  },
-  adminMsgDone: { opacity: 0.55 },
-  adminMsgTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
-  adminMsgSpacer: { flex: 1 },
-  catTag: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  catTagText: { color: Colors.white, fontSize: 11, fontWeight: "800" },
-  prioHigh: { color: "#EF4444", fontSize: 15, fontWeight: "900", letterSpacing: 1 },
-  prioLow: { color: "#F59E0B", fontSize: 14, fontWeight: "900", letterSpacing: 1 },
-  adminDate: { marginLeft: "auto", fontSize: 12, color: Colors.textLight },
-  adminText: { fontSize: 14, color: Colors.text },
-  adminHint: { fontSize: 12, color: Colors.textLight, marginTop: 6 },
-  miniBar: { flexDirection: "row", gap: 4, marginTop: 10 },
-  miniBarSeg: { flex: 1, height: 5, borderRadius: 3 },
-  adminDetails: { marginTop: 10, gap: 6 },
-  adminDetailLine: { fontSize: 12, color: Colors.textLight },
-  statusBar: { flexDirection: "row", gap: 6, marginTop: 6 },
-  statusStep: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: Colors.cardSecondary,
-    alignItems: "center",
-  },
-  statusStepText: { fontSize: 11, fontWeight: "700", color: Colors.textLight },
-  statusStepTextOn: { color: Colors.white },
-  readBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 6,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.cardSecondary,
-  },
-  readBtnText: { fontSize: 12, fontWeight: "700", color: Colors.textLight },
 
   emptyWrap: { alignItems: "center", marginTop: 40, gap: 16 },
   emptyText: { textAlign: "center", color: Colors.textLight, marginTop: 32, fontSize: 15 },

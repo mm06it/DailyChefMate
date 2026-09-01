@@ -157,7 +157,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
     [sendAdminMessageMut],
   );
 
-  const counts = countsQ ?? { feed: 0, friends: 0, inbox: 0 };
+  const counts = countsQ ?? { feed: 0, friends: 0, inbox: 0, adminOpen: 0 };
 
   return useMemo(
     () => ({
@@ -167,6 +167,7 @@ export const [SocialContext, useSocial] = createContextHook(() => {
         status: "pending_out" | "declined";
       })[],
       counts,
+      isAdmin: myProfileQ?.isAdmin === true,
       badgeCount: counts.feed + counts.friends + counts.inbox,
       myProfile: myProfileQ ?? null,
       sendFriendRequest,

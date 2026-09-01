@@ -1,11 +1,12 @@
 import { router, usePathname } from 'expo-router';
-import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, Star, UserCircle, Users } from 'lucide-react-native';
+import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, ShieldCheck, Star, UserCircle, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Colors from '@/constants/colors';
 import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
+import { useSocial } from '@/hooks/use-social';
 import InlineConfirm from '@/components/InlineConfirm';
 import { LanguageSelector } from '@/components/LanguageSelector';
 
@@ -21,6 +22,7 @@ export default function DesktopSidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
+  const { isAdmin, counts } = useSocial();
   const [confirmingSignOut, setConfirmingSignOut] = useState<boolean>(false);
 
   const navItems: NavItem[] = [
@@ -59,6 +61,17 @@ export default function DesktopSidebar() {
       icon: Users,
       match: (p) => p.includes('/social'),
     },
+    ...(isAdmin
+      ? [
+          {
+            key: 'admin',
+            href: '/(tabs)/admin',
+            label: t('adminPanel'),
+            icon: ShieldCheck,
+            match: (p: string) => p.includes('/admin'),
+          },
+        ]
+      : []),
   ];
 
   const handleSignOut = async () => {
@@ -84,6 +97,13 @@ export default function DesktopSidebar() {
             >
               <Icon size={20} color={active ? Colors.primary : Colors.textLight} />
               <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+              {item.key === 'admin' && counts.adminOpen > 0 && (
+                <View style={styles.navBadge}>
+                  <Text style={styles.navBadgeText}>
+                    {counts.adminOpen > 99 ? '99+' : counts.adminOpen}
+                  </Text>
+                </View>
+              )}
             </Pressable>
           );
         })}
@@ -164,6 +184,21 @@ const styles = StyleSheet.create({
   },
   navLabelActive: {
     color: Colors.primary,
+  },
+  navBadge: {
+    marginLeft: 'auto',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBadgeText: {
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: '800',
   },
   footer: {
     marginTop: 'auto',

@@ -150,6 +150,7 @@ export const TRANSLATIONS = {
 
     // Social
     social: 'Freunde',
+    adminPanel: 'Admin-Panel',
     feed: 'Feed',
     friends: 'Freunde',
     inbox: 'Posteingang',
@@ -1228,6 +1229,7 @@ export const TRANSLATIONS = {
 
     // Social
     social: 'Friends',
+    adminPanel: 'Admin panel',
     feed: 'Feed',
     friends: 'Friends',
     inbox: 'Inbox',
