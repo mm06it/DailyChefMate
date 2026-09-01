@@ -4,10 +4,12 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useMutation } from "convex/react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
+
+import MaintenanceScreen from "@/components/MaintenanceScreen";
 
 import { DailyChefMateContext } from "@/hooks/use-dailychefmate-store";
 import { MealPlanContext } from "@/hooks/use-meal-plan";
@@ -31,6 +33,27 @@ function RootLayoutNav() {
   const isDesktop = useIsDesktop();
   const { t } = useLanguage();
   const claimUsername = useMutation(api.users.updateUsername);
+
+  // If the app shell has loaded but auth/backend hasn't resolved after a while,
+  // the backend (Convex) is likely unreachable — show a maintenance screen
+  // instead of an endless spinner.
+  const [tooSlow, setTooSlow] = useState(false);
+  useEffect(() => {
+    if (!loading) {
+      setTooSlow(false);
+      return;
+    }
+    const id = setTimeout(() => setTooSlow(true), 12000);
+    return () => clearTimeout(id);
+  }, [loading]);
+
+  const handleRetry = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.reload();
+    } else {
+      setTooSlow(false);
+    }
+  };
 
   // A username picked on the sign-up form is claimed here, once the session is
   // active, via the atomic users.updateUsername mutation (sign-up itself no
@@ -59,6 +82,9 @@ function RootLayoutNav() {
   }, [user, claimUsername]);
 
   if (loading) {
+    if (tooSlow) {
+      return <MaintenanceScreen onRetry={handleRetry} />;
+    }
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#4f46e5" />
