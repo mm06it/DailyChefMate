@@ -1,11 +1,14 @@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
 import { translateText } from "@/constants/translations";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { Text } from "@/components/ui/Text";
 import { Ingredient } from "@/types/recipe";
 
 interface IngredientItemProps {
@@ -18,35 +21,24 @@ interface IngredientItemProps {
 export default function IngredientItem({ ingredient, showRemove = false, onSelect, onEditQuantity }: IngredientItemProps) {
   const { toggleIngredientSelection, selectIngredient } = useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [confirmVisible, setConfirmVisible] = React.useState<boolean>(false);
   const [confirmConfig, setConfirmConfig] = React.useState<{ title: string; message: string; onConfirm: () => void; confirmLabel?: string } | null>(null);
 
   const handleToggle = () => {
-    console.log('IngredientItem press', { id: ingredient.id, isSelected: ingredient.isSelected });
-
     if (ingredient.isSelected) {
-      const title = t('unselectIngredient') || 'Auswahl aufheben';
-      const message = translateText(currentLanguage, ingredient.name) || ingredient.name;
-
       setConfirmConfig({
-        title,
-        message,
+        title: t('unselectIngredient') || 'Auswahl aufheben',
+        message: translateText(currentLanguage, ingredient.name) || ingredient.name,
         confirmLabel: t('unselect') || 'Auswahl aufheben',
         onConfirm: () => toggleIngredientSelection(ingredient.id),
       });
       setConfirmVisible(true);
       return;
     }
-
-    // Selecting an ingredient never requires an amount up front — it's added
-    // immediately with the amount left empty/hidden (even if it had a preset
-    // catalog amount). A quantity can still be set afterwards via the amount
-    // pill below.
-    if (onSelect) {
-      onSelect();
-    } else {
-      selectIngredient(ingredient.id);
-    }
+    if (onSelect) onSelect();
+    else selectIngredient(ingredient.id);
   };
 
   const handleEditQuantity = (e: { stopPropagation?: () => void }) => {
@@ -54,52 +46,35 @@ export default function IngredientItem({ ingredient, showRemove = false, onSelec
     onEditQuantity?.();
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      'Dairy': Colors.blue,
-      'Meat': Colors.primary,
-      'Vegetables': Colors.green,
-      'Fruits': Colors.orange,
-      'Grains': Colors.secondary,
-      'Pasta': Colors.secondary,
-      'Spices': Colors.purple,
-      'Oils': Colors.rating,
-      'Condiments': Colors.accent,
-      'Frozen': Colors.blue,
-      'Beverages': Colors.accent,
-      'Baking': Colors.rating,
-      'Nuts': Colors.secondary,
-    };
-    return colors[category as keyof typeof colors] || Colors.textLight;
-  };
-
-
-  const categoryColor = getCategoryColor(ingredient.category);
+  const accent = theme.accent;
 
   return (
     <>
-      <Pressable 
-        style={[
-          styles.container, 
-          ingredient.isSelected && styles.containerSelected,
-          { borderLeftColor: categoryColor }
-        ]} 
+      <Pressable
+        style={[styles.container, ingredient.isSelected && styles.containerSelected]}
         onPress={handleToggle}
         testID={`ingredient-item-${ingredient.id}`}
       >
         <View style={styles.content}>
-          <View style={[styles.checkbox, { borderColor: categoryColor }]}>
-            {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: categoryColor }]} />}
+          <View style={[styles.checkbox, ingredient.isSelected && { borderColor: accent }]}>
+            {ingredient.isSelected && <View style={[styles.checkboxInner, { backgroundColor: accent }]} />}
           </View>
-          <Text style={styles.name} numberOfLines={2}>{translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}</Text>
+          <Text variant="label" center numberOfLines={2} style={styles.name}>
+            {translateText(currentLanguage, ingredient.name) || ingredient.name || 'Unknown'}
+          </Text>
           {ingredient.isSelected && (
             <Pressable
-              style={[styles.amountBadge, ingredient.amount ? { borderColor: categoryColor } : undefined]}
+              style={[styles.amountBadge, ingredient.amount ? { borderColor: accent } : undefined]}
               onPress={handleEditQuantity}
               hitSlop={6}
               testID={`ingredient-item-${ingredient.id}-amount`}
             >
-              <Text style={[styles.amountBadgeText, ingredient.amount && { color: categoryColor }]} numberOfLines={1}>
+              <Text
+                variant="caption"
+                weight="semibold"
+                numberOfLines={1}
+                style={{ color: ingredient.amount ? accent : theme.textSecondary }}
+              >
                 {ingredient.amount ? ingredient.amount : (t('setAmount') || '+ Menge')}
               </Text>
             </Pressable>
@@ -125,62 +100,40 @@ export default function IngredientItem({ ingredient, showRemove = false, onSelec
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.card,
-    borderRadius: 12,
-    padding: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    minHeight: 100,
-  },
-  containerSelected: {
-    backgroundColor: Colors.cardSecondary,
-    transform: [{ scale: 0.98 }],
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    marginBottom: 8,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  checkboxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  name: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 4,
-    lineHeight: 16,
-  },
-  amountBadge: {
-    marginTop: 2,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-  },
-  amountBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.textLight,
-    textAlign: 'center',
-  },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    container: {
+      backgroundColor: t.surface,
+      borderRadius: t.radius.md,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      padding: t.space[3],
+      minHeight: 96,
+    },
+    containerSelected: {
+      backgroundColor: t.accentSubtle,
+      borderColor: t.accent,
+    },
+    content: { flex: 1, alignItems: "center" },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: t.borderStrong,
+      marginBottom: t.space[3],
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    checkboxInner: { width: 10, height: 10, borderRadius: 5 },
+    name: { marginBottom: t.space[2] },
+    amountBadge: {
+      marginTop: 2,
+      paddingHorizontal: t.space[3],
+      paddingVertical: 3,
+      borderRadius: t.radius.pill,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      backgroundColor: t.surfaceSunken,
+    },
+  });

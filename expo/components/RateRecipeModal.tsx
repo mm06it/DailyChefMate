@@ -1,22 +1,28 @@
 import { X } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, TextInput, View } from "react-native";
 
 import RatingStars from "@/components/RatingStars";
-import Colors from "@/constants/colors";
+import type { Theme } from "@/constants/theme";
+import { useThemedStyles } from "@/hooks/use-themed-styles";
+import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
 import { useRatings } from "@/hooks/use-ratings";
+import { Button } from "@/components/ui/Button";
+import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
 
 interface RateRecipeModalProps {
   recipe: Recipe | null;
   visible: boolean;
-  onClose: () => void; // called on "Später" / X
-  onDone?: () => void; // called after a rating is submitted
+  onClose: () => void;
+  onDone?: () => void;
 }
 
 export default function RateRecipeModal({ recipe, visible, onClose, onDone }: RateRecipeModalProps) {
   const { t } = useLanguage();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const { rate, myRating } = useRatings();
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
@@ -29,7 +35,6 @@ export default function RateRecipeModal({ recipe, visible, onClose, onDone }: Ra
       setComment("");
       setSaving(false);
     }
-    // Seed only when the modal opens for a recipe — not on every re-render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, recipeId]);
 
@@ -58,13 +63,13 @@ export default function RateRecipeModal({ recipe, visible, onClose, onDone }: Ra
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.header}>
-            <Text style={styles.title}>{t("rateRecipe")}</Text>
+            <Text variant="h3">{t("rateRecipe")}</Text>
             <Pressable onPress={onClose} hitSlop={10} testID="rate-close">
-              <X size={24} color={Colors.text} />
+              <X size={22} color={theme.textSecondary} />
             </Pressable>
           </View>
 
-          <Text style={styles.recipeName} numberOfLines={2}>
+          <Text variant="bodySm" color="secondary" numberOfLines={2} style={styles.recipeName}>
             {recipe.name}
           </Text>
 
@@ -77,24 +82,22 @@ export default function RateRecipeModal({ recipe, visible, onClose, onDone }: Ra
             value={comment}
             onChangeText={setComment}
             placeholder={t("optionalComment")}
-            placeholderTextColor={Colors.textLight}
+            placeholderTextColor={theme.textMuted}
             multiline
             maxLength={300}
             testID="rate-comment"
           />
 
           <View style={styles.actions}>
-            <Pressable style={[styles.btn, styles.btnGhost]} onPress={onClose} testID="rate-later">
-              <Text style={styles.btnGhostText}>{t("later")}</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.btn, styles.btnPrimary, stars < 1 && styles.btnDisabled]}
+            <Button label={t("later")} variant="secondary" onPress={onClose} testID="rate-later" style={styles.flex} />
+            <Button
+              label={t("sendRating")}
               onPress={submit}
-              disabled={stars < 1 || saving}
+              loading={saving}
+              disabled={stars < 1}
               testID="rate-submit"
-            >
-              <Text style={styles.btnPrimaryText}>{t("sendRating")}</Text>
-            </Pressable>
+              style={styles.flex}
+            />
           </View>
         </View>
       </View>
@@ -102,37 +105,35 @@ export default function RateRecipeModal({ recipe, visible, onClose, onDone }: Ra
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
-  sheet: {
-    backgroundColor: Colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 36,
-  },
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  title: { fontSize: 18, fontWeight: "700", color: Colors.text },
-  recipeName: { fontSize: 14, color: Colors.textLight, marginTop: 4 },
-  starsWrap: { alignItems: "center", paddingVertical: 20 },
-  input: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: Colors.text,
-    backgroundColor: Colors.card,
-    minHeight: 64,
-    textAlignVertical: "top",
-    marginBottom: 16,
-  },
-  actions: { flexDirection: "row", gap: 12 },
-  btn: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-  btnGhost: { backgroundColor: Colors.cardSecondary },
-  btnGhostText: { fontSize: 15, fontWeight: "600", color: Colors.text },
-  btnPrimary: { backgroundColor: Colors.primary },
-  btnPrimaryText: { fontSize: 15, fontWeight: "700", color: Colors.white },
-  btnDisabled: { opacity: 0.5 },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: t.overlay },
+    sheet: {
+      backgroundColor: t.surfaceRaised,
+      borderTopLeftRadius: t.radius.xl,
+      borderTopRightRadius: t.radius.xl,
+      padding: t.space[6],
+      paddingBottom: t.space[9],
+      gap: t.space[2],
+      ...t.elevation.lg,
+    },
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    recipeName: { marginTop: 2 },
+    starsWrap: { alignItems: "center", paddingVertical: t.space[6] },
+    input: {
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      paddingHorizontal: t.space[4],
+      paddingVertical: t.space[3],
+      fontFamily: t.font.body,
+      fontSize: 15,
+      color: t.textPrimary,
+      backgroundColor: t.surfaceSunken,
+      minHeight: 64,
+      textAlignVertical: "top",
+      marginBottom: t.space[4],
+    },
+    actions: { flexDirection: "row", gap: t.space[3] },
+    flex: { flex: 1 },
+  });

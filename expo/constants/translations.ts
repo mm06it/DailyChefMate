@@ -311,6 +311,8 @@ export const TRANSLATIONS = {
     // Refrigerator
     myRefrigerator: 'Mein Kühlschrank',
     addIngredient: 'Zutat hinzufügen',
+    refrigeratorEmpty: 'Dein Kühlschrank ist leer',
+    refrigeratorEmptyHint: 'Füge Zutaten hinzu, um passende Rezepte zu finden.',
     generateRecipes: 'Rezepte generieren',
     
     // Favorites
@@ -1433,6 +1435,8 @@ export const TRANSLATIONS = {
     // Refrigerator
     myRefrigerator: 'My Refrigerator',
     addIngredient: 'Add Ingredient',
+    refrigeratorEmpty: 'Your fridge is empty',
+    refrigeratorEmptyHint: 'Add ingredients to find recipes you can make.',
     generateRecipes: 'Generate Recipes',
     
     // Favorites
