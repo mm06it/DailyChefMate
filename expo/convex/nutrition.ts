@@ -62,7 +62,7 @@ function num(x: unknown, lo: number, hi: number): number {
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : 0;
 }
 
-// Keep an estimate only if it looks like real food (has calories).
+// Turn a raw LLM object into a Nutrition, or null if it isn't usable.
 function coerceNutrition(raw: unknown): Nutrition | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -80,7 +80,9 @@ function coerceNutrition(raw: unknown): Nutrition | null {
   return out;
 }
 
-async function estimateBatch(recipes: InputRecipe[], apiKey: string): Promise<Map<string, Nutrition>> {
+// One LLM call per recipe — unambiguous (no id matching) and resilient (one
+// bad response doesn't sink the batch). Same pattern as translate.ts.
+async function estimateOne(recipe: InputRecipe, apiKey: string): Promise<Nutrition | null> {
   const res = await fetch(AI_API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -92,29 +94,51 @@ async function estimateBatch(recipes: InputRecipe[], apiKey: string): Promise<Ma
         {
           role: "system",
           content:
-            "You estimate the nutrition of cooked recipes. For each recipe, estimate the " +
-            "nutrition of ONE serving (total divided by the serving count). Use the ingredient " +
-            "list and typical portion sizes. Return ONLY " +
-            '{"recipes":[{"id":string,"calories":number,"protein":number,"carbs":number,"fat":number,"fiber":number}]}. ' +
-            "All numbers are integers: calories in kcal, protein/carbs/fat/fiber in grams, per single serving. " +
-            "Keep the same id for each recipe. Best-effort estimate, no commentary.",
+            "Estimate the nutrition of ONE serving of this cooked recipe (the whole " +
+            "recipe divided by its serving count). Use the ingredient list and typical " +
+            'portion sizes. Return ONLY {"calories":number,"protein":number,"carbs":number,' +
+            '"fat":number,"fiber":number} — integers, calories in kcal and the rest in grams, ' +
+            "per single serving. Always return a plausible non-zero calorie figure. No commentary.",
         },
-        { role: "user", content: JSON.stringify({ recipes }) },
+        {
+          role: "user",
+          content: JSON.stringify({
+            name: recipe.name,
+            servings: recipe.servings,
+            ingredients: recipe.ingredients,
+          }),
+        },
       ],
     }),
   });
-  if (!res.ok) throw new Error(`AI HTTP ${res.status}`);
+  if (!res.ok) {
+    console.error("nutrition AI HTTP", res.status, (await res.text()).slice(0, 300));
+    return null;
+  }
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   const text = data?.choices?.[0]?.message?.content ?? "";
-  const parsed = JSON.parse(text) as { recipes?: unknown };
-  const list = Array.isArray(parsed?.recipes) ? parsed.recipes : [];
-  const out = new Map<string, Nutrition>();
-  for (const row of list) {
-    const r = row as Record<string, unknown>;
-    const id = typeof r.id === "string" ? r.id : "";
-    const n = coerceNutrition(r);
-    if (id && n) out.set(id, n);
+  try {
+    return coerceNutrition(JSON.parse(text));
+  } catch (e) {
+    console.error("nutrition parse failed", text.slice(0, 200), e);
+    return null;
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const i = cursor++;
+      out[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return out;
 }
 
@@ -153,7 +177,6 @@ export const estimateNutrition = action({
   args: { recipes: v.array(recipeInput) },
   handler: async (ctx, { recipes: rawRecipes }): Promise<Record<string, Nutrition>> => {
     const userId = await requireUserId(ctx);
-    await rateLimiter.limit(ctx, "aiNutrition", { key: userId, throws: true });
 
     if (rawRecipes.length > MAX_RECIPES_PER_CALL) throw new Error("TOO_MANY_RECIPES");
     const recipes = rawRecipes.map(clampInput);
@@ -169,22 +192,39 @@ export const estimateNutrition = action({
       else misses.push(r);
     }
 
-    if (misses.length === 0 || !AI_API_KEY) return out;
-
-    try {
-      const estimates = await estimateBatch(misses, AI_API_KEY);
-      for (const r of misses) {
-        const n = estimates.get(r.id);
-        if (!n) continue;
-        out[r.id] = n;
-        await ctx.runMutation(internal.nutrition.putCached, {
-          key: `nutri:${CACHE_VERSION}:${r.id}`,
-          nutrition: n,
-        });
-      }
-    } catch (e) {
-      console.error("estimateNutrition failed", e);
+    if (misses.length === 0) return out;
+    if (!AI_API_KEY) {
+      console.warn("estimateNutrition: AI_API_KEY not set");
+      return out;
     }
+
+    // Rate-limit only the LLM work; a hit still returns the cached results.
+    const { ok } = await rateLimiter.limit(ctx, "aiNutrition", { key: userId });
+    if (!ok) {
+      console.warn("estimateNutrition: rate limited, returning", Object.keys(out).length, "cached");
+      return out;
+    }
+
+    const results = await mapWithConcurrency(misses, 4, async (r) => {
+      try {
+        return { id: r.id, n: await estimateOne(r, AI_API_KEY!) };
+      } catch (e) {
+        console.error("estimateOne threw", r.id, e);
+        return { id: r.id, n: null as Nutrition | null };
+      }
+    });
+
+    let stored = 0;
+    for (const { id, n } of results) {
+      if (!n) continue;
+      out[id] = n;
+      await ctx.runMutation(internal.nutrition.putCached, {
+        key: `nutri:${CACHE_VERSION}:${id}`,
+        nutrition: n,
+      });
+      stored++;
+    }
+    console.log(`estimateNutrition: ${misses.length} misses -> ${stored} estimated`);
     return out;
   },
 });
