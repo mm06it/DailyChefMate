@@ -184,6 +184,61 @@ function CardDeleteButton({ onPress }: { onPress: () => void }) {
   );
 }
 
+// Shared chrome for a feed / inbox message: collapsed summary row (avatar +
+// type chip + "Name did X" + a "tap to view" nudge), an optional expanded body,
+// and the relative-time footer. Tapping the row toggles the body open and, on
+// first open, marks the message seen (handled by the caller's `onPress`).
+function MessageCard({
+  leading,
+  name,
+  verb,
+  object,
+  expandable,
+  open,
+  unread,
+  createdAt,
+  onPress,
+  onRequestDelete,
+  deleteStrip,
+  children,
+}: {
+  leading: React.ReactNode;
+  name: string;
+  verb: string;
+  object?: string;
+  expandable: boolean;
+  open: boolean;
+  unread: boolean;
+  createdAt: number;
+  onPress: () => void;
+  onRequestDelete: () => void;
+  deleteStrip?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const { t } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={[styles.card, styles.cardDeletable, unread && styles.cardUnread]}>
+      <CardDeleteButton onPress={onRequestDelete} />
+      {deleteStrip}
+      <Pressable style={styles.cardHead} onPress={onPress} disabled={!expandable && !unread}>
+        {leading}
+        <View style={styles.headText}>
+          <Text style={styles.line} numberOfLines={3}>
+            {!!name && <Text style={styles.name}>{name}</Text>}
+            {!!name && " "}
+            {verb}
+            {object ? <Text style={styles.name}> „{object}"</Text> : null}
+          </Text>
+          {expandable && !open && <Text style={styles.hint}>{t("tapToView")}</Text>}
+        </View>
+      </Pressable>
+      {open && children ? <View style={styles.expandBody}>{children}</View> : null}
+      <CardMeta ts={createdAt} unread={unread} />
+    </View>
+  );
+}
+
 export default function SocialScreen() {
   const { t } = useLanguage();
   const { theme } = useTheme();
@@ -199,11 +254,9 @@ export default function SocialScreen() {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   // Key of the feed/inbox message currently showing its delete-confirm strip.
   const [confirmDeleteMsg, setConfirmDeleteMsg] = useState<string | null>(null);
-  // Unread highlight, frozen once per visit: markFeedSeen/markInboxSeen fire as
-  // soon as a view is shown, so reading `seen` live would clear the wash while
-  // the user is still looking at it. Re-armed on screen focus.
-  const [unreadFeed, setUnreadFeed] = useState<Set<string> | null>(null);
-  const [unreadInbox, setUnreadInbox] = useState<Set<string> | null>(null);
+  // Cards the user has tapped open this visit. Collapsed by default; opening a
+  // card also marks it seen (turns the unread wash off + drops the count).
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const {
     friends,
@@ -214,8 +267,8 @@ export default function SocialScreen() {
     sendFriendRequest,
     respondFriendRequest,
     removeFriend,
-    markInboxSeen,
-    markFeedSeen,
+    markFeedEventSeen,
+    markInboxItemSeen,
     saveSharedRecipe,
     dismissFeedEvent,
     deleteInboxItem,
@@ -225,34 +278,28 @@ export default function SocialScreen() {
   const feed = useQuery(api.social.feed) ?? [];
   const inbox = useQuery(api.social.inbox) ?? [];
 
-  // Re-arm the unread snapshots each time the Social tab is focused.
+  // Fresh visit: collapse every card again.
   useFocusEffect(
     useCallback(() => {
       resetHeader();
-      setUnreadFeed(null);
-      setUnreadInbox(null);
+      setExpanded(new Set());
     }, []),
   );
 
-  // Freeze which items were unread on first sight of each view (before the
-  // markSeen effects below flip everything to seen on the next query).
-  useEffect(() => {
-    if (view === "feed" && unreadFeed === null && feed.length > 0) {
-      setUnreadFeed(new Set((feed as any[]).filter((e) => !e.seen).map((e) => e.id)));
-    }
-  }, [view, feed, unreadFeed]);
-  useEffect(() => {
-    if (view === "inbox" && unreadInbox === null && inbox.length > 0) {
-      setUnreadInbox(new Set((inbox as any[]).filter((i) => !i.seen).map((i) => i.id)));
-    }
-  }, [view, inbox, unreadInbox]);
-
-  useEffect(() => {
-    if (view === "inbox") markInboxSeen().catch(() => {});
-  }, [view, inbox.length, markInboxSeen]);
-  useEffect(() => {
-    if (view === "feed") markFeedSeen().catch(() => {});
-  }, [view, feed.length, markFeedSeen]);
+  // Toggle a card open/closed. `onOpen` fires only on the collapsed -> open
+  // transition (used to mark the message seen).
+  const toggleCard = useCallback((key: string, onOpen?: () => void) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+        onOpen?.();
+      }
+      return next;
+    });
+  }, []);
 
   const openRecipe = useCallback(
     (snapshot: any) => {
@@ -289,24 +336,11 @@ export default function SocialScreen() {
           : t("feedShared");
     const delKey = `feed:${item.id}`;
     const kind = feedKind(item.type);
-    const unread = unreadFeed?.has(item.id) ?? false;
+    const unread = !item.seen;
+    const open = expanded.has(delKey);
     return (
-      <View style={[styles.card, styles.cardDeletable, unread && styles.cardUnread]}>
-        <CardDeleteButton onPress={() => setConfirmDeleteMsg(delKey)} />
-        {confirmDeleteMsg === delKey && (
-          <InlineConfirm
-            style={styles.removeConfirm}
-            question={t("confirmDeleteMessage")}
-            confirmLabel={t("deleteMessage")}
-            destructive
-            onConfirm={() => {
-              dismissFeedEvent(item.id).catch(() => {});
-              setConfirmDeleteMsg(null);
-            }}
-            onCancel={() => setConfirmDeleteMsg(null)}
-          />
-        )}
-        <View style={styles.cardHead}>
+      <MessageCard
+        leading={
           <ActorAvatar
             kind={kind}
             name={name}
@@ -315,13 +349,31 @@ export default function SocialScreen() {
             emoji={item.actor.avatarEmoji ?? undefined}
             ringColor={unread ? theme.accentSubtle : theme.surface}
           />
-          <Text style={styles.line} numberOfLines={2}>
-            <Text style={styles.name}>{name}</Text> {verb}
-          </Text>
-          {item.type === "rated_recipe" && item.rating != null && (
-            <RatingStars value={item.rating} size={13} />
-          )}
-        </View>
+        }
+        name={name}
+        verb={verb}
+        expandable
+        open={open}
+        unread={unread}
+        createdAt={item.createdAt}
+        onPress={() => toggleCard(delKey, () => markFeedEventSeen(item.id).catch(() => {}))}
+        onRequestDelete={() => setConfirmDeleteMsg(delKey)}
+        deleteStrip={
+          confirmDeleteMsg === delKey ? (
+            <InlineConfirm
+              style={styles.removeConfirm}
+              question={t("confirmDeleteMessage")}
+              confirmLabel={t("deleteMessage")}
+              destructive
+              onConfirm={() => {
+                dismissFeedEvent(item.id).catch(() => {});
+                setConfirmDeleteMsg(null);
+              }}
+              onCancel={() => setConfirmDeleteMsg(null)}
+            />
+          ) : null
+        }
+      >
         {item.recipe && (
           <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
             {item.recipe.image ? (
@@ -344,8 +396,12 @@ export default function SocialScreen() {
             </Pressable>
           </Pressable>
         )}
-        <CardMeta ts={item.createdAt} unread={unread} />
-      </View>
+        {item.type === "rated_recipe" && item.rating != null && (
+          <View style={styles.ratingRow}>
+            <RatingStars value={item.rating} size={16} />
+          </View>
+        )}
+      </MessageCard>
     );
   };
 
@@ -517,188 +573,153 @@ export default function SocialScreen() {
 
   // ---- Inbox ----
   const renderInboxItem = ({ item }: { item: (typeof inbox)[number] }) => {
-    const delKey = `inbox:${item.kind}:${item.id}`;
-    const delKind = item.kind === "recipe_share" ? ("share" as const) : ("notification" as const);
-    return (
-      <View>
-        {confirmDeleteMsg === delKey && (
-          <InlineConfirm
-            style={styles.removeConfirm}
-            question={t("confirmDeleteMessage")}
-            confirmLabel={t("deleteMessage")}
-            destructive
-            onConfirm={() => {
-              deleteInboxItem(delKind, item.id).catch(() => {});
-              setConfirmDeleteMsg(null);
-            }}
-            onCancel={() => setConfirmDeleteMsg(null)}
-          />
-        )}
-        {renderInboxBody(item)}
-        <CardDeleteButton onPress={() => setConfirmDeleteMsg(delKey)} />
-      </View>
-    );
-  };
-
-  const renderInboxBody = (item: (typeof inbox)[number]) => {
     const kind = inboxKind(item.kind);
-    const unread = unreadInbox?.has(item.id) ?? false;
-    const cardStyle = [styles.card, styles.cardDeletable, unread && styles.cardUnread];
-    const ringColor = unread ? theme.accentSubtle : theme.surface;
+    const unread = !item.seen;
+    const delKey = `inbox:${item.kind}:${item.id}`;
+    const open = expanded.has(delKey);
+    const delKind = item.kind === "recipe_share" ? ("share" as const) : ("notification" as const);
+    const markSeen = () => markInboxItemSeen(delKind, item.id).catch(() => {});
 
+    const name =
+      item.kind === "recipe_share"
+        ? item.from?.displayName || item.from?.username || "?"
+        : item.from?.displayName || "?";
+
+    let verb = "";
+    let object: string | undefined;
+    let expandable = false;
     if (item.kind === "recipe_share") {
-      const name = item.from?.displayName || item.from?.username || "?";
-      return (
-        <View style={cardStyle}>
-          <View style={styles.cardHead}>
-            <ActorAvatar
-              kind={kind}
-              name={name}
-              initials={item.from?.initials ?? "?"}
-              color={item.from?.avatarColor ?? undefined}
-              emoji={item.from?.avatarEmoji ?? undefined}
-              ringColor={ringColor}
+      verb = t("sharedWithYou");
+      expandable = true;
+    } else if (item.kind === "friend_accepted") {
+      verb = t("friendAcceptedYou");
+      expandable = !!item.from?.id;
+    } else if (item.kind === "recipe_favorited") {
+      verb = t("feedFavorited");
+      object = item.recipeName || undefined;
+    } else if (item.kind === "recipe_cooked") {
+      verb = t("feedCooked");
+      object = item.recipeName || undefined;
+    } else if (item.kind === "recipe_rated") {
+      verb = t("ratedInInbox");
+      object = item.recipeName || undefined;
+      expandable = item.rating != null || !!item.message;
+    } else {
+      verb = item.message || "";
+    }
+
+    const infoTint = typeToneColors(theme, "info");
+    const leading =
+      item.kind === "info" ? (
+        <View style={[styles.standaloneIcon, { backgroundColor: infoTint.bg }]}>
+          <Megaphone size={18} color={infoTint.fg} />
+        </View>
+      ) : (
+        <ActorAvatar
+          kind={kind}
+          name={name}
+          initials={item.from?.initials ?? "?"}
+          color={item.from?.avatarColor ?? undefined}
+          emoji={item.from?.avatarEmoji ?? undefined}
+          ringColor={unread ? theme.accentSubtle : theme.surface}
+        />
+      );
+
+    const onPress = expandable
+      ? () => toggleCard(delKey, markSeen)
+      : () => {
+          if (unread) markSeen();
+        };
+
+    return (
+      <MessageCard
+        leading={leading}
+        name={item.kind === "info" ? "" : name}
+        verb={verb}
+        object={object}
+        expandable={expandable}
+        open={open}
+        unread={unread}
+        createdAt={item.createdAt}
+        onPress={onPress}
+        onRequestDelete={() => setConfirmDeleteMsg(delKey)}
+        deleteStrip={
+          confirmDeleteMsg === delKey ? (
+            <InlineConfirm
+              style={styles.removeConfirm}
+              question={t("confirmDeleteMessage")}
+              confirmLabel={t("deleteMessage")}
+              destructive
+              onConfirm={() => {
+                deleteInboxItem(delKind, item.id).catch(() => {});
+                setConfirmDeleteMsg(null);
+              }}
+              onCancel={() => setConfirmDeleteMsg(null)}
             />
-            <Text style={styles.line} numberOfLines={2}>
-              <Text style={styles.name}>{name}</Text> {t("sharedWithYou")}
-            </Text>
-          </View>
-          {!!item.note && <Text style={styles.note}>“{item.note}”</Text>}
-          {item.recipe && (
-            <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
-              {item.recipe.image ? (
-                <Image source={{ uri: item.recipe.image }} style={styles.recipeThumb} />
-              ) : (
-                <View style={[styles.recipeThumb, styles.thumbFallback]}>
-                  <ChefHat size={20} color={theme.textMuted} />
-                </View>
-              )}
-              <Text style={styles.recipeName} numberOfLines={2}>
-                {item.recipe.name}
-              </Text>
-            </Pressable>
-          )}
-          <View style={styles.inboxActions}>
-            <Pressable
-              style={[styles.actionBtn, item.saved && styles.actionBtnDone]}
-              onPress={() => saveSharedRecipe(item.id)}
-              disabled={item.saved}
-              testID={`inbox-save-${item.id}`}
-            >
-              <Text style={[styles.actionText, item.saved && styles.actionTextDone]}>
-                {item.saved ? t("savedRecipeShare") : t("saveRecipeShare")}
-              </Text>
-            </Pressable>
+          ) : null
+        }
+      >
+        {item.kind === "recipe_share" && (
+          <>
+            {!!item.note && <Text style={styles.note}>“{item.note}”</Text>}
             {item.recipe && (
-              <Pressable
-                style={styles.actionBtn}
-                onPress={() => setPlanRecipe(toRecipe(item.recipe))}
-                testID={`inbox-plan-${item.id}`}
-              >
-                <Text style={styles.actionText}>{t("addedToWeekPlanShort")}</Text>
+              <Pressable style={styles.recipeRow} onPress={() => openRecipe(item.recipe)}>
+                {item.recipe.image ? (
+                  <Image source={{ uri: item.recipe.image }} style={styles.recipeThumb} />
+                ) : (
+                  <View style={[styles.recipeThumb, styles.thumbFallback]}>
+                    <ChefHat size={20} color={theme.textMuted} />
+                  </View>
+                )}
+                <Text style={styles.recipeName} numberOfLines={2}>
+                  {item.recipe.name}
+                </Text>
               </Pressable>
             )}
-          </View>
-          <CardMeta ts={item.createdAt} unread={unread} />
-        </View>
-      );
-    }
-
-    if (item.kind === "friend_accepted") {
-      const name = item.from?.displayName || "?";
-      return (
-        <View style={cardStyle}>
-          <View style={styles.cardHead}>
-            <ActorAvatar
-              kind={kind}
-              name={name}
-              initials={item.from?.initials ?? "?"}
-              color={item.from?.avatarColor ?? undefined}
-              emoji={item.from?.avatarEmoji ?? undefined}
-              ringColor={ringColor}
-            />
-            <Text style={styles.line} numberOfLines={2}>
-              <Text style={styles.name}>{name}</Text> {t("friendAcceptedYou")}
-            </Text>
-          </View>
-          {item.from?.id && (
-            <Pressable
-              style={styles.actionBtn}
-              onPress={() => router.push(`/user/${item.from!.id}` as any)}
-            >
-              <Text style={styles.actionText}>{t("friendProfile")}</Text>
-            </Pressable>
-          )}
-          <CardMeta ts={item.createdAt} unread={unread} />
-        </View>
-      );
-    }
-
-    if (item.kind === "recipe_favorited" || item.kind === "recipe_cooked") {
-      const name = item.from?.displayName || "?";
-      const verb = item.kind === "recipe_favorited" ? t("feedFavorited") : t("feedCooked");
-      return (
-        <View style={cardStyle}>
-          <View style={styles.cardHead}>
-            <ActorAvatar
-              kind={kind}
-              name={name}
-              initials={item.from?.initials ?? "?"}
-              color={item.from?.avatarColor ?? undefined}
-              emoji={item.from?.avatarEmoji ?? undefined}
-              ringColor={ringColor}
-            />
-            <Text style={styles.line} numberOfLines={3}>
-              <Text style={styles.name}>{name}</Text> {verb}
-              {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
-            </Text>
-          </View>
-          <CardMeta ts={item.createdAt} unread={unread} />
-        </View>
-      );
-    }
-
-    if (item.kind === "recipe_rated") {
-      const name = item.from?.displayName || "?";
-      return (
-        <View style={cardStyle}>
-          <View style={styles.cardHead}>
-            <ActorAvatar
-              kind={kind}
-              name={name}
-              initials={item.from?.initials ?? "?"}
-              color={item.from?.avatarColor ?? undefined}
-              emoji={item.from?.avatarEmoji ?? undefined}
-              ringColor={ringColor}
-            />
-            <Text style={styles.line} numberOfLines={3}>
-              <Text style={styles.name}>{name}</Text> {t("ratedInInbox")}
-              {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
-            </Text>
-          </View>
-          {item.rating != null && (
-            <View style={{ marginTop: 8 }}>
-              <RatingStars value={item.rating} size={16} />
+            <View style={styles.inboxActions}>
+              <Pressable
+                style={[styles.actionBtn, item.saved && styles.actionBtnDone]}
+                onPress={() => saveSharedRecipe(item.id)}
+                disabled={item.saved}
+                testID={`inbox-save-${item.id}`}
+              >
+                <Text style={[styles.actionText, item.saved && styles.actionTextDone]}>
+                  {item.saved ? t("savedRecipeShare") : t("saveRecipeShare")}
+                </Text>
+              </Pressable>
+              {item.recipe && (
+                <Pressable
+                  style={styles.actionBtn}
+                  onPress={() => setPlanRecipe(toRecipe(item.recipe))}
+                  testID={`inbox-plan-${item.id}`}
+                >
+                  <Text style={styles.actionText}>{t("addedToWeekPlanShort")}</Text>
+                </Pressable>
+              )}
             </View>
-          )}
-          {!!item.message && <Text style={styles.note}>“{item.message}”</Text>}
-          <CardMeta ts={item.createdAt} unread={unread} />
-        </View>
-      );
-    }
+          </>
+        )}
 
-    // info
-    const infoTint = typeToneColors(theme, "info");
-    return (
-      <View style={cardStyle}>
-        <View style={styles.cardHead}>
-          <View style={[styles.standaloneIcon, { backgroundColor: infoTint.bg }]}>
-            <Megaphone size={18} color={infoTint.fg} />
-          </View>
-          <Text style={styles.line}>{item.message}</Text>
-        </View>
-        <CardMeta ts={item.createdAt} unread={unread} />
-      </View>
+        {item.kind === "friend_accepted" && item.from?.id && (
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => router.push(`/user/${item.from!.id}` as any)}
+          >
+            <Text style={styles.actionText}>{t("friendProfile")}</Text>
+          </Pressable>
+        )}
+
+        {item.kind === "recipe_rated" && (
+          <>
+            {item.rating != null && (
+              <View style={styles.ratingRow}>
+                <RatingStars value={item.rating} size={16} />
+              </View>
+            )}
+            {!!item.message && <Text style={styles.note}>“{item.message}”</Text>}
+          </>
+        )}
+      </MessageCard>
     );
   };
 
@@ -776,12 +797,12 @@ const makeStyles = (t: Theme) =>
     },
     cardHead: { flexDirection: "row", alignItems: "center", gap: t.space[3] },
 
-    // Actor avatar + type chip
+    // Actor avatar + type chip (chip pinned to the avatar's top-right corner)
     avatarWrap: { width: 36, height: 36 },
     typeBadge: {
       position: "absolute",
       right: -4,
-      bottom: -4,
+      top: -4,
       width: 18,
       height: 18,
       borderRadius: 9,
@@ -797,11 +818,17 @@ const makeStyles = (t: Theme) =>
       justifyContent: "center",
     },
 
+    // Collapsed summary row
+    headText: { flex: 1 },
+    hint: { fontFamily: t.font.bodyMedium, fontSize: 11, color: t.accent, marginTop: 2 },
+    expandBody: { marginTop: t.space[1] },
+    ratingRow: { marginTop: t.space[3] },
+
     // Bottom meta line (relative time + unread marker)
     metaRow: { flexDirection: "row", alignItems: "center", gap: t.space[2], marginTop: t.space[3] },
     unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.accent },
     metaText: { fontFamily: t.font.bodyMedium, fontSize: 11, color: t.textMuted },
-    line: { flex: 1, fontFamily: t.font.body, fontSize: 14, color: t.textSecondary },
+    line: { fontFamily: t.font.body, fontSize: 14, color: t.textSecondary },
     name: { fontFamily: t.font.bodyBold, color: t.textPrimary },
     note: { marginTop: t.space[2], fontFamily: t.font.body, fontSize: 14, color: t.textPrimary, fontStyle: "italic" },
     recipeRow: {

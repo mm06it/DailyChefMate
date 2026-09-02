@@ -306,6 +306,12 @@ export const findUser = query({
     const found = await resolveUser(ctx, q);
     if (!found) return { reason: "not_found" as const };
     if (found._id === me) return { reason: "self" as const };
+    // The support/admin account is not a real person — keep it out of search
+    // so it can't be sent a friend request.
+    const adminForSearch = await getAdminUser(ctx);
+    if (adminForSearch && found._id === adminForSearch._id) {
+      return { reason: "not_found" as const };
+    }
     const { iBlocked, blockedByThem } = await blockState(ctx, me, found._id);
     if (blockedByThem) return { reason: "not_found" as const };
     if (iBlocked) {
@@ -785,6 +791,44 @@ export const markFeedSeen = mutation({
   },
 });
 
+// Mark a single feed entry seen — fired when the viewer taps the card open.
+export const markFeedEventSeen = mutation({
+  args: { eventId: v.id("activityEvents") },
+  handler: async (ctx, { eventId }) => {
+    const me = await requireUserId(ctx);
+    const existing = await ctx.db
+      .query("feedSeen")
+      .withIndex("by_user_event", (q) => q.eq("userId", me).eq("eventId", eventId))
+      .unique();
+    if (!existing) {
+      await ctx.db.insert("feedSeen", { userId: me, eventId, createdAt: Date.now() });
+    }
+  },
+});
+
+// Mark a single inbox entry seen — fired when the viewer taps the card open.
+export const markInboxItemSeen = mutation({
+  args: {
+    kind: v.union(v.literal("share"), v.literal("notification")),
+    id: v.string(),
+  },
+  handler: async (ctx, { kind, id }) => {
+    const me = await requireUserId(ctx);
+    const now = Date.now();
+    if (kind === "share") {
+      const row = await ctx.db.get(id as Id<"recipeShares">);
+      if (row && row.toUser === me && row.seenAt === undefined) {
+        await ctx.db.patch(row._id, { seenAt: now });
+      }
+    } else {
+      const row = await ctx.db.get(id as Id<"notifications">);
+      if (row && row.userId === me && row.seenAt === undefined) {
+        await ctx.db.patch(row._id, { seenAt: now });
+      }
+    }
+  },
+});
+
 // ---- feed ----
 
 export const feed = query({
@@ -793,10 +837,17 @@ export const feed = query({
     const me = await getAuthUserId(ctx);
     if (!me) return [];
 
-    // Per-item unread flag: an event is "new" if it predates the last time the
-    // user opened the feed. markFeedSeen() bumps feedSeenAt, so the client
-    // freezes this per visit (see social.tsx) to keep the highlight visible.
+    // Per-item unread flag. An event counts as seen once the viewer has tapped
+    // it open (a feedSeen row), or if it predates the legacy feedSeenAt cutoff.
     const feedSeenAt = (await ctx.db.get(me))?.feedSeenAt ?? 0;
+    const feedSeenSet = new Set(
+      (
+        await ctx.db
+          .query("feedSeen")
+          .withIndex("by_user", (q) => q.eq("userId", me))
+          .collect()
+      ).map((r) => r.eventId as string),
+    );
 
     const friendRows = await ctx.db
       .query("friendships")
@@ -835,7 +886,7 @@ export const feed = query({
           recipe: e.recipe ?? null,
           rating: e.rating ?? null,
           createdAt: e.createdAt,
-          seen: e.createdAt <= feedSeenAt,
+          seen: feedSeenSet.has(e._id as string) || e.createdAt <= feedSeenAt,
           actor,
         });
       }
@@ -894,6 +945,22 @@ export const socialCounts = query({
       .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "accepted"))
       .collect();
 
+    // Exclude entries the viewer has already tapped open or dismissed.
+    const feedExcluded = new Set<string>([
+      ...(
+        await ctx.db
+          .query("feedSeen")
+          .withIndex("by_user", (q) => q.eq("userId", me))
+          .collect()
+      ).map((r) => r.eventId as string),
+      ...(
+        await ctx.db
+          .query("feedDismissals")
+          .withIndex("by_user", (q) => q.eq("userId", me))
+          .collect()
+      ).map((d) => d.eventId as string),
+    ]);
+
     let feedCount = 0;
     for (const row of friendRows) {
       if (feedCount >= COUNT_CAP) break;
@@ -901,7 +968,7 @@ export const socialCounts = query({
         .query("activityEvents")
         .withIndex("by_user_created", (q) => q.eq("userId", row.other).gt("createdAt", feedSeenAt))
         .take(PER_FRIEND);
-      feedCount += evs.length;
+      feedCount += evs.filter((e) => !feedExcluded.has(e._id as string)).length;
     }
 
     const incoming = await ctx.db

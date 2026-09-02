@@ -240,6 +240,17 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  // Per-item "seen" marker for a friend-feed entry — set when the viewer taps
+  // the card open. Complements the coarse users.feedSeenAt cutoff; rows accrue
+  // per viewer like feedDismissals do.
+  feedSeen: defineTable({
+    userId: v.id("users"),
+    eventId: v.id("activityEvents"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_event", ["userId", "eventId"]),
+
   // Inbox notifications that aren't recipe shares (friend-request accepted,
   // admin broadcasts, …). Recipe shares live in recipeShares and are merged
   // into the inbox at query time.
