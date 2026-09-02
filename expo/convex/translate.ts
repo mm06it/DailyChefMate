@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { action, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { rateLimiter } from "./rateLimits";
+import { normalizeSteps } from "../lib/normalize-steps";
 
 async function requireUserId(ctx: ActionCtx) {
   const userId = await getAuthUserId(ctx);
@@ -12,6 +13,11 @@ async function requireUserId(ctx: ActionCtx) {
 }
 
 const MAX_RECIPES_PER_CALL = 12;
+const MAX_STEPS = 60;
+
+// Bump when the prompt or step handling changes so stale cache entries (with
+// the old step splitting) are re-generated instead of served forever.
+const CACHE_VERSION = "v2";
 
 // Trim an untrusted recipe payload before it goes anywhere near the LLM.
 function clampInput(r: InputRecipe): InputRecipe {
@@ -23,7 +29,10 @@ function clampInput(r: InputRecipe): InputRecipe {
       name: String(i.name).slice(0, 120),
       amount: String(i.amount).slice(0, 60),
     })),
-    steps: (r.steps ?? []).slice(0, 40).map((s) => String(s).slice(0, 800)),
+    // Pre-split walls of text into short steps before the LLM sees them, so it
+    // only has to translate + tidy rather than restructure from scratch. This
+    // also cleans the no-API-key fallback path.
+    steps: normalizeSteps(r.steps).slice(0, MAX_STEPS).map((s) => s.slice(0, 800)),
   };
 }
 
@@ -74,10 +83,22 @@ function coerce(raw: unknown, original: InputRecipe): Translated {
         amount: typeof it?.amount === "string" ? String(it.amount).trim() : orig.amount,
       };
     }),
-    steps: Array.isArray(o.steps) && o.steps.length > 0
-      ? o.steps.map((s) => String(s))
-      : original.steps,
+    steps: coerceSteps(o.steps, original.steps),
   };
+}
+
+// Take the LLM's re-split steps, but fall back to the (already pre-split)
+// originals if it returned nothing or dropped a lot of content.
+function coerceSteps(raw: unknown, original: string[]): string[] {
+  const cleaned = Array.isArray(raw)
+    ? raw.map((s) => String(s).replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, MAX_STEPS)
+    : [];
+  if (cleaned.length === 0) return original;
+  const origChars = original.join(" ").length;
+  const outChars = cleaned.join(" ").length;
+  // gross truncation guard — the LLM dropped instructions, not just reworded
+  if (origChars > 0 && outChars < origChars * 0.5) return original;
+  return cleaned;
 }
 
 async function translateOne(recipe: InputRecipe, lang: string, apiKey: string): Promise<Translated> {
@@ -96,6 +117,11 @@ async function translateOne(recipe: InputRecipe, lang: string, apiKey: string): 
             `Translate the recipe fields into ${target}. Convert every imperial/US ` +
             `measurement to metric: ounces/pounds -> g, cups/tbsp/tsp/fl oz -> ml or g, ` +
             `Fahrenheit -> °C, inches -> cm. Leave plain counts (e.g. "2 eggs") as counts. ` +
+            `Rewrite "steps" into short, single-action steps: one clear action per step, ` +
+            `imperative mood, at most one sentence each. Split combined instructions into ` +
+            `separate steps and merge sentence fragments. Keep the original order and ` +
+            `every instruction - never drop, summarise or invent detail. The "steps" ` +
+            `array length MAY change. ` +
             `Return ONLY a JSON object of the exact same shape ` +
             `{"name":string,"category":string,"ingredients":[{"name":string,"amount":string}],"steps":[string]}. ` +
             `The ingredients array MUST keep the same length and order as the input. No commentary.`,
@@ -175,7 +201,7 @@ export const translateRecipes = action({
 
     const misses: InputRecipe[] = [];
     for (const r of recipes) {
-      const key = `${lang}:${r.id}`;
+      const key = `${lang}:${CACHE_VERSION}:${r.id}`;
       const cached = (await ctx.runQuery(internal.translate.getCached, { key })) as
         | { translated: Translated }
         | null;
@@ -201,7 +227,10 @@ export const translateRecipes = action({
 
     for (const { id, t } of results) {
       out[id] = t;
-      await ctx.runMutation(internal.translate.putCached, { key: `${lang}:${id}`, translated: t });
+      await ctx.runMutation(internal.translate.putCached, {
+        key: `${lang}:${CACHE_VERSION}:${id}`,
+        translated: t,
+      });
     }
     return out;
   },
