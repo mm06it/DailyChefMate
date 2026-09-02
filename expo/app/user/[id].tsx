@@ -173,7 +173,6 @@ export default function UserProfileScreen() {
           ) : (
             <>
               <Text style={styles.sectionTitle}>{t("helpAndFeedback")}</Text>
-              <Text style={styles.introText}>{t("helpAndFeedbackIntro")}</Text>
 
               <View style={styles.catRow}>
                 {ADMIN_CATS.map((c) => (
@@ -699,13 +698,6 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: t.textSecondary,
-  },
-  introText: {
-    alignSelf: "flex-start",
-    fontSize: 13,
-    lineHeight: 18,
-    color: t.textSecondary,
-    marginBottom: 16,
   },
 
   adminForm: { padding: 16 },
