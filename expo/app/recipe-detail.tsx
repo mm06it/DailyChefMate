@@ -28,6 +28,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { scaleAmount } from "@/lib/scale-amount";
+import { normalizeSteps } from "@/lib/normalize-steps";
 
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 20;
@@ -57,6 +58,14 @@ export default function RecipeDetailScreen() {
   // language they were written in).
   const isCustom = !!recipe && customRecipes.some((c) => c.id === recipe.id);
   const localized = useLocalizedRecipes(recipe && !isCustom ? [recipe] : []);
+  const localizedRecipe = isCustom ? recipe : localized[0] ?? recipe;
+
+  // External recipe sources cram whole paragraphs into one "step"; split them
+  // into short, single-action steps so the cooking view stays scannable.
+  const steps = useMemo(
+    () => (localizedRecipe ? normalizeSteps(localizedRecipe.steps) : []),
+    [localizedRecipe?.steps],
+  );
 
   useEffect(() => {
     if (recipe) {
@@ -65,9 +74,10 @@ export default function RecipeDetailScreen() {
     // Only re-fire when the viewed recipe actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.id]);
-  const [completedSteps, setCompletedSteps] = useState<boolean[]>(
-    recipe ? new Array(recipe.steps.length).fill(false) : []
-  );
+  const [completedSteps, setCompletedSteps] = useState<boolean[]>([]);
+  useEffect(() => {
+    setCompletedSteps(new Array(steps.length).fill(false));
+  }, [steps.length]);
   const [servings, setServings] = useState<number>(recipe?.servings && recipe.servings > 0 ? recipe.servings : 1);
   const [isCooking, setIsCooking] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
@@ -274,7 +284,7 @@ export default function RecipeDetailScreen() {
               <Text variant="bodySm" color="muted" style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
             </View>
             <View style={styles.stepsList}>
-              {displayRecipe.steps.map((step, index) => {
+              {steps.map((step, index) => {
                 const nextActiveStep = getNextActiveStep();
                 const isCompleted = completedSteps[index];
                 const isActive = index === nextActiveStep || isCompleted;
