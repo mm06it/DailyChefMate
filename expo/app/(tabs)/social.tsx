@@ -104,7 +104,7 @@ function typeToneColors(t: Theme, kind: EventKind): { bg: string; fg: string } {
 function TypeGlyph({
   kind,
   color,
-  size = 11,
+  size = 13,
 }: {
   kind: EventKind;
   color: string;
@@ -128,22 +128,21 @@ function TypeGlyph({
   }
 }
 
-// Actor avatar with the type chip pinned to its lower-right corner. `ringColor`
-// is the card background so the chip reads as cut out of the avatar.
+// Actor avatar with the type chip pinned to its top-right corner. The chip has
+// a tinted fill plus a saturated hairline ring in the type colour so it reads
+// clearly against both the avatar and the card.
 function ActorAvatar({
   kind,
   name,
   initials,
   color,
   emoji,
-  ringColor,
 }: {
   kind: EventKind;
   name: string;
   initials: string;
   color?: string;
   emoji?: string;
-  ringColor: string;
 }) {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -151,7 +150,7 @@ function ActorAvatar({
   return (
     <View style={styles.avatarWrap}>
       <Avatar name={name} initials={initials} color={color} emoji={emoji} size={36} />
-      <View style={[styles.typeBadge, { backgroundColor: c.bg, borderColor: ringColor }]}>
+      <View style={[styles.typeBadge, { backgroundColor: c.bg, borderColor: c.fg }]}>
         <TypeGlyph kind={kind} color={c.fg} />
       </View>
     </View>
@@ -257,6 +256,9 @@ export default function SocialScreen() {
   // Cards the user has tapped open this visit. Collapsed by default; opening a
   // card also marks it seen (turns the unread wash off + drops the count).
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Optimistic "seen" set so the wash clears the instant a card is opened,
+  // without waiting for the mutation + query round-trip.
+  const [seenLocal, setSeenLocal] = useState<Set<string>>(new Set());
 
   const {
     friends,
@@ -286,20 +288,29 @@ export default function SocialScreen() {
     }, []),
   );
 
-  // Toggle a card open/closed. `onOpen` fires only on the collapsed -> open
-  // transition (used to mark the message seen).
-  const toggleCard = useCallback((key: string, onOpen?: () => void) => {
+  const toggleExpand = useCallback((key: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-        onOpen?.();
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
+
+  // Mark a message seen: optimistically (clears the wash now) + on the server.
+  const markSeen = useCallback((key: string, persist: () => Promise<unknown>) => {
+    setSeenLocal((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+    persist().catch(() => {});
+  }, []);
+
+  // Row tap: toggle the detail open and, the first time it opens, mark seen.
+  const handleCardPress = useCallback(
+    (key: string, isOpen: boolean, wasUnread: boolean, persist: () => Promise<unknown>) => {
+      toggleExpand(key);
+      if (!isOpen && wasUnread) markSeen(key, persist);
+    },
+    [toggleExpand, markSeen],
+  );
 
   const openRecipe = useCallback(
     (snapshot: any) => {
@@ -336,7 +347,7 @@ export default function SocialScreen() {
           : t("feedShared");
     const delKey = `feed:${item.id}`;
     const kind = feedKind(item.type);
-    const unread = !item.seen;
+    const unread = !item.seen && !seenLocal.has(delKey);
     const open = expanded.has(delKey);
     return (
       <MessageCard
@@ -347,7 +358,6 @@ export default function SocialScreen() {
             initials={item.actor.initials}
             color={item.actor.avatarColor ?? undefined}
             emoji={item.actor.avatarEmoji ?? undefined}
-            ringColor={unread ? theme.accentSubtle : theme.surface}
           />
         }
         name={name}
@@ -356,7 +366,7 @@ export default function SocialScreen() {
         open={open}
         unread={unread}
         createdAt={item.createdAt}
-        onPress={() => toggleCard(delKey, () => markFeedEventSeen(item.id).catch(() => {}))}
+        onPress={() => handleCardPress(delKey, open, unread, () => markFeedEventSeen(item.id))}
         onRequestDelete={() => setConfirmDeleteMsg(delKey)}
         deleteStrip={
           confirmDeleteMsg === delKey ? (
@@ -574,11 +584,11 @@ export default function SocialScreen() {
   // ---- Inbox ----
   const renderInboxItem = ({ item }: { item: (typeof inbox)[number] }) => {
     const kind = inboxKind(item.kind);
-    const unread = !item.seen;
     const delKey = `inbox:${item.kind}:${item.id}`;
+    const unread = !item.seen && !seenLocal.has(delKey);
     const open = expanded.has(delKey);
     const delKind = item.kind === "recipe_share" ? ("share" as const) : ("notification" as const);
-    const markSeen = () => markInboxItemSeen(delKind, item.id).catch(() => {});
+    const persistSeen = () => markInboxItemSeen(delKind, item.id);
 
     const name =
       item.kind === "recipe_share"
@@ -621,14 +631,13 @@ export default function SocialScreen() {
           initials={item.from?.initials ?? "?"}
           color={item.from?.avatarColor ?? undefined}
           emoji={item.from?.avatarEmoji ?? undefined}
-          ringColor={unread ? theme.accentSubtle : theme.surface}
         />
       );
 
     const onPress = expandable
-      ? () => toggleCard(delKey, markSeen)
+      ? () => handleCardPress(delKey, open, unread, persistSeen)
       : () => {
-          if (unread) markSeen();
+          if (unread) markSeen(delKey, persistSeen);
         };
 
     return (
@@ -795,20 +804,22 @@ const makeStyles = (t: Theme) =>
       borderRadius: t.radius.sm,
       backgroundColor: t.surfaceSunken,
     },
-    cardHead: { flexDirection: "row", alignItems: "center", gap: t.space[3] },
+    cardHead: { flexDirection: "row", alignItems: "center", gap: t.space[4] },
 
-    // Actor avatar + type chip (chip pinned to the avatar's top-right corner)
-    avatarWrap: { width: 36, height: 36 },
+    // Actor avatar + type chip (chip pinned to the avatar's top-right corner).
+    // The wrap reserves the chip's rightward overhang so the summary text
+    // keeps its full gap.
+    avatarWrap: { width: 42, height: 36 },
     typeBadge: {
       position: "absolute",
-      right: -4,
-      top: -4,
-      width: 18,
-      height: 18,
-      borderRadius: 9,
+      right: 0,
+      top: -6,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
       alignItems: "center",
       justifyContent: "center",
-      borderWidth: 2,
+      borderWidth: 1.5,
     },
     standaloneIcon: {
       width: 36,
