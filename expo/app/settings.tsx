@@ -27,6 +27,7 @@ import CollapsingTabHeader, {
 import { LanguageSelector } from '@/components/LanguageSelector';
 import ResponsiveContainer from '@/components/ResponsiveContainer';
 import Avatar from '@/components/Avatar';
+import HelpFeedbackRow from '@/components/HelpFeedbackRow';
 import { AVATAR_COLORS, AVATAR_EMOJIS } from '@/constants/avatar';
 import { api } from '@/convex/_generated/api';
 import { Button } from '@/components/ui/Button';
@@ -364,6 +365,7 @@ export default function SettingsScreen() {
               </View>
               <Text variant="body" color="secondary">1.0.0</Text>
             </View>
+            <HelpFeedbackRow style={styles.helpRow} />
           </View>
 
           {confirmingSignOut ? (
@@ -462,6 +464,7 @@ const makeStyles = (t: Theme) =>
     settingValueRow: { flexDirection: 'row', alignItems: 'center', gap: t.space[2] },
     editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: t.space[2], marginTop: t.space[3] },
     feedbackText: { marginTop: t.space[3] },
+    helpRow: { marginTop: t.space[2] },
     signOutButton: { marginTop: t.space[8] },
     signOutConfirm: { marginTop: t.space[8] },
   });

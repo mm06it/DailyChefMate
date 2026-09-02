@@ -7,7 +7,6 @@ import {
   Check,
   ChefHat,
   Flame,
-  Info,
   Megaphone,
   Send,
   Sparkles,
@@ -29,6 +28,7 @@ import CollapsingTabHeader, {
   resetHeader,
   useHeaderContentPadding,
 } from "@/components/CollapsingTabHeader";
+import HelpFeedbackRow from "@/components/HelpFeedbackRow";
 import InlineConfirm from "@/components/InlineConfirm";
 import RatingStars from "@/components/RatingStars";
 import type { Theme } from "@/constants/theme";
@@ -265,7 +265,6 @@ export default function SocialScreen() {
     incoming,
     outgoing,
     counts,
-    myProfile,
     sendFriendRequest,
     respondFriendRequest,
     removeFriend,
@@ -440,16 +439,14 @@ export default function SocialScreen() {
   );
 
   // ---- Friends ----
-  const adminId = myProfile?.adminId ?? null;
   const friendsData = useMemo(
     () => [
       { kind: "add" as const, key: "add" },
-      ...(adminId ? [{ kind: "admin" as const, key: "admin" }] : []),
       ...incoming.map((p) => ({ kind: "incoming" as const, key: `in-${p.id}`, profile: p })),
       ...outgoing.map((p) => ({ kind: "outgoing" as const, key: `out-${p.id}`, profile: p })),
       ...friends.map((p) => ({ kind: "friend" as const, key: `fr-${p.id}`, profile: p })),
     ],
-    [adminId, incoming, outgoing, friends],
+    [incoming, outgoing, friends],
   );
 
   const renderFriendRow = ({ item }: { item: (typeof friendsData)[number] }) => {
@@ -458,18 +455,6 @@ export default function SocialScreen() {
         <Pressable style={styles.addFriendBtn} onPress={() => setAddFriendOpen(true)} testID="friends-add">
           <UserPlus size={18} color={theme.accent} />
           <Text style={styles.addFriendText}>{t("addFriend")}</Text>
-        </Pressable>
-      );
-    }
-    if (item.kind === "admin") {
-      return (
-        <Pressable
-          style={styles.adminContactBtn}
-          onPress={() => router.push(`/user/${adminId}` as any)}
-          testID="friends-message-admin"
-        >
-          <Info size={16} color={theme.accent} />
-          <Text style={styles.adminContactText}>{t("messageAdmin")}</Text>
         </Pressable>
       );
     }
@@ -578,6 +563,7 @@ export default function SocialScreen() {
       showsVerticalScrollIndicator={false}
       onScroll={isDesktop ? undefined : onHeaderScroll}
       scrollEventThrottle={16}
+      ListFooterComponent={<HelpFeedbackRow style={styles.friendsFooter} />}
     />
   );
 
@@ -883,17 +869,7 @@ const makeStyles = (t: Theme) =>
       marginBottom: t.space[3],
     },
     addFriendText: { fontFamily: t.font.bodyBold, fontSize: 15, color: t.accent },
-    adminContactBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: t.space[3],
-      paddingVertical: t.space[3],
-      borderRadius: t.radius.md,
-      backgroundColor: t.surfaceSunken,
-      marginBottom: t.space[3],
-    },
-    adminContactText: { fontFamily: t.font.bodySemibold, fontSize: 14, color: t.textPrimary },
+    friendsFooter: { marginTop: t.space[6] },
     friendRow: {
       flexDirection: "row",
       alignItems: "center",
