@@ -48,7 +48,9 @@ export function useLocalizedRecipes(recipes: Recipe[]): Recipe[] {
     todo.forEach((r) => inflight.current.add(r.id));
 
     let cancelled = false;
-    const BATCH = 6;
+    // Matches MAX_RECIPES_PER_CALL in convex/translate.ts — fewer, larger
+    // action invocations = fewer Convex function calls.
+    const BATCH = 12;
     (async () => {
       for (let i = 0; i < todo.length && !cancelled; i += BATCH) {
         const chunk = todo.slice(i, i + BATCH);

@@ -149,32 +149,44 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
   return out;
 }
 
-export const getCached = internalQuery({
-  args: { key: v.string() },
-  handler: async (ctx, { key }) =>
-    ctx.db
-      .query("recipeTranslationCache")
-      .withIndex("by_key", (q) => q.eq("key", key))
-      .first(),
+const cachedTranslation = v.object({
+  name: v.string(),
+  category: v.string(),
+  ingredients: v.array(v.object({ name: v.string(), amount: v.string() })),
+  steps: v.array(v.string()),
 });
 
-export const putCached = internalMutation({
-  args: {
-    key: v.string(),
-    translated: v.object({
-      name: v.string(),
-      category: v.string(),
-      ingredients: v.array(v.object({ name: v.string(), amount: v.string() })),
-      steps: v.array(v.string()),
-    }),
+// Batched cache read: one function call for the whole request instead of one
+// per recipe. Returns only the keys that are present.
+export const getCachedMany = internalQuery({
+  args: { keys: v.array(v.string()) },
+  handler: async (ctx, { keys }) => {
+    const out: { key: string; translated: unknown }[] = [];
+    for (const key of keys) {
+      const row = await ctx.db
+        .query("recipeTranslationCache")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .first();
+      if (row) out.push({ key, translated: row.translated });
+    }
+    return out;
   },
-  handler: async (ctx, { key, translated }) => {
-    const existing = await ctx.db
-      .query("recipeTranslationCache")
-      .withIndex("by_key", (q) => q.eq("key", key))
-      .first();
-    if (existing) return;
-    await ctx.db.insert("recipeTranslationCache", { key, translated, createdAt: Date.now() });
+});
+
+// Batched cache write: one function call for all misses. Skips keys that a
+// concurrent request already inserted.
+export const putCachedMany = internalMutation({
+  args: { entries: v.array(v.object({ key: v.string(), translated: cachedTranslation })) },
+  handler: async (ctx, { entries }) => {
+    const now = Date.now();
+    for (const { key, translated } of entries) {
+      const existing = await ctx.db
+        .query("recipeTranslationCache")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .first();
+      if (existing) continue;
+      await ctx.db.insert("recipeTranslationCache", { key, translated, createdAt: now });
+    }
   },
 });
 
@@ -199,15 +211,21 @@ export const translateRecipes = action({
       return out;
     }
 
-    const misses: InputRecipe[] = [];
-    for (const r of recipes) {
-      const key = `${lang}:${CACHE_VERSION}:${r.id}`;
-      const cached = (await ctx.runQuery(internal.translate.getCached, { key })) as
-        | { translated: Translated }
-        | null;
-      if (cached) out[r.id] = cached.translated;
-      else misses.push(r);
+    const keyOf = (id: string) => `${lang}:${CACHE_VERSION}:${id}`;
+    const idOfKey = new Map(recipes.map((r) => [keyOf(r.id), r.id]));
+
+    const cachedRows = (await ctx.runQuery(internal.translate.getCachedMany, {
+      keys: recipes.map((r) => keyOf(r.id)),
+    })) as { key: string; translated: Translated }[];
+    const hit = new Set<string>();
+    for (const row of cachedRows) {
+      const id = idOfKey.get(row.key);
+      if (id) {
+        out[id] = row.translated;
+        hit.add(id);
+      }
     }
+    const misses: InputRecipe[] = recipes.filter((r) => !hit.has(r.id));
 
     if (misses.length === 0) return out;
 
@@ -218,19 +236,19 @@ export const translateRecipes = action({
 
     const results = await mapWithConcurrency(misses, 6, async (r) => {
       try {
-        return { id: r.id, t: await translateOne(r, lang, AI_API_KEY!) };
+        return { id: r.id, t: await translateOne(r, lang, AI_API_KEY!), ok: true };
       } catch (e) {
         console.error("translateOne failed", r.id, e);
-        return { id: r.id, t: pick(r) };
+        return { id: r.id, t: pick(r), ok: false };
       }
     });
 
-    for (const { id, t } of results) {
-      out[id] = t;
-      await ctx.runMutation(internal.translate.putCached, {
-        key: `${lang}:${CACHE_VERSION}:${id}`,
-        translated: t,
-      });
+    for (const { id, t } of results) out[id] = t;
+    // Only cache successful translations, so a transient failure is retried
+    // next time instead of stuck until the CACHE_VERSION bumps.
+    const toStore = results.filter((x) => x.ok).map(({ id, t }) => ({ key: keyOf(id), translated: t }));
+    if (toStore.length > 0) {
+      await ctx.runMutation(internal.translate.putCachedMany, { entries: toStore });
     }
     return out;
   },
