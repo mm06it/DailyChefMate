@@ -793,6 +793,11 @@ export const feed = query({
     const me = await getAuthUserId(ctx);
     if (!me) return [];
 
+    // Per-item unread flag: an event is "new" if it predates the last time the
+    // user opened the feed. markFeedSeen() bumps feedSeenAt, so the client
+    // freezes this per visit (see social.tsx) to keep the highlight visible.
+    const feedSeenAt = (await ctx.db.get(me))?.feedSeenAt ?? 0;
+
     const friendRows = await ctx.db
       .query("friendships")
       .withIndex("by_owner_status", (q) => q.eq("owner", me).eq("status", "accepted"))
@@ -830,6 +835,7 @@ export const feed = query({
           recipe: e.recipe ?? null,
           rating: e.rating ?? null,
           createdAt: e.createdAt,
+          seen: e.createdAt <= feedSeenAt,
           actor,
         });
       }

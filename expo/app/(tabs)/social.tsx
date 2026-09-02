@@ -8,6 +8,9 @@ import {
   ChefHat,
   Flame,
   Info,
+  Megaphone,
+  Send,
+  Sparkles,
   Star,
   UserCheck,
   UserPlus,
@@ -41,11 +44,132 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
+import { timeAgo } from "@/lib/time-ago";
 
 type SocialView = "feed" | "friends" | "inbox";
 
 function toRecipe(snapshot: any): Recipe {
   return { ...snapshot, isFavorite: false } as Recipe;
+}
+
+// ---- Message-type identity (icon chip + tint), shared by feed and inbox ----
+
+type EventKind =
+  | "shared"
+  | "created"
+  | "rated"
+  | "cooked"
+  | "favorited"
+  | "friend"
+  | "info";
+
+const feedKind = (type: string): EventKind =>
+  type === "created_recipe" ? "created" : type === "rated_recipe" ? "rated" : "shared";
+
+const inboxKind = (kind: string): EventKind => {
+  switch (kind) {
+    case "recipe_share":
+      return "shared";
+    case "friend_accepted":
+      return "friend";
+    case "recipe_favorited":
+      return "favorited";
+    case "recipe_cooked":
+      return "cooked";
+    case "recipe_rated":
+      return "rated";
+    default:
+      return "info";
+  }
+};
+
+// Mirrors the Badge tones so the chip colours match the rest of the design system.
+function typeToneColors(t: Theme, kind: EventKind): { bg: string; fg: string } {
+  switch (kind) {
+    case "shared":
+      return { bg: t.accentSubtle, fg: t.accent };
+    case "created":
+    case "friend":
+      return { bg: t.successSubtle, fg: t.success };
+    case "cooked":
+      return { bg: t.warningSubtle, fg: t.warning };
+    case "rated":
+    case "favorited":
+      return { bg: t.warningSubtle, fg: t.star };
+    default:
+      return { bg: t.surfaceSunken, fg: t.textSecondary };
+  }
+}
+
+function TypeGlyph({
+  kind,
+  color,
+  size = 11,
+}: {
+  kind: EventKind;
+  color: string;
+  size?: number;
+}) {
+  switch (kind) {
+    case "shared":
+      return <Send size={size} color={color} />;
+    case "created":
+      return <ChefHat size={size} color={color} />;
+    case "rated":
+      return <Sparkles size={size} color={color} />;
+    case "cooked":
+      return <Flame size={size} color={color} />;
+    case "favorited":
+      return <Star size={size} color={color} fill={color} />;
+    case "friend":
+      return <UserCheck size={size} color={color} />;
+    default:
+      return <Megaphone size={size} color={color} />;
+  }
+}
+
+// Actor avatar with the type chip pinned to its lower-right corner. `ringColor`
+// is the card background so the chip reads as cut out of the avatar.
+function ActorAvatar({
+  kind,
+  name,
+  initials,
+  color,
+  emoji,
+  ringColor,
+}: {
+  kind: EventKind;
+  name: string;
+  initials: string;
+  color?: string;
+  emoji?: string;
+  ringColor: string;
+}) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const c = typeToneColors(theme, kind);
+  return (
+    <View style={styles.avatarWrap}>
+      <Avatar name={name} initials={initials} color={color} emoji={emoji} size={36} />
+      <View style={[styles.typeBadge, { backgroundColor: c.bg, borderColor: ringColor }]}>
+        <TypeGlyph kind={kind} color={c.fg} />
+      </View>
+    </View>
+  );
+}
+
+// Bottom-of-card line: relative time, with an unread dot + "Neu" while new.
+function CardMeta({ ts, unread }: { ts: number; unread: boolean }) {
+  const { t } = useLanguage();
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.metaRow}>
+      {unread && <View style={styles.unreadDot} />}
+      <Text style={styles.metaText}>
+        {unread ? `${t("statusNew")} · ${timeAgo(ts, t)}` : timeAgo(ts, t)}
+      </Text>
+    </View>
+  );
 }
 
 // Small "X" in the top-right corner of a feed/inbox card that opens a
@@ -68,7 +192,6 @@ export default function SocialScreen() {
   const topPad = useHeaderContentPadding();
   const listRef = useRef<FlatList<any>>(null);
   useScrollToTop(listRef);
-  useFocusEffect(useCallback(() => resetHeader(), []));
 
   const [view, setView] = useState<SocialView>("feed");
   const [addFriendOpen, setAddFriendOpen] = useState(false);
@@ -76,6 +199,11 @@ export default function SocialScreen() {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   // Key of the feed/inbox message currently showing its delete-confirm strip.
   const [confirmDeleteMsg, setConfirmDeleteMsg] = useState<string | null>(null);
+  // Unread highlight, frozen once per visit: markFeedSeen/markInboxSeen fire as
+  // soon as a view is shown, so reading `seen` live would clear the wash while
+  // the user is still looking at it. Re-armed on screen focus.
+  const [unreadFeed, setUnreadFeed] = useState<Set<string> | null>(null);
+  const [unreadInbox, setUnreadInbox] = useState<Set<string> | null>(null);
 
   const {
     friends,
@@ -96,6 +224,28 @@ export default function SocialScreen() {
 
   const feed = useQuery(api.social.feed) ?? [];
   const inbox = useQuery(api.social.inbox) ?? [];
+
+  // Re-arm the unread snapshots each time the Social tab is focused.
+  useFocusEffect(
+    useCallback(() => {
+      resetHeader();
+      setUnreadFeed(null);
+      setUnreadInbox(null);
+    }, []),
+  );
+
+  // Freeze which items were unread on first sight of each view (before the
+  // markSeen effects below flip everything to seen on the next query).
+  useEffect(() => {
+    if (view === "feed" && unreadFeed === null && feed.length > 0) {
+      setUnreadFeed(new Set((feed as any[]).filter((e) => !e.seen).map((e) => e.id)));
+    }
+  }, [view, feed, unreadFeed]);
+  useEffect(() => {
+    if (view === "inbox" && unreadInbox === null && inbox.length > 0) {
+      setUnreadInbox(new Set((inbox as any[]).filter((i) => !i.seen).map((i) => i.id)));
+    }
+  }, [view, inbox, unreadInbox]);
 
   useEffect(() => {
     if (view === "inbox") markInboxSeen().catch(() => {});
@@ -138,8 +288,10 @@ export default function SocialScreen() {
           ? t("feedRated")
           : t("feedShared");
     const delKey = `feed:${item.id}`;
+    const kind = feedKind(item.type);
+    const unread = unreadFeed?.has(item.id) ?? false;
     return (
-      <View style={[styles.card, styles.cardDeletable]}>
+      <View style={[styles.card, styles.cardDeletable, unread && styles.cardUnread]}>
         <CardDeleteButton onPress={() => setConfirmDeleteMsg(delKey)} />
         {confirmDeleteMsg === delKey && (
           <InlineConfirm
@@ -155,12 +307,13 @@ export default function SocialScreen() {
           />
         )}
         <View style={styles.cardHead}>
-          <Avatar
+          <ActorAvatar
+            kind={kind}
             name={name}
             initials={item.actor.initials}
             color={item.actor.avatarColor ?? undefined}
             emoji={item.actor.avatarEmoji ?? undefined}
-            size={36}
+            ringColor={unread ? theme.accentSubtle : theme.surface}
           />
           <Text style={styles.line} numberOfLines={2}>
             <Text style={styles.name}>{name}</Text> {verb}
@@ -191,6 +344,7 @@ export default function SocialScreen() {
             </Pressable>
           </Pressable>
         )}
+        <CardMeta ts={item.createdAt} unread={unread} />
       </View>
     );
   };
@@ -387,17 +541,23 @@ export default function SocialScreen() {
   };
 
   const renderInboxBody = (item: (typeof inbox)[number]) => {
+    const kind = inboxKind(item.kind);
+    const unread = unreadInbox?.has(item.id) ?? false;
+    const cardStyle = [styles.card, styles.cardDeletable, unread && styles.cardUnread];
+    const ringColor = unread ? theme.accentSubtle : theme.surface;
+
     if (item.kind === "recipe_share") {
       const name = item.from?.displayName || item.from?.username || "?";
       return (
-        <View style={[styles.card, styles.cardDeletable]}>
+        <View style={cardStyle}>
           <View style={styles.cardHead}>
-            <Avatar
+            <ActorAvatar
+              kind={kind}
               name={name}
               initials={item.from?.initials ?? "?"}
               color={item.from?.avatarColor ?? undefined}
               emoji={item.from?.avatarEmoji ?? undefined}
-              size={36}
+              ringColor={ringColor}
             />
             <Text style={styles.line} numberOfLines={2}>
               <Text style={styles.name}>{name}</Text> {t("sharedWithYou")}
@@ -439,6 +599,7 @@ export default function SocialScreen() {
               </Pressable>
             )}
           </View>
+          <CardMeta ts={item.createdAt} unread={unread} />
         </View>
       );
     }
@@ -446,19 +607,19 @@ export default function SocialScreen() {
     if (item.kind === "friend_accepted") {
       const name = item.from?.displayName || "?";
       return (
-        <View style={[styles.card, styles.cardDeletable]}>
+        <View style={cardStyle}>
           <View style={styles.cardHead}>
-            <Avatar
+            <ActorAvatar
+              kind={kind}
               name={name}
               initials={item.from?.initials ?? "?"}
               color={item.from?.avatarColor ?? undefined}
               emoji={item.from?.avatarEmoji ?? undefined}
-              size={36}
+              ringColor={ringColor}
             />
             <Text style={styles.line} numberOfLines={2}>
               <Text style={styles.name}>{name}</Text> {t("friendAcceptedYou")}
             </Text>
-            <UserCheck size={18} color={theme.success} />
           </View>
           {item.from?.id && (
             <Pressable
@@ -468,6 +629,7 @@ export default function SocialScreen() {
               <Text style={styles.actionText}>{t("friendProfile")}</Text>
             </Pressable>
           )}
+          <CardMeta ts={item.createdAt} unread={unread} />
         </View>
       );
     }
@@ -476,25 +638,22 @@ export default function SocialScreen() {
       const name = item.from?.displayName || "?";
       const verb = item.kind === "recipe_favorited" ? t("feedFavorited") : t("feedCooked");
       return (
-        <View style={[styles.card, styles.cardDeletable]}>
+        <View style={cardStyle}>
           <View style={styles.cardHead}>
-            <Avatar
+            <ActorAvatar
+              kind={kind}
               name={name}
               initials={item.from?.initials ?? "?"}
               color={item.from?.avatarColor ?? undefined}
               emoji={item.from?.avatarEmoji ?? undefined}
-              size={36}
+              ringColor={ringColor}
             />
             <Text style={styles.line} numberOfLines={3}>
               <Text style={styles.name}>{name}</Text> {verb}
               {item.recipeName ? <Text style={styles.name}> „{item.recipeName}"</Text> : null}
             </Text>
-            {item.kind === "recipe_favorited" ? (
-              <Star size={18} color={theme.star} fill={theme.star} />
-            ) : (
-              <Flame size={18} color={theme.warning} />
-            )}
           </View>
+          <CardMeta ts={item.createdAt} unread={unread} />
         </View>
       );
     }
@@ -502,14 +661,15 @@ export default function SocialScreen() {
     if (item.kind === "recipe_rated") {
       const name = item.from?.displayName || "?";
       return (
-        <View style={[styles.card, styles.cardDeletable]}>
+        <View style={cardStyle}>
           <View style={styles.cardHead}>
-            <Avatar
+            <ActorAvatar
+              kind={kind}
               name={name}
               initials={item.from?.initials ?? "?"}
               color={item.from?.avatarColor ?? undefined}
               emoji={item.from?.avatarEmoji ?? undefined}
-              size={36}
+              ringColor={ringColor}
             />
             <Text style={styles.line} numberOfLines={3}>
               <Text style={styles.name}>{name}</Text> {t("ratedInInbox")}
@@ -522,17 +682,22 @@ export default function SocialScreen() {
             </View>
           )}
           {!!item.message && <Text style={styles.note}>“{item.message}”</Text>}
+          <CardMeta ts={item.createdAt} unread={unread} />
         </View>
       );
     }
 
     // info
+    const infoTint = typeToneColors(theme, "info");
     return (
-      <View style={[styles.card, styles.cardDeletable]}>
+      <View style={cardStyle}>
         <View style={styles.cardHead}>
-          <Info size={20} color={theme.accent} />
+          <View style={[styles.standaloneIcon, { backgroundColor: infoTint.bg }]}>
+            <Megaphone size={18} color={infoTint.fg} />
+          </View>
           <Text style={styles.line}>{item.message}</Text>
         </View>
+        <CardMeta ts={item.createdAt} unread={unread} />
       </View>
     );
   };
@@ -600,6 +765,7 @@ const makeStyles = (t: Theme) =>
       marginBottom: t.space[3],
     },
     cardDeletable: { paddingRight: t.space[8] },
+    cardUnread: { backgroundColor: t.accentSubtle, borderColor: t.accentSubtle },
     cardDelete: {
       position: "absolute",
       top: t.space[2],
@@ -609,6 +775,32 @@ const makeStyles = (t: Theme) =>
       backgroundColor: t.surfaceSunken,
     },
     cardHead: { flexDirection: "row", alignItems: "center", gap: t.space[3] },
+
+    // Actor avatar + type chip
+    avatarWrap: { width: 36, height: 36 },
+    typeBadge: {
+      position: "absolute",
+      right: -4,
+      bottom: -4,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 2,
+    },
+    standaloneIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: t.radius.md,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    // Bottom meta line (relative time + unread marker)
+    metaRow: { flexDirection: "row", alignItems: "center", gap: t.space[2], marginTop: t.space[3] },
+    unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: t.accent },
+    metaText: { fontFamily: t.font.bodyMedium, fontSize: 11, color: t.textMuted },
     line: { flex: 1, fontFamily: t.font.body, fontSize: 14, color: t.textSecondary },
     name: { fontFamily: t.font.bodyBold, color: t.textPrimary },
     note: { marginTop: t.space[2], fontFamily: t.font.body, fontSize: 14, color: t.textPrimary, fontStyle: "italic" },
