@@ -22,6 +22,8 @@ import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
 import { useRecipeImageUpload } from "@/hooks/use-recipe-image";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { useFitnessMode } from "@/hooks/use-fitness-mode";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -66,6 +68,12 @@ export default function RecipeDetailScreen() {
     () => (localizedRecipe ? normalizeSteps(localizedRecipe.steps) : []),
     [localizedRecipe?.steps],
   );
+
+  // Fitness Mode: per-serving nutrition (user-entered on custom recipes,
+  // otherwise an AI estimate). Scaled to the chosen serving count below.
+  const { enabled: fitnessMode } = useFitnessMode();
+  const nutritionMap = useRecipeNutrition(fitnessMode && localizedRecipe ? [localizedRecipe] : []);
+  const nutrition = localizedRecipe ? nutritionMap[localizedRecipe.id] : undefined;
 
   useEffect(() => {
     if (recipe) {
@@ -217,6 +225,29 @@ export default function RecipeDetailScreen() {
                 </View>
               ))}
             </Card>
+          )}
+        </View>
+      )}
+
+      {fitnessMode && nutrition && (
+        <View style={styles.section}>
+          <View style={styles.nutritionRow}>
+            {([
+              ['calories', t('calories'), Math.round(nutrition.calories * servings), ''],
+              ['protein', t('proteinShort'), Math.round(nutrition.protein * servings), 'g'],
+              ['carbs', t('carbsShort'), Math.round(nutrition.carbs * servings), 'g'],
+              ['fat', t('fatShort'), Math.round(nutrition.fat * servings), 'g'],
+            ] as const).map(([key, label, value, unit]) => (
+              <View key={key} style={styles.nutritionCell}>
+                <Text variant="h3">{value}{unit ? ` ${unit}` : ''}</Text>
+                <Text variant="caption" color="muted">{label}</Text>
+              </View>
+            ))}
+          </View>
+          {nutrition.estimated && (
+            <Text variant="caption" color="muted" style={styles.nutritionNote}>
+              {t('estimatedValue')} · {servings} {getTranslation(currentLanguage, 'servings')}
+            </Text>
           )}
         </View>
       )}
@@ -392,6 +423,18 @@ const makeStyles = (t: Theme) =>
     },
     friendRatingRow: { flexDirection: "row", alignItems: "flex-start", gap: t.space[3] },
     friendRatingText: { flex: 1, gap: 2 },
+    nutritionRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.lg,
+      paddingVertical: t.space[4],
+      paddingHorizontal: t.space[5],
+    },
+    nutritionCell: { alignItems: "center", gap: 2 },
+    nutritionNote: { marginTop: t.space[2] },
     ingredientsHeaderRow: {
       flexDirection: "row",
       alignItems: "center",

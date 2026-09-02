@@ -29,6 +29,7 @@ import { RatingsContext } from "@/hooks/use-ratings";
 import { ToastProvider } from "@/components/Toast";
 import { LanguageContext, useLanguage } from "@/hooks/use-language";
 import { ThemeContext, useTheme } from "@/hooks/use-theme";
+import { FitnessModeContext } from "@/hooks/use-fitness-mode";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { api } from "@/convex/_generated/api";
@@ -203,6 +204,7 @@ export default function RootLayout() {
     <>
       <ConvexAuthProvider client={convex} storage={Platform.OS === "web" ? undefined : secureStorage}>
         <ThemeContext>
+          <FitnessModeContext>
           <LanguageContext>
             <ToastProvider>
               <AuthProvider>
@@ -220,6 +222,7 @@ export default function RootLayout() {
               </AuthProvider>
             </ToastProvider>
           </LanguageContext>
+          </FitnessModeContext>
         </ThemeContext>
       </ConvexAuthProvider>
       {/* Vercel Web Analytics + Speed Insights — web only; these touch

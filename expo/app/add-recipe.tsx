@@ -46,6 +46,8 @@ interface RecipeFormData {
   category: string;
   ingredients: FormIngredient[];
   steps: string[];
+  isFitnessRecipe: boolean | null; // null = not asked yet
+  nutrition: { calories: string; protein: string; carbs: string; fat: string }; // per serving
 }
 
 const CATEGORIES_BY_MODE: Record<RecipeMode, string[]> = {
@@ -149,6 +151,8 @@ export default function AddRecipeScreen() {
     category: "",
     ingredients: [{ name: "", qty: "", unit: "" }],
     steps: [""],
+    isFitnessRecipe: null,
+    nutrition: { calories: "", protein: "", carbs: "", fat: "" },
   });
 
   const [showCategoryPicker, setShowCategoryPicker] = useState<boolean>(false);
@@ -174,7 +178,14 @@ export default function AddRecipeScreen() {
       if (prev.mode === next) return prev;
       if (prev.mode) savedByMode.current[prev.mode] = pickModeSlice(prev);
       const restored = savedByMode.current[next] ?? freshModeSlice();
-      return { name: prev.name, visibility: prev.visibility, mode: next, ...restored };
+      return {
+        name: prev.name,
+        visibility: prev.visibility,
+        isFitnessRecipe: prev.isFitnessRecipe,
+        nutrition: prev.nutrition,
+        mode: next,
+        ...restored,
+      };
     });
   };
 
@@ -241,6 +252,13 @@ export default function AddRecipeScreen() {
             ...parseAmount(ing.amount),
           })),
           steps: recipe.steps.length ? recipe.steps : [''],
+          isFitnessRecipe: recipe.isFitnessRecipe ?? (recipe.nutrition ? true : null),
+          nutrition: {
+            calories: recipe.nutrition?.calories ? String(recipe.nutrition.calories) : '',
+            protein: recipe.nutrition?.protein ? String(recipe.nutrition.protein) : '',
+            carbs: recipe.nutrition?.carbs ? String(recipe.nutrition.carbs) : '',
+            fat: recipe.nutrition?.fat ? String(recipe.nutrition.fat) : '',
+          },
         });
       }
     }
@@ -260,7 +278,22 @@ export default function AddRecipeScreen() {
     const main = mode === 'baking' ? num(formData.ovenTime) : num(formData.cookTime);
     const total = num(formData.prepTime) + main;
 
+    const nf = formData.nutrition;
+    const anyMacro = [nf.calories, nf.protein, nf.carbs, nf.fat].some((x) => x.trim() !== '');
+    const nutrition =
+      formData.isFitnessRecipe && anyMacro
+        ? {
+            calories: num(nf.calories),
+            protein: num(nf.protein),
+            carbs: num(nf.carbs),
+            fat: num(nf.fat),
+            estimated: false as const,
+          }
+        : undefined;
+
     const recipeData: Omit<Recipe, 'id'> = {
+      isFitnessRecipe: formData.isFitnessRecipe ?? undefined,
+      nutrition,
       name: formData.name.trim(),
       image: "",
       rating: 0,
@@ -514,6 +547,71 @@ export default function AddRecipeScreen() {
                   : ''}
             </Text>
           </View>
+
+          {/* Fitness recipe? — reveals optional per-serving nutrition fields */}
+          {formData.visibility !== null && (
+            <View style={styles.section}>
+              <Text style={styles.label}>{t('isFitnessRecipe')}</Text>
+              <View style={styles.modeRow}>
+                <Pressable
+                  testID="fitness-recipe-yes"
+                  style={[styles.modeButton, formData.isFitnessRecipe === true && styles.modeButtonActive]}
+                  onPress={() => setFormData((prev) => ({ ...prev, isFitnessRecipe: true }))}
+                >
+                  <Text style={[styles.modeButtonText, formData.isFitnessRecipe === true && styles.modeButtonTextActive]}>
+                    {t('yes')}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  testID="fitness-recipe-no"
+                  style={[styles.modeButton, formData.isFitnessRecipe === false && styles.modeButtonActive]}
+                  onPress={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      isFitnessRecipe: false,
+                      nutrition: { calories: '', protein: '', carbs: '', fat: '' },
+                    }))
+                  }
+                >
+                  <Text style={[styles.modeButtonText, formData.isFitnessRecipe === false && styles.modeButtonTextActive]}>
+                    {t('no')}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {formData.isFitnessRecipe === true && (
+                <>
+                  <Text style={styles.visibilityHint}>{t('isFitnessRecipeHint')}</Text>
+                  {([
+                    [['calories', t('calories')], ['protein', t('proteinShort')]],
+                    [['carbs', t('carbsShort')], ['fat', t('fatShort')]],
+                  ] as const).map((pair, ri) => (
+                    <View key={ri} style={styles.row}>
+                      {pair.map(([key, label]) => (
+                        <View key={key} style={styles.halfWidth}>
+                          <Text style={styles.label}>{label}</Text>
+                          <TextInput
+                            testID={`input-nutrition-${key}`}
+                            style={styles.input}
+                            value={formData.nutrition[key]}
+                            onChangeText={(text) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                nutrition: { ...prev.nutrition, [key]: text.replace(/[^0-9]/g, '') },
+                              }))
+                            }
+                            placeholder="0"
+                            placeholderTextColor={theme.textMuted}
+                            keyboardType="numeric"
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+          )}
 
           {/* Photo — optional, shown once visibility is chosen */}
           {formData.visibility !== null && (

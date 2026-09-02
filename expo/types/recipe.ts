@@ -29,6 +29,22 @@ export interface Recipe {
   // ingredients this recipe uses, and which it still needs.
   usedIngredients?: string[];
   missedIngredients?: string[];
+  // Fitness Mode: per-serving nutrition. On custom recipes it may be
+  // user-entered; everywhere else it's an AI estimate filled in on demand.
+  nutrition?: Nutrition;
+  // Custom recipes only: the user marked this a fitness recipe in Add Recipe.
+  isFitnessRecipe?: boolean;
+}
+
+// Per-serving nutrition. Multiply by the serving count for a batch total.
+export interface Nutrition {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber?: number;
+  // false = the user typed these numbers, true = AI estimate ("~").
+  estimated: boolean;
 }
 
 export interface Ingredient {

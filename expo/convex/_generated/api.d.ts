@@ -16,6 +16,7 @@ import type * as favorites from "../favorites.js";
 import type * as http from "../http.js";
 import type * as lib_recipeLimits from "../lib/recipeLimits.js";
 import type * as mealPlan from "../mealPlan.js";
+import type * as nutrition from "../nutrition.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as ratings from "../ratings.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/recipeLimits": typeof lib_recipeLimits;
   mealPlan: typeof mealPlan;
+  nutrition: typeof nutrition;
   "otp/ResendOTP": typeof otp_ResendOTP;
   rateLimits: typeof rateLimits;
   ratings: typeof ratings;

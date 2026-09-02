@@ -403,6 +403,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       mode: recipe.mode,
       ovenMode: recipe.ovenMode,
       visibility: recipe.visibility === "private" ? "private" : "public",
+      nutrition: recipe.nutrition,
+      isFitnessRecipe: recipe.isFitnessRecipe,
     }).catch((e) => {
       console.error("addCustomRecipe failed", e);
       return null;
@@ -428,6 +430,8 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
       mode: updatedRecipe.mode,
       ovenMode: updatedRecipe.ovenMode,
       visibility: updatedRecipe.visibility === "private" ? "private" : "public",
+      nutrition: updatedRecipe.nutrition,
+      isFitnessRecipe: updatedRecipe.isFitnessRecipe,
     }).catch((e) => console.error("updateCustomRecipe failed", e));
   };
 

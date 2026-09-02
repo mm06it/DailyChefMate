@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { clampRecipeSnapshot } from "./lib/recipeLimits";
+import { recipeNutrition } from "./schema";
 
 const ingredientValidator = v.object({
   id: v.string(),
@@ -28,6 +29,8 @@ const recipeArgs = {
   mode: v.optional(v.string()),
   ovenMode: v.optional(v.string()),
   visibility: v.optional(v.union(v.literal("private"), v.literal("public"))),
+  nutrition: v.optional(recipeNutrition),
+  isFitnessRecipe: v.optional(v.boolean()),
 };
 
 async function requireOwnRecipe(ctx: MutationCtx, id: Id<"customRecipes">) {

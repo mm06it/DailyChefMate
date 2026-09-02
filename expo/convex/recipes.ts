@@ -42,6 +42,14 @@ type SearchRecipe = {
   steps: string[];
   usedIngredients: string[];
   missedIngredients: string[];
+  nutrition?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    fiber?: number;
+    estimated: boolean;
+  };
 };
 
 function normalize(ingredients: string[]): string[] {
@@ -363,6 +371,28 @@ async function fromTheMealDBByName(query: string): Promise<SearchRecipe[]> {
 
 // Ask the LLM for a handful of extra recipes matching the query. Anything that
 // fails to parse is dropped — never throws.
+// Parse the optional per-serving nutrition an AI recipe may include. Dropped
+// unless it has a plausible calorie figure.
+function aiNutrition(raw: any): SearchRecipe["nutrition"] | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const int = (x: any, hi: number) => {
+    const n = Math.round(Number(x));
+    return Number.isFinite(n) ? Math.max(0, Math.min(hi, n)) : 0;
+  };
+  const calories = int(raw.calories, 20000);
+  if (calories <= 0) return undefined;
+  const out: SearchRecipe["nutrition"] = {
+    calories,
+    protein: int(raw.protein, 2000),
+    carbs: int(raw.carbs, 2000),
+    fat: int(raw.fat, 2000),
+    estimated: true,
+  };
+  const fiber = int(raw.fiber, 500);
+  if (fiber > 0) out.fiber = fiber;
+  return out;
+}
+
 async function enrichWithAI(query: string, base: SearchRecipe[]): Promise<SearchRecipe[]> {
   if (!AI_API_KEY) return base;
   try {
@@ -379,7 +409,9 @@ async function enrichWithAI(query: string, base: SearchRecipe[]): Promise<Search
               'Return a JSON object with a "recipes" array of up to 5 diverse, high-quality ' +
               "recipes. Each: name, category (cuisine), course (starter|main|dessert when obvious), " +
               "ingredients (array of {name, amount}), steps (array of strings), cookTime, image " +
-              "(a real https image URL). Common household ingredients, metric measures, no commentary.",
+              "(a real https image URL), and nutrition {calories, protein, carbs, fat} estimated " +
+              "PER SERVING (integers; kcal and grams). Common household ingredients, metric measures, " +
+              "no commentary.",
           },
           { role: "user", content: `Find recipes for: ${query}.` },
         ],
@@ -416,6 +448,7 @@ async function enrichWithAI(query: string, base: SearchRecipe[]): Promise<Search
       steps: (Array.isArray(r.steps) ? r.steps : []).slice(0, 40).map((s: any) => String(s).slice(0, 800)),
       usedIngredients: [],
       missedIngredients: [],
+      nutrition: aiNutrition(r.nutrition),
     }));
 
     const seen = new Set(base.map((b) => b.name.toLowerCase()));

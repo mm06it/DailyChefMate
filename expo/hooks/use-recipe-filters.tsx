@@ -9,6 +9,8 @@ export const [RecipeFiltersProvider, useRecipeFilters] = createContextHook(() =>
   const [search, setSearch] = useState<string>('');
   const [selectedCuisine, setSelectedCuisine] = useState<string>('all');
   const [selectedCourse, setSelectedCourse] = useState<string>('all');
+  // Fitness Mode only — ignored elsewhere.
+  const [selectedFitness, setSelectedFitness] = useState<string>('all');
   return {
     search,
     setSearch,
@@ -16,5 +18,7 @@ export const [RecipeFiltersProvider, useRecipeFilters] = createContextHook(() =>
     setSelectedCuisine,
     selectedCourse,
     setSelectedCourse,
+    selectedFitness,
+    setSelectedFitness,
   };
 });

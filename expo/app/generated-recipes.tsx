@@ -18,6 +18,9 @@ import { translateIngredientName } from "@/constants/translations";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { useFitnessMode } from "@/hooks/use-fitness-mode";
+import { proteinPer100kcal } from "@/constants/fitness-filters";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 
 // One page of results; "load more" advances the offset by this much.
@@ -107,18 +110,35 @@ export default function GeneratedRecipesScreen() {
   // Only the real ingredient-search results — deduped by id. (The local
   // mock-catalog matches were dropped: they made an unrelated recipe like
   // "French Omelette" show up first every time.)
-  const allRecipes = useLocalizedRecipes(
+  const localizedRecipes = useLocalizedRecipes(
     useMemo(() => {
       const uniqueRecipes = new Map<string, Recipe>();
       onlineRecipes.forEach((recipe) => uniqueRecipes.set(recipe.id, recipe));
       return Array.from(uniqueRecipes.values());
     }, [onlineRecipes]),
   );
+
+  // Fitness Mode: pull macros for the whole list, then surface the
+  // highest-protein-per-100kcal recipes first (point 5).
+  const { enabled: fitnessMode } = useFitnessMode();
+  const nutritionMap = useRecipeNutrition(fitnessMode ? localizedRecipes : []);
+  const allRecipes = useMemo(() => {
+    if (!fitnessMode) return localizedRecipes;
+    return [...localizedRecipes].sort((a, b) => {
+      const na = nutritionMap[a.id];
+      const nb = nutritionMap[b.id];
+      if (na && nb) return proteinPer100kcal(nb) - proteinPer100kcal(na);
+      if (na) return -1;
+      if (nb) return 1;
+      return 0;
+    });
+  }, [localizedRecipes, fitnessMode, nutritionMap]);
+
   const renderItem = ({ item }: { item: Recipe }) => (
     <View style={columns > 1 ? { width: itemWidth } : undefined}>
       {/* "Vorhanden:" / "Fehlt noch:" lines are rendered inside RecipeCard,
           stacked above the recipe name. */}
-      <RecipeCard recipe={item} />
+      <RecipeCard recipe={item} nutrition={fitnessMode ? nutritionMap[item.id] : undefined} />
     </View>
   );
   

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { FlatList, StyleSheet, View, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { Plus, ChefHat, Pencil, Trash2 } from "lucide-react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -11,6 +11,9 @@ import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefma
 import { useLanguage } from "@/hooks/use-language";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { useFitnessMode } from "@/hooks/use-fitness-mode";
+import { applyFitnessFilter } from "@/constants/fitness-filters";
 import type { Theme } from "@/constants/theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
 import { useTheme } from "@/hooks/use-theme";
@@ -24,10 +27,19 @@ export default function HomemadeRecipesScreen() {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const isDesktop = useIsDesktop();
-  const { search } = useRecipeFilters();
+  const { search, selectedFitness } = useRecipeFilters();
   const { setProgress } = useCollapsibleHeader();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const customRecipes = useCustomRecipes(search);
+  const { enabled: fitnessMode } = useFitnessMode();
+  const nutritionMap = useRecipeNutrition(fitnessMode ? customRecipes : []);
+  const shownRecipes = useMemo(
+    () =>
+      fitnessMode && selectedFitness !== "all"
+        ? applyFitnessFilter(customRecipes, selectedFitness, (id) => nutritionMap[id])
+        : customRecipes,
+    [customRecipes, fitnessMode, selectedFitness, nutritionMap],
+  );
   const { deleteCustomRecipe } = useDailyChefMateStore();
   const { columns, itemWidth } = useGridLayout(280, { maxColumns: 4 });
   const listRef = useRef<FlatList<Recipe>>(null);
@@ -48,7 +60,7 @@ export default function HomemadeRecipesScreen() {
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
       <View style={[styles.recipeContainer, columns > 1 && { width: itemWidth }]}>
-        <RecipeCard recipe={item} />
+        <RecipeCard recipe={item} nutrition={fitnessMode ? nutritionMap[item.id] : undefined} />
         {confirmingDeleteId === item.id ? (
           <InlineConfirm
             style={styles.deleteConfirm}
@@ -96,7 +108,7 @@ export default function HomemadeRecipesScreen() {
         <FlatList
           ref={listRef}
           key={columns}
-          data={customRecipes}
+          data={shownRecipes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={columns}

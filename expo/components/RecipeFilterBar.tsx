@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { ChevronDown, Globe, Plus, Search, UtensilsCrossed, X } from 'lucide-react-native';
+import { ChevronDown, Dumbbell, Globe, Plus, Search, UtensilsCrossed, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,7 +8,9 @@ import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useTheme } from '@/hooks/use-theme';
 import { translateText } from '@/constants/translations';
 import { CUISINE_FILTERS, COURSE_FILTERS } from '@/constants/recipe-filters';
+import { FITNESS_FILTERS } from '@/constants/fitness-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
+import { useFitnessMode } from '@/hooks/use-fitness-mode';
 import { useLanguage } from '@/hooks/use-language';
 import { useRecipeFilters } from '@/hooks/use-recipe-filters';
 
@@ -75,6 +77,7 @@ export default function RecipeFilterBar({
   const { t: translate, currentLanguage } = useLanguage();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { enabled: fitnessMode } = useFitnessMode();
   const {
     search,
     setSearch,
@@ -82,10 +85,12 @@ export default function RecipeFilterBar({
     setSelectedCuisine,
     selectedCourse,
     setSelectedCourse,
+    selectedFitness,
+    setSelectedFitness,
   } = useRecipeFilters();
   const [contentHeight, setContentHeight] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [menu, setMenu] = useState<null | 'cuisine' | 'course'>(null);
+  const [menu, setMenu] = useState<null | 'cuisine' | 'course' | 'fitness'>(null);
 
   const t = clamp(progress);
   const collapsed = t > 0.98;
@@ -100,6 +105,13 @@ export default function RecipeFilterBar({
     selectedCourse === 'all' || !courseName
       ? translate('courseType')
       : translateText(currentLanguage, courseName);
+
+  const fitnessName = FITNESS_FILTERS.find((f) => f.id === selectedFitness)?.name;
+  const fitnessLabel =
+    selectedFitness === 'all' || !fitnessName
+      ? translate('fitness')
+      : translateText(currentLanguage, fitnessName);
+  const showFitness = fitnessMode && showFilters;
 
   // "Alle Rezepte": icon that expands into the field. Other tab: field always.
   const fieldMode = searchOpen || !showFilters;
@@ -159,6 +171,16 @@ export default function RecipeFilterBar({
                   >
                     <UtensilsCrossed size={16} color={selectedCourse !== 'all' ? theme.textOnAccent : theme.textSecondary} />
                   </Pressable>
+                  {showFitness && (
+                    <Pressable
+                      style={[styles.pillMini, selectedFitness !== 'all' && styles.pillActive]}
+                      onPress={() => setMenu('fitness')}
+                      testID="filter-fitness-button"
+                      accessibilityLabel={translate('fitness')}
+                    >
+                      <Dumbbell size={16} color={selectedFitness !== 'all' ? theme.textOnAccent : theme.textSecondary} />
+                    </Pressable>
+                  )}
                 </View>
               )}
               {showAddRecipe && (
@@ -218,6 +240,28 @@ export default function RecipeFilterBar({
                   color={selectedCourse !== 'all' ? theme.textOnAccent : theme.textSecondary}
                 />
               </Pressable>
+              {showFitness && (
+                <Pressable
+                  style={[styles.pill, selectedFitness !== 'all' && styles.pillActive]}
+                  onPress={() => setMenu('fitness')}
+                  testID="filter-fitness-button"
+                >
+                  <Dumbbell
+                    size={14}
+                    color={selectedFitness !== 'all' ? theme.textOnAccent : theme.textSecondary}
+                  />
+                  <Text
+                    style={[styles.pillText, selectedFitness !== 'all' && styles.pillTextActive]}
+                    numberOfLines={1}
+                  >
+                    {fitnessLabel}
+                  </Text>
+                  <ChevronDown
+                    size={15}
+                    color={selectedFitness !== 'all' ? theme.textOnAccent : theme.textSecondary}
+                  />
+                </Pressable>
+              )}
             </>
           )}
         </View>
@@ -241,6 +285,17 @@ export default function RecipeFilterBar({
         selected={selectedCourse}
         onSelect={(id) => {
           setSelectedCourse(id);
+          setMenu(null);
+        }}
+        onClose={() => setMenu(null)}
+      />
+      <FilterMenu
+        visible={menu === 'fitness'}
+        title={translate('fitness')}
+        options={FITNESS_FILTERS}
+        selected={selectedFitness}
+        onSelect={(id) => {
+          setSelectedFitness(id);
           setMenu(null);
         }}
         onClose={() => setMenu(null)}

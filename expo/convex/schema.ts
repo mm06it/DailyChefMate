@@ -9,6 +9,16 @@ const recipeIngredient = v.object({
   category: v.string(),
 });
 
+// Per-serving nutrition (Fitness Mode). `estimated` = AI guess vs user-entered.
+export const recipeNutrition = v.object({
+  calories: v.number(),
+  protein: v.number(),
+  carbs: v.number(),
+  fat: v.number(),
+  fiber: v.optional(v.number()),
+  estimated: v.boolean(),
+});
+
 const recipeFields = {
   name: v.string(),
   image: v.string(),
@@ -26,6 +36,8 @@ const recipeFields = {
   mode: v.optional(v.string()),
   ovenMode: v.optional(v.string()),
   visibility: v.optional(v.string()), // custom recipes: "private" | "public"
+  nutrition: v.optional(recipeNutrition),
+  isFitnessRecipe: v.optional(v.boolean()), // custom recipes only
 };
 
 // A recipe from the ingredient search (convex/recipes.ts) with per-search
@@ -306,6 +318,14 @@ export default defineSchema({
       ingredients: v.array(v.object({ name: v.string(), amount: v.string() })),
       steps: v.array(v.string()),
     }),
+    createdAt: v.number(),
+  }).index("by_key", ["key"]),
+
+  // Shared cache of AI per-serving nutrition estimates so each recipe is only
+  // sent to the LLM once. `key` is `nutri:v1:${recipeId}`. See convex/nutrition.ts.
+  recipeNutritionCache: defineTable({
+    key: v.string(),
+    nutrition: recipeNutrition,
     createdAt: v.number(),
   }).index("by_key", ["key"]),
 });

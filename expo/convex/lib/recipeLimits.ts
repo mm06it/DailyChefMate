@@ -71,5 +71,16 @@ export function clampRecipeSnapshot<T extends Record<string, any>>(r: T): T {
   for (const f of OPTIONAL_SHORT_FIELDS) {
     if (r[f] !== undefined) out[f] = str(r[f], SHORT_FIELD_MAX);
   }
+  if (r.nutrition && typeof r.nutrition === "object") {
+    const n = r.nutrition;
+    out.nutrition = {
+      calories: clampNum(n.calories, 0, 20000, 0),
+      protein: clampNum(n.protein, 0, 2000, 0),
+      carbs: clampNum(n.carbs, 0, 2000, 0),
+      fat: clampNum(n.fat, 0, 2000, 0),
+      ...(n.fiber !== undefined ? { fiber: clampNum(n.fiber, 0, 500, 0) } : {}),
+      estimated: n.estimated === true,
+    };
+  }
   return out as T;
 }

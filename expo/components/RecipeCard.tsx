@@ -12,16 +12,21 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
+import { useFitnessMode } from "@/hooks/use-fitness-mode";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
 import { useToast } from "@/components/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { Text } from "@/components/ui/Text";
-import { Recipe } from "@/types/recipe";
+import { Nutrition, Recipe } from "@/types/recipe";
 
 interface RecipeCardProps {
   recipe: Recipe;
+  // Fitness Mode: per-serving nutrition, supplied by list screens that batch
+  // the estimate. Omitted → the card estimates its own when Fitness Mode is on.
+  nutrition?: Nutrition;
 }
 
-export default function RecipeCard({ recipe }: RecipeCardProps) {
+export default function RecipeCard({ recipe, nutrition }: RecipeCardProps) {
   const { toggleFavorite, favorites, cookedRecipes } = useDailyChefMateStore();
   const { entries: planEntries } = useMealPlan();
   const { getRatingStats, myRatedIds } = useRatings();
@@ -47,6 +52,16 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   const displayRating = ratingStat && ratingStat.count > 0 ? ratingStat.avg : recipe.rating;
   const ratingCount = ratingStat?.count ?? 0;
   const needsRating = (cookedRecipes[recipe.id] ?? 0) > 0 && !myRatedIds.has(recipe.id);
+
+  // Fitness Mode: kcal + protein for the recipe's stated yield.
+  const { enabled: fitnessMode } = useFitnessMode();
+  const ownNutrition = useRecipeNutrition(fitnessMode && !nutrition ? [recipe] : []);
+  const nutri = nutrition ?? ownNutrition[recipe.id];
+  const perYield = recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
+  const macroLine =
+    fitnessMode && nutri
+      ? `${nutri.estimated ? "~" : ""}${Math.round(nutri.calories * perYield)} kcal · ${Math.round(nutri.protein * perYield)} g P`
+      : null;
 
   useEffect(() => {
     if (!justPlanned) return;
@@ -127,34 +142,41 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             <Text variant="h3" numberOfLines={2} style={styles.name}>
               {translatedName}
             </Text>
-            <View style={styles.actions}>
-              <Pressable
-                onPress={() => setPlanModalVisible(true)}
-                hitSlop={10}
-                style={styles.actionBtn}
-                testID={`recipe-card-${recipe.id}-plan`}
-                accessibilityLabel={t("addToWeekPlan")}
-              >
-                <Animated.View style={{ transform: [{ scale: planPulse }] }}>
-                  {justPlanned || inPlan ? (
-                    <CalendarCheck size={20} color={theme.success} />
-                  ) : (
-                    <CalendarPlus size={20} color={theme.textMuted} />
-                  )}
-                </Animated.View>
-              </Pressable>
-              <Pressable
-                onPress={handleFavoritePress}
-                hitSlop={10}
-                style={styles.actionBtn}
-                testID={`recipe-card-${recipe.id}-favorite`}
-              >
-                <Star
-                  size={20}
-                  color={favorited ? theme.star : theme.textMuted}
-                  fill={favorited ? theme.star : "none"}
-                />
-              </Pressable>
+            <View style={styles.actionsCol}>
+              <View style={styles.actions}>
+                <Pressable
+                  onPress={() => setPlanModalVisible(true)}
+                  hitSlop={10}
+                  style={styles.actionBtn}
+                  testID={`recipe-card-${recipe.id}-plan`}
+                  accessibilityLabel={t("addToWeekPlan")}
+                >
+                  <Animated.View style={{ transform: [{ scale: planPulse }] }}>
+                    {justPlanned || inPlan ? (
+                      <CalendarCheck size={20} color={theme.success} />
+                    ) : (
+                      <CalendarPlus size={20} color={theme.textMuted} />
+                    )}
+                  </Animated.View>
+                </Pressable>
+                <Pressable
+                  onPress={handleFavoritePress}
+                  hitSlop={10}
+                  style={styles.actionBtn}
+                  testID={`recipe-card-${recipe.id}-favorite`}
+                >
+                  <Star
+                    size={20}
+                    color={favorited ? theme.star : theme.textMuted}
+                    fill={favorited ? theme.star : "none"}
+                  />
+                </Pressable>
+              </View>
+              {macroLine && (
+                <Text variant="caption" style={styles.macroLine} testID={`recipe-card-${recipe.id}-macros`}>
+                  {macroLine}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -223,8 +245,10 @@ const makeStyles = (t: Theme) =>
       gap: t.space[3],
     },
     name: { flex: 1 },
+    actionsCol: { alignItems: "flex-end", gap: 2 },
     actions: { flexDirection: "row", alignItems: "center", gap: t.space[1] },
     actionBtn: { padding: t.space[2] },
+    macroLine: { color: t.textSecondary, fontFamily: t.font.bodySemibold },
     metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.space[2] },
     visibility: { flexDirection: "row", alignItems: "center", gap: 3 },
   });

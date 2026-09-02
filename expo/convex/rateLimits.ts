@@ -13,6 +13,7 @@ export const rateLimiter = new RateLimiter(components.rateLimiter, {
   recipeSearch: { kind: "token bucket", rate: 40, period: HOUR, capacity: 15 },
   searchByName: { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },
   aiTranslate: { kind: "token bucket", rate: 120, period: HOUR, capacity: 40 },
+  aiNutrition: { kind: "token bucket", rate: 120, period: HOUR, capacity: 40 },
 
   // Social / write spam.
   friendRequest: { kind: "token bucket", rate: 30, period: HOUR, capacity: 10 },

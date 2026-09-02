@@ -16,6 +16,9 @@ import themealdb from "@/lib/themealdb";
 import { CUISINE_FILTERS } from "@/constants/recipe-filters";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
+import { useRecipeNutrition } from "@/hooks/use-recipe-nutrition";
+import { useFitnessMode } from "@/hooks/use-fitness-mode";
+import { applyFitnessFilter } from "@/constants/fitness-filters";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import { useGridLayout, useIsDesktop } from "@/hooks/use-responsive";
 import { Button } from "@/components/ui/Button";
@@ -66,7 +69,7 @@ export default function AllRecipesScreen() {
 
   // Tapping the (already-focused) Rezepte tab scrolls this list back to top.
   useScrollToTop(listRef);
-  const { search, selectedCuisine, selectedCourse } = useRecipeFilters();
+  const { search, selectedCuisine, selectedCourse, selectedFitness } = useRecipeFilters();
   const recipes = useRecipes("");
   const { cacheRecipes, searchRecipesOnline } = useDailyChefMateStore();
   const { setProgress } = useCollapsibleHeader();
@@ -222,10 +225,22 @@ export default function AllRecipesScreen() {
   // German UI → translate + metric-convert the visible recipes (cached).
   const localizedRecipes = useLocalizedRecipes(displayedRecipes);
 
+  // Fitness Mode: per-serving nutrition for the visible list, computed once
+  // here and passed down so cards don't each fire their own estimate.
+  const { enabled: fitnessMode } = useFitnessMode();
+  const nutritionMap = useRecipeNutrition(fitnessMode ? localizedRecipes : []);
+  const finalRecipes = useMemo(
+    () =>
+      fitnessMode && selectedFitness !== "all"
+        ? applyFitnessFilter(localizedRecipes, selectedFitness, (id) => nutritionMap[id])
+        : localizedRecipes,
+    [localizedRecipes, fitnessMode, selectedFitness, nutritionMap],
+  );
+
   const renderItem = ({ item }: { item: Recipe }) => {
     return (
       <View style={columns > 1 ? { width: itemWidth } : undefined}>
-        <RecipeCard recipe={item} />
+        <RecipeCard recipe={item} nutrition={fitnessMode ? nutritionMap[item.id] : undefined} />
       </View>
     );
   };
@@ -294,7 +309,7 @@ export default function AllRecipesScreen() {
         <FlatList
           ref={listRef}
           key={columns}
-          data={localizedRecipes}
+          data={finalRecipes}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={columns}

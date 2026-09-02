@@ -8,7 +8,7 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile, Moon } from 'lucide-react-native';
+import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile, Moon, Dumbbell } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 
@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useLanguage } from '@/hooks/use-language';
 import { useTheme, type ThemeMode } from '@/hooks/use-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
+import { useFitnessMode } from '@/hooks/use-fitness-mode';
 import { useSocial } from '@/hooks/use-social';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import type { Theme } from '@/constants/theme';
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
   const { user, signOut } = useAuth();
   const { t } = useLanguage();
   const { theme, mode: themeMode, setMode: setThemeMode } = useTheme();
+  const { enabled: fitnessMode, setEnabled: setFitnessMode } = useFitnessMode();
   const styles = useThemedStyles(makeStyles);
   const convex = useConvex();
 
@@ -246,6 +248,24 @@ export default function SettingsScreen() {
                   testID="settings-theme"
                 />
               </View>
+            </View>
+
+            <View style={[styles.settingItem, styles.settingItemColumn]}>
+              <View style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Dumbbell size={20} color={theme.textMuted} />
+                  <Text variant="body" style={styles.settingLabel}>{t('fitnessMode')}</Text>
+                </View>
+                <Switch
+                  value={fitnessMode}
+                  onValueChange={setFitnessMode}
+                  trackColor={{ true: theme.accent, false: theme.borderStrong }}
+                  testID="settings-fitness-mode"
+                />
+              </View>
+              <Text variant="bodySm" color="secondary" style={styles.feedbackText}>
+                {t('fitnessModeHint')}
+              </Text>
             </View>
           </View>
 
