@@ -55,6 +55,17 @@ if (Platform.OS === "web" && typeof document !== "undefined") {
     document.documentElement.style.backgroundColor = bg;
     document.body.style.backgroundColor = bg;
     (document.documentElement.style as any).colorScheme = dark ? "dark" : "light";
+
+    // Clamp everything to the visual viewport width. react-native-screens'
+    // web screen containers can size to `100vw` (which on mobile Safari can
+    // run a few px past the visual viewport), which pushed the recipe-detail
+    // header image off-screen and made the page look zoomed in. Structural
+    // clamp only — inner horizontal scrollers keep their own overflow.
+    const guard = document.createElement("style");
+    guard.textContent =
+      "html,body{overflow-x:hidden;max-width:100%;}" +
+      "#root{overflow-x:hidden;max-width:100vw;}";
+    document.head.appendChild(guard);
   } catch {
     /* SSR / storage blocked — ignore */
   }

@@ -347,6 +347,8 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     container: {
       flex: 1,
+      width: "100%",
+      maxWidth: "100%",
       backgroundColor: t.bg,
     },
     errorContainer: {
