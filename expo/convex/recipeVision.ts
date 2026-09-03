@@ -50,7 +50,9 @@ const PROMPT =
   '"ovenHeatC":number|null,"ovenTimeMin":number|null,' +
   '"ingredients":[{"name":string,"amount":string}],"steps":[string]}. ' +
   'Set "mode" to "baking" only if the recipe clearly uses an oven, otherwise ' +
-  '"cooking". Split the instructions into one short step per action. Put every ' +
+  '"cooking". For "category", pick the single best fit from EXACTLY this list — ' +
+  '"Hauptspeise", "Vorspeise", "Dessert", "Snack", "Suppe", "Salat" — or null if ' +
+  "none fits. Split the instructions into one short step per action. Put every " +
   "quantity in the ingredient's \"amount\" (e.g. \"200 g\", \"2 EL\", \"1\"). " +
   "If a field is not on the photo, use null (empty array for ingredients/steps). " +
   'If the image is not a readable recipe, return {"error":"unreadable"}. No commentary.';

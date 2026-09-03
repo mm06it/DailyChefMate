@@ -19,6 +19,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { useRecipeFromPhoto, pickRecipePhoto, type ParsedRecipe } from "@/hooks/use-recipe-from-photo";
 import RecipeVisionLoader from "@/components/RecipeVisionLoader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 import { translateText } from "@/constants/translations";
 import type { Theme } from "@/constants/theme";
@@ -146,6 +147,8 @@ export default function AddRecipeScreen() {
   const [entryMode, setEntryMode] = useState<"choose" | "manual" | "photo">(
     isEditing ? "manual" : "choose",
   );
+  // When editing: the header X / check open a confirm before leaving / saving.
+  const [pendingAction, setPendingAction] = useState<null | "cancel" | "save">(null);
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
@@ -365,6 +368,17 @@ export default function AddRecipeScreen() {
     }
   };
 
+  // When editing, saving is confirmed first; creating saves straight away.
+  const requestSave = () => (isEditing ? setPendingAction('save') : handleSave());
+
+  // Header X: editing → confirm (discard / save / keep); creating → just leave
+  // (or step back from the photo screen).
+  const handleHeaderCancel = () => {
+    if (isEditing) setPendingAction('cancel');
+    else if (entryMode === 'photo') setEntryMode('choose');
+    else router.back();
+  };
+
   const addIngredient = () => {
     setFormData((prev) => ({
       ...prev,
@@ -474,10 +488,10 @@ export default function AddRecipeScreen() {
           title: isEditing ? t('editRecipe') : t('createRecipe'),
           headerTitleAlign: 'center',
           headerLeft: () =>
-            isEditing || parsing ? null : (
+            parsing ? null : (
               <Pressable
                 testID="header-cancel"
-                onPress={() => (entryMode === 'photo' ? setEntryMode('choose') : router.back())}
+                onPress={handleHeaderCancel}
                 style={styles.headerCancel}
               >
                 <XIcon size={22} color={theme.textPrimary} />
@@ -487,7 +501,7 @@ export default function AddRecipeScreen() {
             entryMode !== 'manual' || parsing ? null : (
               <Pressable
                 testID="header-save"
-                onPress={handleSave}
+                onPress={requestSave}
                 disabled={saving}
                 style={[styles.headerSave, saving && { opacity: 0.4 }]}
                 accessibilityLabel={t('save')}
@@ -965,7 +979,7 @@ export default function AddRecipeScreen() {
 
               <Pressable
                 testID="button-save-recipe-bottom"
-                onPress={handleSave}
+                onPress={requestSave}
                 disabled={saving}
                 style={[styles.primarySaveButton, saving && { opacity: 0.6 }]}
               >
@@ -982,6 +996,36 @@ export default function AddRecipeScreen() {
       </ScrollView>
       </>
       )}
+
+      <ConfirmDialog
+        visible={pendingAction === 'cancel'}
+        title={t('discardChanges')}
+        confirmLabel={t('discardChangesConfirm')}
+        neutralLabel={t('saveChangesAction')}
+        cancelLabel={t('keepEditing')}
+        onConfirm={() => {
+          setPendingAction(null);
+          router.back();
+        }}
+        onNeutral={() => {
+          setPendingAction(null);
+          handleSave();
+        }}
+        onCancel={() => setPendingAction(null)}
+        testID="discard-changes-dialog"
+      />
+      <ConfirmDialog
+        visible={pendingAction === 'save'}
+        title={t('saveChangesConfirm')}
+        confirmLabel={t('saveChangesAction')}
+        destructive={false}
+        onConfirm={() => {
+          setPendingAction(null);
+          handleSave();
+        }}
+        onCancel={() => setPendingAction(null)}
+        testID="save-changes-dialog"
+      />
     </KeyboardAvoidingView>
   );
 }
