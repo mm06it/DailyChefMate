@@ -14,6 +14,8 @@ import {
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { Plus, Minus, X as XIcon, Check, Camera, Trash2 } from "lucide-react-native";
 
+import { useAuth } from "@/hooks/use-auth";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
@@ -131,6 +133,8 @@ export default function AddRecipeScreen() {
   const styles = useThemedStyles(makeStyles);
   const { t, currentLanguage } = useLanguage();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const { user, loading: authLoading } = useAuth();
+  const requireAuth = useRequireAuth();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
   const { pickAndUpload, uploadPicked, removeImage, uploading } = useRecipeImageUpload();
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
@@ -162,6 +166,14 @@ export default function AddRecipeScreen() {
   useEffect(() => () => {
     if (navTimer.current) clearTimeout(navTimer.current);
   }, []);
+
+  // Reachable by direct URL and from the recipe-from-photo flow, so guard the
+  // screen itself: a logged-out visitor gets the sign-in overlay instead of a
+  // form that can't be saved.
+  const gatedOut = !authLoading && !user;
+  useEffect(() => {
+    if (gatedOut) requireAuth(() => {});
+  }, [gatedOut, requireAuth]);
 
   // Per-mode field snapshots, so toggling Kochen/Backen keeps each side's
   // data to itself instead of bleeding across.
@@ -403,6 +415,18 @@ export default function AddRecipeScreen() {
     if (isEditing && editId) await removeImage(editId);
     else setPickedImage(null);
   };
+
+  if (gatedOut) {
+    return (
+      <View style={[styles.container, styles.gatedOut]}>
+        <Stack.Screen options={{ title: isEditing ? t('editRecipe') : t('createRecipe'), headerTitleAlign: 'center' }} />
+        <Text style={styles.gatedOutText}>{t('guestCtaTitle')}</Text>
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/(recipes)/all'))} style={styles.gatedOutBack}>
+          <Text style={styles.gatedOutBackText}>{t('back')}</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -873,6 +897,17 @@ const makeStyles = (t: Theme) => StyleSheet.create({
     flex: 1,
     backgroundColor: t.bg,
   },
+  gatedOut: { alignItems: 'center', justifyContent: 'center', padding: t.space[8], gap: t.space[5] },
+  gatedOutText: { fontFamily: t.font.bodySemibold, fontSize: 16, color: t.textPrimary, textAlign: 'center' },
+  gatedOutBack: {
+    paddingHorizontal: t.space[5],
+    paddingVertical: t.space[3],
+    borderRadius: t.radius.md,
+    borderWidth: t.borderWidth.hairline,
+    borderColor: t.border,
+    backgroundColor: t.surface,
+  },
+  gatedOutBackText: { fontFamily: t.font.bodySemibold, fontSize: 14, color: t.textPrimary },
   headerSave: {
     flexDirection: 'row',
     alignItems: 'center',

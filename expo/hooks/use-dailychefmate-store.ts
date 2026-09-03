@@ -153,6 +153,10 @@ export const [DailyChefMateContext, useDailyChefMateStore] = createContextHook((
   const viewedRecipesCount = convexUserStats?.viewedRecipeIds.length ?? 0;
 
   const recordRecipeView = (recipeId: string) => {
+    // Anonymous visitors can open recipe detail while browsing; there's no
+    // account to attribute the view to, so don't fire the mutation (it would
+    // just throw "Not authenticated" and burn a function call per open).
+    if (!isAuthenticated) return;
     recordViewMutation({ recipeId }).catch((e) => console.error("recordRecipeView failed", e));
   };
 
