@@ -12,6 +12,7 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useToast } from "@/components/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { Text } from "@/components/ui/Text";
@@ -29,6 +30,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { showToast } = useToast();
+  const requireAuth = useRequireAuth();
   const [imageError, setImageError] = useState<boolean>(false);
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const [justPlanned, setJustPlanned] = useState<boolean>(false);
@@ -60,14 +62,15 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
 
   const handlePress = () => router.push(`/recipe-detail?id=${recipe.id}`);
 
-  const handleFavoritePress = () => {
-    const wasFav = favorited;
-    toggleFavorite(recipe.id);
-    showToast(
-      wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
-      { icon: "star", variant: wasFav ? "info" : "success" },
-    );
-  };
+  const handleFavoritePress = () =>
+    requireAuth(() => {
+      const wasFav = favorited;
+      toggleFavorite(recipe.id);
+      showToast(
+        wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
+        { icon: "star", variant: wasFav ? "info" : "success" },
+      );
+    });
 
   const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
   const translatedCategory = useMemo(() => translateText(currentLanguage, recipe.category) || recipe.category, [currentLanguage, recipe.category]);
@@ -129,7 +132,7 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
             </Text>
             <View style={styles.actions}>
               <Pressable
-                onPress={() => setPlanModalVisible(true)}
+                onPress={() => requireAuth(() => setPlanModalVisible(true))}
                 hitSlop={10}
                 style={styles.actionBtn}
                 testID={`recipe-card-${recipe.id}-plan`}
