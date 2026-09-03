@@ -19,6 +19,7 @@ import type * as mealPlan from "../mealPlan.js";
 import type * as otp_ResendOTP from "../otp/ResendOTP.js";
 import type * as rateLimits from "../rateLimits.js";
 import type * as ratings from "../ratings.js";
+import type * as recipeVision from "../recipeVision.js";
 import type * as recipes from "../recipes.js";
 import type * as refrigerator from "../refrigerator.js";
 import type * as social from "../social.js";
@@ -44,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   "otp/ResendOTP": typeof otp_ResendOTP;
   rateLimits: typeof rateLimits;
   ratings: typeof ratings;
+  recipeVision: typeof recipeVision;
   recipes: typeof recipes;
   refrigerator: typeof refrigerator;
   social: typeof social;
