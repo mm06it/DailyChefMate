@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { CalendarCheck, CalendarPlus, Globe, Lock, Star, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Globe, Lock, Star, Thermometer, Timer, UtensilsCrossed, Wind } from "lucide-react-native";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, View } from "react-native";
 
@@ -59,6 +59,10 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
   }, [justPlanned, planPulse]);
 
   const showImage = !!recipe.image && !imageError;
+
+  // Baking recipes (custom only) carry oven settings — surface them compactly.
+  const showOven =
+    recipe.mode === "baking" && !!(recipe.ovenHeat || recipe.ovenMode || recipe.ovenTime);
 
   const handlePress = () => router.push(`/recipe-detail?id=${recipe.id}`);
 
@@ -187,6 +191,29 @@ export default function RecipeCard({ recipe }: RecipeCardProps) {
               </View>
             )}
           </View>
+
+          {showOven && (
+            <View style={styles.ovenRow}>
+              {!!recipe.ovenHeat && (
+                <View style={styles.ovenItem}>
+                  <Thermometer size={13} color={theme.accent} />
+                  <Text variant="caption" color="secondary">{recipe.ovenHeat}</Text>
+                </View>
+              )}
+              {!!recipe.ovenMode && (
+                <View style={styles.ovenItem}>
+                  <Wind size={13} color={theme.accent} />
+                  <Text variant="caption" color="secondary">{recipe.ovenMode}</Text>
+                </View>
+              )}
+              {!!recipe.ovenTime && (
+                <View style={styles.ovenItem}>
+                  <Timer size={13} color={theme.accent} />
+                  <Text variant="caption" color="secondary">{recipe.ovenTime}</Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </Pressable>
 
@@ -230,4 +257,14 @@ const makeStyles = (t: Theme) =>
     actionBtn: { padding: t.space[2] },
     metaRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.space[2] },
     visibility: { flexDirection: "row", alignItems: "center", gap: 3 },
+    ovenRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: t.space[3],
+      borderTopWidth: t.borderWidth.hairline,
+      borderTopColor: t.border,
+      paddingTop: t.space[3],
+    },
+    ovenItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   });

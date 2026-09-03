@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarPlus, Camera, Clock, Send, Star, Trash2, Users, UtensilsCrossed } from "lucide-react-native";
+import { CalendarCheck, CalendarPlus, Camera, Clock, Send, Star, Thermometer, Timer, Trash2, Users, UtensilsCrossed, Wind } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
 
@@ -68,6 +68,12 @@ export default function RecipeDetailHeader({
         { icon: "star", variant: wasFav ? "info" : "success" },
       );
     });
+
+  const showOven =
+    recipe.mode === "baking" && !!(recipe.ovenHeat || recipe.ovenMode || recipe.ovenTime);
+  // For baking recipes the top clock shows the total time; the oven block below
+  // carries the bake time itself, so the two don't read as the same number.
+  const topTime = showOven && recipe.totalTime ? recipe.totalTime : recipe.cookTime;
 
   const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
   const translatedCategory = useMemo(() => translateText(currentLanguage, recipe.category) || recipe.category, [currentLanguage, recipe.category]);
@@ -185,7 +191,7 @@ export default function RecipeDetailHeader({
         <View style={styles.infoRow}>
           <View style={styles.infoItem}>
             <Clock size={16} color={theme.textMuted} />
-            <Text variant="bodySm" color="secondary">{recipe.cookTime}</Text>
+            <Text variant="bodySm" color="secondary">{topTime}</Text>
           </View>
           <View style={styles.infoItem}>
             <Users size={16} color={theme.textMuted} />
@@ -194,6 +200,31 @@ export default function RecipeDetailHeader({
             </Text>
           </View>
         </View>
+
+        {showOven && (
+          <View style={styles.ovenBlock}>
+            <Text variant="caption" color="muted" style={styles.ovenBlockLabel}>
+              {getTranslation(currentLanguage, "ovenSection")}
+            </Text>
+            <View style={styles.ovenGrid}>
+              <View style={styles.ovenCell}>
+                <Thermometer size={18} color={theme.accent} />
+                <Text variant="bodySm" weight="semibold">{recipe.ovenHeat || "–"}</Text>
+                <Text variant="caption" color="muted">{getTranslation(currentLanguage, "ovenHeatShort")}</Text>
+              </View>
+              <View style={[styles.ovenCell, styles.ovenCellMid]}>
+                <Wind size={18} color={theme.accent} />
+                <Text variant="bodySm" weight="semibold">{recipe.ovenMode || "–"}</Text>
+                <Text variant="caption" color="muted">{getTranslation(currentLanguage, "ovenModeShort")}</Text>
+              </View>
+              <View style={styles.ovenCell}>
+                <Timer size={18} color={theme.accent} />
+                <Text variant="bodySm" weight="semibold">{recipe.ovenTime || "–"}</Text>
+                <Text variant="caption" color="muted">{getTranslation(currentLanguage, "bakeTimeShort")}</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -239,4 +270,24 @@ const makeStyles = (t: Theme) =>
     badgesRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: t.space[2] },
     infoRow: { flexDirection: "row", alignItems: "center", gap: t.space[5], marginTop: t.space[1] },
     infoItem: { flexDirection: "row", alignItems: "center", gap: t.space[2] },
+    ovenBlock: {
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.md,
+      backgroundColor: t.surfaceSunken,
+      padding: t.space[3],
+      marginTop: t.space[1],
+    },
+    ovenBlockLabel: {
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+      marginBottom: t.space[3],
+    },
+    ovenGrid: { flexDirection: "row" },
+    ovenCell: { flex: 1, alignItems: "center", gap: t.space[1] },
+    ovenCellMid: {
+      borderLeftWidth: t.borderWidth.hairline,
+      borderRightWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+    },
   });
