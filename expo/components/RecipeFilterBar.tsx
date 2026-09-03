@@ -10,6 +10,7 @@ import { translateText } from '@/constants/translations';
 import { CUISINE_FILTERS, COURSE_FILTERS } from '@/constants/recipe-filters';
 import { useCollapsibleHeader } from '@/hooks/use-collapsible-header';
 import { useLanguage } from '@/hooks/use-language';
+import { useRequireAuth } from '@/hooks/use-auth-gate';
 import { useRecipeFilters } from '@/hooks/use-recipe-filters';
 
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
@@ -73,6 +74,7 @@ export default function RecipeFilterBar({
 }) {
   const { progress } = useCollapsibleHeader();
   const { t: translate, currentLanguage } = useLanguage();
+  const requireAuth = useRequireAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const {
@@ -164,7 +166,7 @@ export default function RecipeFilterBar({
               {showAddRecipe && (
                 <Pressable
                   style={styles.addRecipeBtn}
-                  onPress={() => router.push('/add-recipe')}
+                  onPress={() => requireAuth(() => router.push('/add-recipe'))}
                   hitSlop={8}
                   testID="filter-add-recipe"
                   accessibilityRole="button"

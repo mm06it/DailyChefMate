@@ -10,6 +10,7 @@ import { onHeaderScroll } from "@/components/CollapsingTabHeader";
 import { useCustomRecipes, useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useCollapsibleHeader } from "@/hooks/use-collapsible-header";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useRecipeFilters } from "@/hooks/use-recipe-filters";
 import type { Theme } from "@/constants/theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
@@ -25,6 +26,7 @@ export default function HomemadeRecipesScreen() {
   const styles = useThemedStyles(makeStyles);
   const isDesktop = useIsDesktop();
   const { search } = useRecipeFilters();
+  const requireAuth = useRequireAuth();
   const { setProgress } = useCollapsibleHeader();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const customRecipes = useCustomRecipes(search);
@@ -41,7 +43,7 @@ export default function HomemadeRecipesScreen() {
     onHeaderScroll(e);
   }, [setProgress]);
 
-  const handleAddRecipe = () => router.push("/add-recipe");
+  const handleAddRecipe = () => requireAuth(() => router.push("/add-recipe"));
   const handleEditRecipe = (recipe: Recipe) =>
     router.push({ pathname: "/add-recipe", params: { editId: recipe.id } });
 

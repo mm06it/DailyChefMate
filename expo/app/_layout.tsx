@@ -35,7 +35,8 @@ import { api } from "@/convex/_generated/api";
 import { convex } from "@/lib/convex";
 import { secureStorage, PENDING_USERNAME_KEY } from "@/lib/auth-storage";
 import DesktopSidebar from "@/components/DesktopSidebar";
-import AuthScreen from "./auth";
+import AuthGateModal from "@/components/AuthGateModal";
+import { AuthGateProvider } from "@/hooks/use-auth-gate";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -136,10 +137,6 @@ function RootLayoutNav() {
     );
   }
 
-  if (!user) {
-    return <AuthScreen />;
-  }
-
   const stack = (
     <Stack
       screenOptions={{
@@ -154,22 +151,26 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="recipe-detail" options={{ title: t('recipeDetail') }} />
       <Stack.Screen name="generated-recipes" options={{ title: t('generatedRecipesTitle') }} />
-      <Stack.Screen name="auth" options={{ headerShown: false }} />
     </Stack>
   );
 
-  if (isDesktop) {
-    return (
-      <View style={[styles.desktopShell, { backgroundColor: theme.bgSubtle }]}>
-        <DesktopSidebar />
-        <View style={[styles.desktopContent, { backgroundColor: theme.bg }]}>
-          {stack}
-        </View>
-      </View>
-    );
-  }
+  const content = isDesktop ? (
+    <View style={[styles.desktopShell, { backgroundColor: theme.bgSubtle }]}>
+      <DesktopSidebar />
+      <View style={[styles.desktopContent, { backgroundColor: theme.bg }]}>{stack}</View>
+    </View>
+  ) : (
+    stack
+  );
 
-  return stack;
+  // The login overlay (components/AuthGateModal.tsx) is always mounted; anonymous
+  // users can browse everything, `requireAuth` pops it on a gated action.
+  return (
+    <>
+      {content}
+      <AuthGateModal />
+    </>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -206,17 +207,19 @@ export default function RootLayout() {
           <LanguageContext>
             <ToastProvider>
               <AuthProvider>
-                <DailyChefMateContext>
-                  <MealPlanContext>
-                    <SocialContext>
-                      <RatingsContext>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <RootLayoutNav />
-                        </GestureHandlerRootView>
-                      </RatingsContext>
-                    </SocialContext>
-                  </MealPlanContext>
-                </DailyChefMateContext>
+                <AuthGateProvider>
+                  <DailyChefMateContext>
+                    <MealPlanContext>
+                      <SocialContext>
+                        <RatingsContext>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <RootLayoutNav />
+                          </GestureHandlerRootView>
+                        </RatingsContext>
+                      </SocialContext>
+                    </MealPlanContext>
+                  </DailyChefMateContext>
+                </AuthGateProvider>
               </AuthProvider>
             </ToastProvider>
           </LanguageContext>

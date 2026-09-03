@@ -38,6 +38,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useSocial } from "@/hooks/use-social";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useIsDesktop } from "@/hooks/use-responsive";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -244,6 +245,7 @@ export default function SocialScreen() {
   const styles = useThemedStyles(makeStyles);
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
+  const requireAuth = useRequireAuth();
   const listRef = useRef<FlatList<any>>(null);
   useScrollToTop(listRef);
 
@@ -431,7 +433,7 @@ export default function SocialScreen() {
           action={{
             label: t("addFriend"),
             leftIcon: <UserPlus size={16} color={theme.textOnAccent} />,
-            onPress: () => setAddFriendOpen(true),
+            onPress: () => requireAuth(() => setAddFriendOpen(true)),
           }}
         />
       }
@@ -452,7 +454,7 @@ export default function SocialScreen() {
   const renderFriendRow = ({ item }: { item: (typeof friendsData)[number] }) => {
     if (item.kind === "add") {
       return (
-        <Pressable style={styles.addFriendBtn} onPress={() => setAddFriendOpen(true)} testID="friends-add">
+        <Pressable style={styles.addFriendBtn} onPress={() => requireAuth(() => setAddFriendOpen(true))} testID="friends-add">
           <UserPlus size={18} color={theme.accent} />
           <Text style={styles.addFriendText}>{t("addFriend")}</Text>
         </Pressable>

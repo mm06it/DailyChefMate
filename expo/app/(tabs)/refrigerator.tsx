@@ -20,6 +20,7 @@ import { useTheme } from "@/hooks/use-theme";
 
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { translateText } from "@/constants/translations";
 import { Ingredient } from "@/types/recipe";
 import { searchIngredientsOnline } from "@/lib/ingredient-search";
@@ -50,9 +51,10 @@ export default function RefrigeratorScreen() {
   const hasSelection = refrigeratorItems.some((i) => i.isSelected);
   const isDesktop = useIsDesktop();
   const topPad = useHeaderContentPadding();
+  const requireAuth = useRequireAuth();
   useFocusEffect(useCallback(() => resetHeader(), []));
 
-  const toggleAddForm = () => setShowAddForm(!showAddForm);
+  const toggleAddForm = () => requireAuth(() => setShowAddForm((v) => !v));
 
   useEffect(() => {
     const searchOnline = async () => {
@@ -87,15 +89,16 @@ export default function RefrigeratorScreen() {
     return [...filteredLocalIngredients, ...uniqueOnlineResults];
   }, [filteredLocalIngredients, onlineResults, searchQuery, refrigeratorItems]);
 
-  const handleImmediateAdd = (ingredient: Ingredient) => {
-    addIngredient({
-      ...ingredient,
-      amount: '',
-      isSelected: true,
-      isOnlineResult: false,
-      id: `ingredient-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  const handleImmediateAdd = (ingredient: Ingredient) =>
+    requireAuth(() => {
+      addIngredient({
+        ...ingredient,
+        amount: '',
+        isSelected: true,
+        isOnlineResult: false,
+        id: `ingredient-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      });
     });
-  };
 
   const handleOpenQuantityModal = (ingredient: Ingredient) => {
     setSelectedIngredient(ingredient);
@@ -205,7 +208,7 @@ export default function RefrigeratorScreen() {
         action={
           searchQuery
             ? undefined
-            : { label: t('addIngredient'), onPress: () => setShowAddForm(true) }
+            : { label: t('addIngredient'), onPress: () => requireAuth(() => setShowAddForm(true)) }
         }
       />
     ) : (

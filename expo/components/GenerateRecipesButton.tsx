@@ -6,12 +6,14 @@ import { type StyleProp, type ViewStyle } from "react-native";
 import { useTheme } from "@/hooks/use-theme";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { Button } from "@/components/ui/Button";
 
 export default function GenerateRecipesButton({ style }: { style?: StyleProp<ViewStyle> }) {
   const { t } = useLanguage();
   const { theme } = useTheme();
   const navigation = useNavigation();
+  const requireAuth = useRequireAuth();
   const { getSelectedIngredients } = useDailyChefMateStore();
   const selectedIngredients = getSelectedIngredients();
   const isDisabled = selectedIngredients.length < 2;
@@ -24,7 +26,7 @@ export default function GenerateRecipesButton({ style }: { style?: StyleProp<Vie
       disabled={isDisabled}
       leftIcon={<ChefHat size={18} color={theme.textOnAccent} />}
       onPress={() => {
-        if (!isDisabled) navigation.navigate("generated-recipes" as never);
+        if (!isDisabled) requireAuth(() => navigation.navigate("generated-recipes" as never));
       }}
       style={style}
     />

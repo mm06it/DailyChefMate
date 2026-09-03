@@ -10,6 +10,7 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useToast } from "@/components/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { Text } from "@/components/ui/Text";
@@ -41,6 +42,7 @@ export default function RecipeDetailHeader({
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { showToast } = useToast();
+  const requireAuth = useRequireAuth();
 
   const ratingStat = getRatingStats(recipe.id);
   const displayRating = ratingStat && ratingStat.count > 0 ? ratingStat.avg : recipe.rating;
@@ -57,14 +59,15 @@ export default function RecipeDetailHeader({
     [planEntries, recipe.id],
   );
 
-  const handleFavoritePress = () => {
-    const wasFav = favorited;
-    toggleFavorite(recipe.id);
-    showToast(
-      wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
-      { icon: "star", variant: wasFav ? "info" : "success" },
-    );
-  };
+  const handleFavoritePress = () =>
+    requireAuth(() => {
+      const wasFav = favorited;
+      toggleFavorite(recipe.id);
+      showToast(
+        wasFav ? t("removedFromFavoritesToast") : t("addedToFavoritesToast"),
+        { icon: "star", variant: wasFav ? "info" : "success" },
+      );
+    });
 
   const translatedName = useMemo(() => translateText(currentLanguage, recipe.name) || recipe.name, [currentLanguage, recipe.name]);
   const translatedCategory = useMemo(() => translateText(currentLanguage, recipe.category) || recipe.category, [currentLanguage, recipe.category]);
@@ -151,12 +154,12 @@ export default function RecipeDetailHeader({
 
         <View style={styles.headerActions}>
           {onShare && (
-            <GlassButton onPress={onShare} label={t("shareRecipe")} testID={`recipe-detail-${recipe.id}-share`}>
+            <GlassButton onPress={() => requireAuth(onShare)} label={t("shareRecipe")} testID={`recipe-detail-${recipe.id}-share`}>
               <Send size={19} color={theme.textPrimary} />
             </GlassButton>
           )}
           {onAddToPlan && (
-            <GlassButton onPress={onAddToPlan} label={t("addToWeekPlan")} testID={`recipe-detail-${recipe.id}-plan`}>
+            <GlassButton onPress={() => requireAuth(onAddToPlan)} label={t("addToWeekPlan")} testID={`recipe-detail-${recipe.id}-plan`}>
               {justPlanned || inPlan ? (
                 <CalendarCheck size={20} color={theme.success} />
               ) : (

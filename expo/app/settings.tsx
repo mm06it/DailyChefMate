@@ -8,11 +8,12 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LogOut, User, Globe, Info, Pencil, Users, Eye, Smile, Moon } from 'lucide-react-native';
+import { LogOut, LogIn, User, Globe, Info, Pencil, Users, Eye, Smile, Moon } from 'lucide-react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useConvex, useMutation } from 'convex/react';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useRequireAuth } from '@/hooks/use-auth-gate';
 import { useLanguage } from '@/hooks/use-language';
 import { useTheme, type ThemeMode } from '@/hooks/use-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -44,6 +45,7 @@ export default function SettingsScreen() {
   useFocusEffect(useCallback(() => resetHeader(), []));
 
   const { user, signOut } = useAuth();
+  const requireAuth = useRequireAuth();
   const { t } = useLanguage();
   const { theme, mode: themeMode, setMode: setThemeMode } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -141,6 +143,67 @@ export default function SettingsScreen() {
       setSaving(false);
     }
   }, [draft, currentUsername, cancelEditing, convex, updateUsername, t]);
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+        <Stack.Screen
+          options={{
+            title: t('settings'),
+            headerShown: isDesktop,
+            headerStyle: { backgroundColor: theme.bg },
+            headerTintColor: theme.textPrimary,
+          }}
+        />
+        {!isDesktop && <CollapsingTabHeader showBack />}
+        <ScrollView contentContainerStyle={[styles.content, !isDesktop && { paddingTop: topPad + 20 }]}>
+          <ResponsiveContainer maxWidth={640}>
+            <View style={styles.ctaCard}>
+              <LogIn size={28} color={theme.accent} />
+              <Text variant="h2" style={styles.ctaTitle}>{t('guestCtaTitle')}</Text>
+              <View style={styles.ctaActions}>
+                <Button label={t('signIn')} fullWidth onPress={() => requireAuth(() => {})} testID="guest-cta-signin" />
+                <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {})} testID="guest-cta-signup" />
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text variant="h2" style={styles.sectionTitle}>{t('preferences')}</Text>
+
+              <View style={styles.settingItem}>
+                <View style={styles.settingLeft}>
+                  <Globe size={20} color={theme.textMuted} />
+                  <Text variant="body" style={styles.settingLabel}>{t('language')}</Text>
+                </View>
+                <LanguageSelector />
+              </View>
+
+              <View style={[styles.settingItem, styles.settingItemColumn]}>
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLeft}>
+                    <Moon size={20} color={theme.textMuted} />
+                    <Text variant="body" style={styles.settingLabel}>{t('appearance')}</Text>
+                  </View>
+                </View>
+                <View style={styles.themeToggle}>
+                  <SegmentedControl<ThemeMode>
+                    options={[
+                      { value: 'system', label: t('themeSystem') },
+                      { value: 'light', label: t('themeLight') },
+                      { value: 'dark', label: t('themeDark') },
+                    ]}
+                    value={themeMode}
+                    onChange={setThemeMode}
+                    testID="settings-theme"
+                  />
+                </View>
+              </View>
+            </View>
+          </ResponsiveContainer>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
@@ -399,6 +462,17 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: t.bgSubtle },
     content: { padding: t.space[6] },
+    ctaCard: {
+      alignItems: 'center',
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.lg,
+      padding: t.space[6],
+      marginBottom: t.space[8],
+    },
+    ctaTitle: { marginTop: t.space[3], marginBottom: t.space[5], textAlign: 'center' },
+    ctaActions: { width: '100%', gap: t.space[3] },
     section: { marginBottom: t.space[8] },
     sectionTitle: { marginBottom: t.space[4] },
     settingItem: {

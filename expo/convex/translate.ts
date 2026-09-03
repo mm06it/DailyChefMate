@@ -1,16 +1,16 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
-import { action, internalMutation, internalQuery, type ActionCtx } from "./_generated/server";
+import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { rateLimiter } from "./rateLimits";
 import { normalizeSteps } from "../lib/normalize-steps";
 
-async function requireUserId(ctx: ActionCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
-  return userId;
-}
+// Anonymous visitors can browse the app, so recipe-list translation has to
+// degrade gracefully rather than throw: serve whatever is already cached and
+// leave the rest untranslated (no LLM call, no cache write) for logged-out
+// users. A shared rate-limit bucket keeps the anonymous path from being abused.
+const ANON_RATE_KEY = "anon";
 
 const MAX_RECIPES_PER_CALL = 12;
 const MAX_STEPS = 60;
@@ -197,8 +197,9 @@ export const translateRecipes = action({
   },
   // Explicit return type — the handler references internal.translate.* (itself).
   handler: async (ctx, { lang, recipes: rawRecipes }): Promise<Record<string, Translated>> => {
-    const userId = await requireUserId(ctx);
-    await rateLimiter.limit(ctx, "aiTranslate", { key: userId, throws: true });
+    const userId = await getAuthUserId(ctx);
+    const isAnon = !userId;
+    await rateLimiter.limit(ctx, "aiTranslate", { key: userId ?? ANON_RATE_KEY, throws: true });
 
     if (rawRecipes.length > MAX_RECIPES_PER_CALL) throw new Error("TOO_MANY_RECIPES");
     const recipes = rawRecipes.map(clampInput);
@@ -229,7 +230,9 @@ export const translateRecipes = action({
 
     if (misses.length === 0) return out;
 
-    if (!AI_API_KEY) {
+    // Logged-out browsing: hand back the cached hits, leave the misses in the
+    // source language. No LLM spend and no cache writes on the anonymous path.
+    if (isAnon || !AI_API_KEY) {
       for (const r of misses) out[r.id] = pick(r);
       return out;
     }

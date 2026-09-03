@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useQuery } from 'convex/react';
 import React, { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
-import { Star, ChefHat, Eye, Flame, Trophy } from 'lucide-react-native';
+import { Star, ChefHat, Eye, Flame, Trophy, LogIn } from 'lucide-react-native';
 
 import Avatar from '@/components/Avatar';
 import type { Theme } from '@/constants/theme';
@@ -11,7 +11,9 @@ import { Id } from '@/convex/_generated/dataModel';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useRequireAuth } from '@/hooks/use-auth-gate';
 import { useLanguage } from '@/hooks/use-language';
+import { Button } from '@/components/ui/Button';
 import { useSocial } from '@/hooks/use-social';
 import { useDailyChefMateStore } from '@/hooks/use-dailychefmate-store';
 import { Text } from '@/components/ui/Text';
@@ -66,6 +68,7 @@ interface ProfileContentProps {
 
 export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps = {}) {
   const { user } = useAuth();
+  const requireAuth = useRequireAuth();
   const { myProfile } = useSocial();
   const { t } = useLanguage();
   const { theme } = useTheme();
@@ -95,8 +98,13 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
 
   if (!user) {
     return (
-      <View style={styles.centerContent}>
-        <Text variant="body" color="danger" center>{t('userNotFound')}</Text>
+      <View style={styles.guestCard}>
+        <LogIn size={28} color={theme.accent} />
+        <Text variant="h2" style={styles.guestTitle}>{t('guestCtaProfile')}</Text>
+        <View style={styles.guestActions}>
+          <Button label={t('signIn')} fullWidth onPress={() => requireAuth(() => {})} testID="profile-cta-signin" />
+          <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {})} testID="profile-cta-signup" />
+        </View>
       </View>
     );
   }
@@ -233,6 +241,17 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
     centerContent: { padding: t.space[8], justifyContent: 'center', alignItems: 'center' },
+    guestCard: {
+      alignItems: 'center',
+      backgroundColor: t.surface,
+      borderWidth: t.borderWidth.hairline,
+      borderColor: t.border,
+      borderRadius: t.radius.lg,
+      padding: t.space[6],
+      marginTop: t.space[4],
+    },
+    guestTitle: { marginTop: t.space[3], marginBottom: t.space[5], textAlign: 'center' },
+    guestActions: { width: '100%', gap: t.space[3] },
     profileHeader: { alignItems: 'center', marginBottom: t.space[8], paddingVertical: t.space[6] },
     avatarContainer: {
       marginBottom: t.space[4],

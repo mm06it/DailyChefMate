@@ -21,6 +21,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
 import { useRecipeImageUpload } from "@/hooks/use-recipe-image";
+import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +44,7 @@ export default function RecipeDetailScreen() {
   const { markPlannedCooked } = useMealPlan();
   const { myRating } = useRatings();
   const { pickAndUpload, removeImage, uploading } = useRecipeImageUpload();
+  const requireAuth = useRequireAuth();
 
   // Look across every source a recipe can come from: the browse cache
   // (mocks + TheMealDB pages), the user's own recipes, and favorites.
@@ -129,12 +131,13 @@ export default function RecipeDetailScreen() {
     return completedSteps.every(completed => completed);
   };
 
-  const handleMarkAsCooked = () => {
-    markRecipeAsCooked(recipe.id);
-    markPlannedCooked(recipe.id);
-    setNavigateAfterRate(true);
-    setRateModalVisible(true);
-  };
+  const handleMarkAsCooked = () =>
+    requireAuth(() => {
+      markRecipeAsCooked(recipe.id);
+      markPlannedCooked(recipe.id);
+      setNavigateAfterRate(true);
+      setRateModalVisible(true);
+    });
 
   const closeRateModal = () => {
     setRateModalVisible(false);
@@ -178,7 +181,7 @@ export default function RecipeDetailScreen() {
           {hasCooked && myRatingValue === null && (
             <Pressable
               style={styles.rateBanner}
-              onPress={() => setRateModalVisible(true)}
+              onPress={() => requireAuth(() => setRateModalVisible(true))}
               testID="rate-reminder-banner"
             >
               <Star size={18} color={theme.star} fill={theme.star} />
@@ -192,7 +195,7 @@ export default function RecipeDetailScreen() {
                 <Text variant="label" color="secondary" style={styles.ratingSubTitle}>{t('yourRating')}</Text>
                 <RatingStars value={myRatingValue} size={22} />
               </View>
-              <Button label={t('edit')} variant="secondary" size="sm" onPress={() => setRateModalVisible(true)} testID="change-rating" />
+              <Button label={t('edit')} variant="secondary" size="sm" onPress={() => requireAuth(() => setRateModalVisible(true))} testID="change-rating" />
             </View>
           )}
 

@@ -4,9 +4,11 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   Image,
 } from 'react-native';
+import { X as XIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useConvex } from 'convex/react';
@@ -28,7 +30,14 @@ import { Text } from '@/components/ui/Text';
 
 const USERNAME_CHECK_ENABLED = false as const;
 
-export default function AuthScreen() {
+interface AuthScreenProps {
+  // Rendered inside the login overlay (see components/AuthGateModal.tsx) rather
+  // than as the whole app. Adds a close button and drops the pull-to-reload.
+  embedded?: boolean;
+  onClose?: () => void;
+}
+
+export default function AuthScreen({ embedded = false, onClose }: AuthScreenProps = {}) {
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -61,7 +70,7 @@ export default function AuthScreen() {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || isDesktop) return;
+    if (embedded || Platform.OS !== 'web' || isDesktop) return;
     const node: HTMLElement | undefined = (scrollRef.current as any)?.getScrollableNode?.();
     if (!node) return;
 
@@ -97,7 +106,7 @@ export default function AuthScreen() {
       node.removeEventListener('touchmove', onTouchMove);
       if (wheelTimer) clearTimeout(wheelTimer);
     };
-  }, [reloadApp, isDesktop]);
+  }, [reloadApp, isDesktop, embedded]);
   const convex = useConvex();
 
   const isEmailRegistered = useCallback(async (value: string): Promise<boolean | null> => {
@@ -284,6 +293,17 @@ export default function AuthScreen() {
         <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent}>
           <View style={styles.column}>
             <View style={styles.topBar} pointerEvents="box-none">
+              {embedded && (
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={12}
+                  style={styles.closeSlot}
+                  testID="auth-close"
+                  accessibilityLabel={getTranslation(language, 'cancel')}
+                >
+                  <XIcon size={24} color={theme.textPrimary} />
+                </Pressable>
+              )}
               <Image
                 source={require('@/assets/images/icon.png')}
                 style={[styles.icon, isDesktop && styles.iconDesktop]}
@@ -460,6 +480,7 @@ const makeStyles = (t: Theme) =>
       marginBottom: t.space[7],
     },
     langSlot: { position: 'absolute', top: 0, right: 0 },
+    closeSlot: { position: 'absolute', top: 0, left: 0, padding: 4 },
     icon: { width: 72, height: 72 },
     iconDesktop: { width: 88, height: 88 },
     title: { marginBottom: t.space[8] },

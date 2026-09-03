@@ -1,5 +1,5 @@
 import { router, usePathname } from 'expo-router';
-import { BookOpen, CalendarDays, LogOut, Refrigerator, Settings, ShieldCheck, Star, UserCircle, Users } from 'lucide-react-native';
+import { BookOpen, CalendarDays, LogIn, LogOut, Refrigerator, Settings, ShieldCheck, Star, UserCircle, Users } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
@@ -7,6 +7,7 @@ import type { Theme } from '@/constants/theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useRequireAuth } from '@/hooks/use-auth-gate';
 import { useLanguage } from '@/hooks/use-language';
 import { useSocial } from '@/hooks/use-social';
 import InlineConfirm from '@/components/InlineConfirm';
@@ -24,6 +25,7 @@ interface NavItem {
 export default function DesktopSidebar() {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
+  const requireAuth = useRequireAuth();
   const { t } = useLanguage();
   const { theme } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -85,37 +87,55 @@ export default function DesktopSidebar() {
       <View style={styles.footer}>
         <LanguageSelector />
 
-        <Pressable
-          style={[styles.navItem, pathname.includes('/profile') && styles.navItemActive]}
-          onPress={() => router.push('/profile')}
-        >
-          <UserCircle size={20} color={pathname.includes('/profile') ? theme.textPrimary : theme.textSecondary} />
-          <Text variant="label" style={styles.navLabel} numberOfLines={1}>
-            {user?.username || user?.email || t('profile')}
-          </Text>
-        </Pressable>
+        {user ? (
+          <>
+            <Pressable
+              style={[styles.navItem, pathname.includes('/profile') && styles.navItemActive]}
+              onPress={() => router.push('/profile')}
+            >
+              <UserCircle size={20} color={pathname.includes('/profile') ? theme.textPrimary : theme.textSecondary} />
+              <Text variant="label" style={styles.navLabel} numberOfLines={1}>
+                {user?.username || user?.email || t('profile')}
+              </Text>
+            </Pressable>
 
-        <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
-          <Settings size={20} color={theme.textSecondary} />
-          <Text variant="label" style={styles.navLabel}>{t('settings')}</Text>
-        </Pressable>
+            <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
+              <Settings size={20} color={theme.textSecondary} />
+              <Text variant="label" style={styles.navLabel}>{t('settings')}</Text>
+            </Pressable>
 
-        {confirmingSignOut ? (
-          <InlineConfirm
-            style={styles.signOutConfirm}
-            question={t('signOutConfirmation')}
-            confirmLabel={t('signOut')}
-            destructive
-            onConfirm={handleSignOut}
-            onCancel={() => setConfirmingSignOut(false)}
-          />
+            {confirmingSignOut ? (
+              <InlineConfirm
+                style={styles.signOutConfirm}
+                question={t('signOutConfirmation')}
+                confirmLabel={t('signOut')}
+                destructive
+                onConfirm={handleSignOut}
+                onCancel={() => setConfirmingSignOut(false)}
+              />
+            ) : (
+              <Pressable style={styles.navItem} onPress={() => setConfirmingSignOut(true)}>
+                <LogOut size={20} color={theme.danger} />
+                <Text variant="label" style={[styles.navLabel, { color: theme.danger }]}>
+                  {t('signOut')}
+                </Text>
+              </Pressable>
+            )}
+          </>
         ) : (
-          <Pressable style={styles.navItem} onPress={() => setConfirmingSignOut(true)}>
-            <LogOut size={20} color={theme.danger} />
-            <Text variant="label" style={[styles.navLabel, { color: theme.danger }]}>
-              {t('signOut')}
-            </Text>
-          </Pressable>
+          <>
+            <Pressable style={styles.navItem} onPress={() => router.push('/settings')}>
+              <Settings size={20} color={theme.textSecondary} />
+              <Text variant="label" style={styles.navLabel}>{t('settings')}</Text>
+            </Pressable>
+
+            <Pressable style={[styles.navItem, styles.signInItem]} onPress={() => requireAuth(() => {})} testID="sidebar-sign-in">
+              <LogIn size={20} color={theme.textOnAccent} />
+              <Text variant="label" style={[styles.navLabel, { color: theme.textOnAccent }]}>
+                {t('signIn')}
+              </Text>
+            </Pressable>
+          </>
         )}
       </View>
     </View>
@@ -178,4 +198,5 @@ const makeStyles = (t: Theme) =>
       gap: t.space[1],
     },
     signOutConfirm: { paddingHorizontal: t.space[4], paddingVertical: t.space[3] },
+    signInItem: { backgroundColor: t.accent, marginTop: t.space[2], justifyContent: 'center' },
   });
