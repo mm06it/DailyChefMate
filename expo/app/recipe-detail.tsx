@@ -275,7 +275,7 @@ export default function RecipeDetailScreen() {
             size="lg"
             fullWidth
             leftIcon={<ChefHat size={20} color={theme.textOnAccent} />}
-            onPress={() => setIsCooking(true)}
+            onPress={() => requireAuth(() => setIsCooking(true))}
             testID="start-cooking-button"
           />
         </View>
