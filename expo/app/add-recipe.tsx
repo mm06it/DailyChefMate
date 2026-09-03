@@ -147,8 +147,8 @@ export default function AddRecipeScreen() {
   const [entryMode, setEntryMode] = useState<"choose" | "manual" | "photo">(
     isEditing ? "manual" : "choose",
   );
-  // When editing: the header X / check open a confirm before leaving / saving.
-  const [pendingAction, setPendingAction] = useState<null | "cancel" | "save">(null);
+  // When editing, the header check / bottom save open a "save changes?" confirm.
+  const [confirmSave, setConfirmSave] = useState(false);
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
@@ -369,15 +369,12 @@ export default function AddRecipeScreen() {
   };
 
   // When editing, saving is confirmed first; creating saves straight away.
-  const requestSave = () => (isEditing ? setPendingAction('save') : handleSave());
+  const requestSave = () => (isEditing ? setConfirmSave(true) : handleSave());
 
-  // Header X: editing → confirm (discard / save / keep); creating → just leave
-  // (or step back from the photo screen).
-  const handleHeaderCancel = () => {
-    if (isEditing) setPendingAction('cancel');
-    else if (entryMode === 'photo') setEntryMode('choose');
-    else router.back();
-  };
+  // Header X: step back from the photo screen, otherwise just leave (no
+  // discard-confirm — closing is closing).
+  const handleHeaderCancel = () =>
+    entryMode === 'photo' ? setEntryMode('choose') : router.back();
 
   const addIngredient = () => {
     setFormData((prev) => ({
@@ -998,28 +995,15 @@ export default function AddRecipeScreen() {
       )}
 
       <ConfirmDialog
-        visible={pendingAction === 'cancel'}
-        title={t('discardChanges')}
-        cancelLabel={t('discardChangesConfirm')}
-        confirmLabel={t('keepEditing')}
-        destructive={false}
-        onCancel={() => {
-          setPendingAction(null);
-          router.back();
-        }}
-        onConfirm={() => setPendingAction(null)}
-        testID="discard-changes-dialog"
-      />
-      <ConfirmDialog
-        visible={pendingAction === 'save'}
+        visible={confirmSave}
         title={t('saveChangesConfirm')}
         confirmLabel={t('saveChangesAction')}
         destructive={false}
         onConfirm={() => {
-          setPendingAction(null);
+          setConfirmSave(false);
           handleSave();
         }}
-        onCancel={() => setPendingAction(null)}
+        onCancel={() => setConfirmSave(false)}
         testID="save-changes-dialog"
       />
     </KeyboardAvoidingView>
