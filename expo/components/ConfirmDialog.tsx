@@ -16,10 +16,6 @@ interface ConfirmDialogProps {
   destructive?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
-  // Optional third choice — renders the buttons in a column. Used for the
-  // "discard changes?" prompt (Save / Discard / Keep editing).
-  neutralLabel?: string;
-  onNeutral?: () => void;
   testID?: string;
 }
 
@@ -32,8 +28,6 @@ function ConfirmDialogComponent({
   destructive = true,
   onConfirm,
   onCancel,
-  neutralLabel,
-  onNeutral,
   testID,
 }: ConfirmDialogProps) {
   const { t } = useLanguage();
@@ -54,45 +48,22 @@ function ConfirmDialogComponent({
             </Text>
           )}
 
-          {onNeutral ? (
-            <View style={styles.actionsColumn}>
-              <Button
-                label={confirmLabel ?? t('delete') ?? 'OK'}
-                variant={destructive ? 'danger' : 'primary'}
-                onPress={onConfirm}
-                testID="confirm-dialog-confirm"
-              />
-              <Button
-                label={neutralLabel ?? ''}
-                variant="primary"
-                onPress={onNeutral}
-                testID="confirm-dialog-neutral"
-              />
-              <Button
-                label={cancelLabel ?? t('cancel') ?? 'Abbrechen'}
-                variant="secondary"
-                onPress={onCancel}
-                testID="confirm-dialog-cancel"
-              />
-            </View>
-          ) : (
-            <View style={styles.actions}>
-              <Button
-                label={cancelLabel ?? t('cancel') ?? 'Abbrechen'}
-                variant="secondary"
-                onPress={onCancel}
-                testID="confirm-dialog-cancel"
-                style={styles.flex}
-              />
-              <Button
-                label={confirmLabel ?? t('delete') ?? 'OK'}
-                variant={destructive ? 'danger' : 'primary'}
-                onPress={onConfirm}
-                testID="confirm-dialog-confirm"
-                style={styles.flex}
-              />
-            </View>
-          )}
+          <View style={styles.actions}>
+            <Button
+              label={cancelLabel ?? t('cancel') ?? 'Abbrechen'}
+              variant="secondary"
+              onPress={onCancel}
+              testID="confirm-dialog-cancel"
+              style={styles.flex}
+            />
+            <Button
+              label={confirmLabel ?? t('delete') ?? 'OK'}
+              variant={destructive ? 'danger' : 'primary'}
+              onPress={onConfirm}
+              testID="confirm-dialog-confirm"
+              style={styles.flex}
+            />
+          </View>
         </View>
       </View>
     </Modal>
@@ -121,7 +92,6 @@ const makeStyles = (t: Theme) =>
     },
     message: { marginBottom: t.space[3] },
     actions: { flexDirection: 'row', gap: t.space[3] },
-    actionsColumn: { gap: t.space[2] },
     flex: { flex: 1 },
   });
 

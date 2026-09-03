@@ -1000,18 +1000,14 @@ export default function AddRecipeScreen() {
       <ConfirmDialog
         visible={pendingAction === 'cancel'}
         title={t('discardChanges')}
-        confirmLabel={t('discardChangesConfirm')}
-        neutralLabel={t('saveChangesAction')}
-        cancelLabel={t('keepEditing')}
-        onConfirm={() => {
+        cancelLabel={t('discardChangesConfirm')}
+        confirmLabel={t('keepEditing')}
+        destructive={false}
+        onCancel={() => {
           setPendingAction(null);
           router.back();
         }}
-        onNeutral={() => {
-          setPendingAction(null);
-          handleSave();
-        }}
-        onCancel={() => setPendingAction(null)}
+        onConfirm={() => setPendingAction(null)}
         testID="discard-changes-dialog"
       />
       <ConfirmDialog
