@@ -35,10 +35,13 @@ interface AuthScreenProps {
   // than as the whole app. Adds a close button and drops the pull-to-reload.
   embedded?: boolean;
   onClose?: () => void;
+  // Which form to open on: "signUp" when the user tapped a "create account"
+  // entry point, "signIn" (default) otherwise.
+  initialMode?: 'signIn' | 'signUp';
 }
 
-export default function AuthScreen({ embedded = false, onClose }: AuthScreenProps = {}) {
-  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+export default function AuthScreen({ embedded = false, onClose, initialMode = 'signIn' }: AuthScreenProps = {}) {
+  const [isSignUp, setIsSignUp] = useState<boolean>(initialMode === 'signUp');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -314,11 +317,17 @@ export default function AuthScreen({ embedded = false, onClose }: AuthScreenProp
               </View>
             </View>
 
-            <Text variant="display" center style={styles.title}>
+            <Text variant="display" center style={verificationEmail ? styles.title : styles.titleTight}>
               {verificationEmail
                 ? getTranslation(language, 'verifyEmailTitle')
                 : getTranslation(language, 'welcome')}
             </Text>
+
+            {!verificationEmail && (
+              <Text variant="body" color="secondary" center style={styles.intro}>
+                {getTranslation(language, 'authIntro')}
+              </Text>
+            )}
 
             {verificationEmail ? (
               <View style={styles.form}>
@@ -484,6 +493,8 @@ const makeStyles = (t: Theme) =>
     icon: { width: 72, height: 72 },
     iconDesktop: { width: 88, height: 88 },
     title: { marginBottom: t.space[8] },
+    titleTight: { marginBottom: t.space[3] },
+    intro: { marginBottom: t.space[8] },
     form: { width: '100%', gap: t.space[4] },
     verifyEmail: { marginBottom: t.space[3] },
     codeInput: { textAlign: 'center', letterSpacing: 4, fontSize: 18 },

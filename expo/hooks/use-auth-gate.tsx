@@ -9,9 +9,14 @@ import { useAuth } from "@/hooks/use-auth";
 // pops the login overlay (rendered by <AuthGateModal/>). Once the session
 // lands, the deferred action runs and the overlay closes — the user never
 // leaves the screen they were on.
+export type AuthGateMode = "signIn" | "signUp";
+
 export const [AuthGateProvider, useAuthGate] = createContextHook(() => {
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
+  // Which tab the overlay opens on — "Konto erstellen" entry points ask for
+  // "signUp", everything else defaults to "signIn".
+  const [mode, setMode] = useState<AuthGateMode>("signIn");
   const pending = useRef<null | (() => void | Promise<void>)>(null);
 
   useEffect(() => {
@@ -26,12 +31,13 @@ export const [AuthGateProvider, useAuthGate] = createContextHook(() => {
   }, [user, visible]);
 
   const requireAuth = useCallback(
-    (run: () => void | Promise<void>): boolean => {
+    (run: () => void | Promise<void>, opts?: { mode?: AuthGateMode }): boolean => {
       if (user) {
         run();
         return true;
       }
       pending.current = run;
+      setMode(opts?.mode ?? "signIn");
       setVisible(true);
       return false;
     },
@@ -43,7 +49,7 @@ export const [AuthGateProvider, useAuthGate] = createContextHook(() => {
     setVisible(false);
   }, []);
 
-  return { visible, requireAuth, closeGate };
+  return { visible, mode, requireAuth, closeGate };
 });
 
 // Convenience: most call sites only need the guard function.

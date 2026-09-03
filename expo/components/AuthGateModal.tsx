@@ -6,7 +6,7 @@ import { useAuthGate } from "@/hooks/use-auth-gate";
 
 // The login overlay. Mounted once at the app root; shown by `requireAuth`.
 export default function AuthGateModal() {
-  const { visible, closeGate } = useAuthGate();
+  const { visible, mode, closeGate } = useAuthGate();
   return (
     <Modal
       visible={visible}
@@ -15,7 +15,7 @@ export default function AuthGateModal() {
       transparent={false}
       statusBarTranslucent
     >
-      {visible && <AuthScreen embedded onClose={closeGate} />}
+      {visible && <AuthScreen embedded initialMode={mode} onClose={closeGate} />}
     </Modal>
   );
 }

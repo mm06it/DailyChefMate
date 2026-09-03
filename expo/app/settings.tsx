@@ -163,7 +163,7 @@ export default function SettingsScreen() {
               <Text variant="h2" style={styles.ctaTitle}>{t('guestCtaTitle')}</Text>
               <View style={styles.ctaActions}>
                 <Button label={t('signIn')} fullWidth onPress={() => requireAuth(() => {})} testID="guest-cta-signin" />
-                <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {})} testID="guest-cta-signup" />
+                <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {}, { mode: 'signUp' })} testID="guest-cta-signup" />
               </View>
             </View>
 

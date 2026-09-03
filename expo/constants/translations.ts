@@ -355,6 +355,7 @@ export const TRANSLATIONS = {
     
     // Auth
     welcome: 'Willkommen bei DailyChefMate',
+    authIntro: 'Melde dich an oder erstelle ein Konto, um alle Funktionen zu nutzen.',
     signIn: 'Anmelden',
     signUp: 'Registrieren',
     email: 'E-Mail',
@@ -1489,6 +1490,7 @@ export const TRANSLATIONS = {
     
     // Auth
     welcome: 'Welcome to DailyChefMate',
+    authIntro: 'Sign in or create an account to use all features.',
     signIn: 'Sign In',
     signUp: 'Sign Up',
     email: 'Email',

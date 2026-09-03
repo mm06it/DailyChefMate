@@ -103,7 +103,7 @@ export default function ProfileContent({ onBeforeNavigate }: ProfileContentProps
         <Text variant="h2" style={styles.guestTitle}>{t('guestCtaProfile')}</Text>
         <View style={styles.guestActions}>
           <Button label={t('signIn')} fullWidth onPress={() => requireAuth(() => {})} testID="profile-cta-signin" />
-          <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {})} testID="profile-cta-signup" />
+          <Button label={t('createAccount')} variant="secondary" fullWidth onPress={() => requireAuth(() => {}, { mode: 'signUp' })} testID="profile-cta-signup" />
         </View>
       </View>
     );
