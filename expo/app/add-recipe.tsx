@@ -12,13 +12,17 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { Plus, Minus, X as XIcon, Check, Camera, Trash2 } from "lucide-react-native";
+import { Plus, Minus, X as XIcon, Check, Camera, Trash2, Pencil, ImagePlus } from "lucide-react-native";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useRequireAuth } from "@/hooks/use-auth-gate";
 import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
+import { useRecipeFromPhoto, pickRecipePhoto, type ParsedRecipe } from "@/hooks/use-recipe-from-photo";
+import RecipeVisionLoader from "@/components/RecipeVisionLoader";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/components/Toast";
 import { translateText } from "@/constants/translations";
 import type { Theme } from "@/constants/theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
@@ -137,8 +141,18 @@ export default function AddRecipeScreen() {
   const requireAuth = useRequireAuth();
   const { addCustomRecipe, updateCustomRecipe, getCustomRecipe } = useDailyChefMateStore();
   const { pickAndUpload, uploadPicked, removeImage, uploading } = useRecipeImageUpload();
+  const { showToast } = useToast();
+  const { parsing, progress, parse } = useRecipeFromPhoto();
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
   const [saving, setSaving] = useState<boolean>(false);
+  // How the user is adding this recipe. "choose" shows the fork; "photo" the
+  // camera step; "manual" the normal form (pre-filled if it came from a photo).
+  const isEditing = !!editId;
+  const [entryMode, setEntryMode] = useState<"choose" | "manual" | "photo">(
+    isEditing ? "manual" : "choose",
+  );
+  // When editing, the header check / bottom save open a "save changes?" confirm.
+  const [confirmSave, setConfirmSave] = useState(false);
 
   const [formData, setFormData] = useState<RecipeFormData>({
     name: "",
@@ -161,7 +175,6 @@ export default function AddRecipeScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isEditing = !!editId;
 
   useEffect(() => () => {
     if (navTimer.current) clearTimeout(navTimer.current);
@@ -189,6 +202,56 @@ export default function AddRecipeScreen() {
       return { name: prev.name, visibility: prev.visibility, mode: next, ...restored };
     });
   };
+
+  // Fill the form from an AI-parsed photo, then hand off to the normal form for
+  // review. Visibility is intentionally left null so the user still chooses it.
+  const fillFromParsed = useCallback((p: ParsedRecipe) => {
+    const mode: RecipeMode =
+      p.mode === "baking" || (p.mode == null && (p.ovenHeatC != null || p.ovenTimeMin != null))
+        ? "baking"
+        : "cooking";
+    const cats = CATEGORIES_BY_MODE[mode];
+    setFormData({
+      name: p.name || "",
+      visibility: null,
+      mode,
+      prepTime: p.prepTimeMin != null ? String(p.prepTimeMin) : "0",
+      cookTime: p.cookTimeMin != null ? String(p.cookTimeMin) : "0",
+      ovenTime: p.ovenTimeMin != null ? String(p.ovenTimeMin) : "0",
+      ovenHeat: p.ovenHeatC != null ? String(p.ovenHeatC) : "",
+      ovenMode: "",
+      servings: p.servings != null ? String(p.servings) : "",
+      category: p.category && cats.includes(p.category) ? p.category : "",
+      ingredients:
+        p.ingredients.length > 0
+          ? p.ingredients.map((i) => ({ name: i.name, ...parseAmount(i.amount) }))
+          : [{ name: "", qty: "", unit: "" }],
+      steps: p.steps.length > 0 ? p.steps : [""],
+    });
+  }, []);
+
+  const handlePhoto = useCallback(
+    async (source: "camera" | "library") => {
+      const picked = await pickRecipePhoto(source);
+      if (!picked) return;
+      try {
+        const parsed = await parse(picked);
+        fillFromParsed(parsed);
+        showToast(t("visionReview"), { icon: "check" });
+        setEntryMode("manual");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const key = msg.includes("UNREADABLE")
+          ? "visionUnreadable"
+          : msg.includes("IMAGE_TOO_LARGE")
+            ? "visionImageTooLarge"
+            : "visionFailed";
+        console.error("parseRecipeFromPhoto failed:", msg);
+        showToast(t(key), { icon: "info", variant: "info" });
+      }
+    },
+    [parse, fillFromParsed, showToast, t],
+  );
 
   const isEmpty = useCallback((v: string) => (v ?? '').trim().length === 0, []);
 
@@ -317,6 +380,14 @@ export default function AddRecipeScreen() {
     }
   };
 
+  // When editing, saving is confirmed first; creating saves straight away.
+  const requestSave = () => (isEditing ? setConfirmSave(true) : handleSave());
+
+  // Header X: step back from the photo screen, otherwise just leave (no
+  // discard-confirm — closing is closing).
+  const handleHeaderCancel = () =>
+    entryMode === 'photo' ? setEntryMode('choose') : router.back();
+
   const addIngredient = () => {
     setFormData((prev) => ({
       ...prev,
@@ -437,31 +508,87 @@ export default function AddRecipeScreen() {
         options={{
           title: isEditing ? t('editRecipe') : t('createRecipe'),
           headerTitleAlign: 'center',
-          headerLeft: () => (
-            isEditing ? null : (
-              <Pressable testID="header-cancel" onPress={() => router.back()} style={styles.headerCancel}>
+          headerLeft: () =>
+            parsing ? null : (
+              <Pressable
+                testID="header-cancel"
+                onPress={handleHeaderCancel}
+                style={styles.headerCancel}
+              >
                 <XIcon size={22} color={theme.textPrimary} />
               </Pressable>
-            )
-          ),
-          headerRight: () => (
-            <Pressable
-              testID="header-save"
-              onPress={handleSave}
-              disabled={saving}
-              style={[styles.headerSave, saving && { opacity: 0.4 }]}
-              accessibilityLabel={t('save')}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color={theme.success} />
-              ) : (
-                <Check size={22} color={theme.success} />
-              )}
-            </Pressable>
-          ),
+            ),
+          headerRight: () =>
+            entryMode !== 'manual' || parsing ? null : (
+              <Pressable
+                testID="header-save"
+                onPress={requestSave}
+                disabled={saving}
+                style={[styles.headerSave, saving && { opacity: 0.4 }]}
+                accessibilityLabel={t('save')}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={theme.success} />
+                ) : (
+                  <Check size={22} color={theme.success} />
+                )}
+              </Pressable>
+            ),
         }}
       />
 
+      {parsing ? (
+        <RecipeVisionLoader progress={progress} />
+      ) : entryMode === 'choose' ? (
+        <View style={styles.chooser}>
+          <Text style={styles.chooserTitle}>{t('addRecipeHow')}</Text>
+          <View style={styles.chooserRow}>
+            <Pressable
+              testID="entry-manual"
+              style={styles.chooserCard}
+              onPress={() => setEntryMode('manual')}
+            >
+              <Pencil size={28} color={theme.accent} />
+              <Text style={styles.chooserCardText}>{t('addManually')}</Text>
+            </Pressable>
+            <Pressable
+              testID="entry-photo"
+              style={styles.chooserCard}
+              onPress={() => setEntryMode('photo')}
+            >
+              <Camera size={28} color={theme.accent} />
+              <Text style={styles.chooserCardText}>{t('photographRecipe')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : entryMode === 'photo' ? (
+        <View style={styles.chooser}>
+          <Text style={styles.chooserTitle}>{t('photographRecipe')}</Text>
+          <Text style={styles.chooserHint}>{t('photographRecipeHint')}</Text>
+          <View style={styles.chooserRow}>
+            <Pressable
+              testID="photo-camera"
+              style={styles.chooserCard}
+              onPress={() => handlePhoto('camera')}
+            >
+              <Camera size={28} color={theme.accent} />
+              <Text style={styles.chooserCardText}>{t('takePhoto')}</Text>
+            </Pressable>
+            <Pressable
+              testID="photo-library"
+              style={styles.chooserCard}
+              onPress={() => handlePhoto('library')}
+            >
+              <ImagePlus size={28} color={theme.accent} />
+              <Text style={styles.chooserCardText}>{t('chooseImage')}</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={() => setEntryMode('choose')} style={styles.chooserBack}>
+            <Text style={styles.chooserBackText}>{t('backToChoice')}</Text>
+          </Pressable>
+        </View>
+      ) : (
+      <>
       {errorMessage && (
         <View style={styles.fixedBannerContainer}>
           <View testID="validation-banner" style={styles.errorBanner}>
@@ -873,7 +1000,7 @@ export default function AddRecipeScreen() {
 
               <Pressable
                 testID="button-save-recipe-bottom"
-                onPress={handleSave}
+                onPress={requestSave}
                 disabled={saving}
                 style={[styles.primarySaveButton, saving && { opacity: 0.6 }]}
               >
@@ -888,6 +1015,21 @@ export default function AddRecipeScreen() {
         </View>
         </ResponsiveContainer>
       </ScrollView>
+      </>
+      )}
+
+      <ConfirmDialog
+        visible={confirmSave}
+        title={t('saveChangesConfirm')}
+        confirmLabel={t('saveChangesAction')}
+        destructive={false}
+        onConfirm={() => {
+          setConfirmSave(false);
+          handleSave();
+        }}
+        onCancel={() => setConfirmSave(false)}
+        testID="save-changes-dialog"
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -939,6 +1081,58 @@ const makeStyles = (t: Theme) => StyleSheet.create({
   },
   form: {
     padding: 16,
+  },
+  chooser: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    gap: 20,
+  },
+  chooserTitle: {
+    fontFamily: t.font.displayBold,
+    fontSize: 20,
+    color: t.textPrimary,
+    textAlign: 'center',
+  },
+  chooserHint: {
+    fontFamily: t.font.body,
+    fontSize: 14,
+    color: t.textSecondary,
+    textAlign: 'center',
+    marginTop: -8,
+  },
+  chooserRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    maxWidth: 420,
+  },
+  chooserCard: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: t.border,
+    backgroundColor: t.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 12,
+  },
+  chooserCardText: {
+    fontFamily: t.font.bodySemibold,
+    fontSize: 14,
+    color: t.textPrimary,
+    textAlign: 'center',
+  },
+  chooserBack: {
+    paddingVertical: 8,
+  },
+  chooserBackText: {
+    fontFamily: t.font.bodyMedium,
+    fontSize: 14,
+    color: t.textSecondary,
   },
   section: {
     marginBottom: 24,

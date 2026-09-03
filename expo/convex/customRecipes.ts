@@ -48,6 +48,7 @@ export const list = query({
     const rows = await ctx.db
       .query("customRecipes")
       .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc") // newest recipes first
       .collect();
     // Resolve an uploaded photo to a served URL — it wins over `image`.
     return await Promise.all(
