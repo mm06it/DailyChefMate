@@ -1,4 +1,5 @@
 import { useAction } from "convex/react";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useRef, useState } from "react";
 import { Animated, Platform } from "react-native";
@@ -24,39 +25,53 @@ export interface ParsedRecipe {
   steps: string[];
 }
 
-// Opens the camera / photo library and returns the picked image as base64.
-// No upload — the bytes go straight to the vision action.
+// A raw phone photo is far too big to send as a base64 action argument, so
+// downscale + re-compress before encoding: long edge <= 1600 px, JPEG q0.55.
+// That's ~150–500 KB, plenty for OCR and well within Convex's arg limit.
+async function toCompactBase64(uri: string): Promise<string | null> {
+  try {
+    const out = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: 1600 } }], {
+      compress: 0.55,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+    return out.base64 ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Opens the camera / photo library, downscales, returns the image as base64.
 export async function pickRecipePhoto(
   source: "camera" | "library",
 ): Promise<PickedPhoto | null> {
+  let uri: string | null = null;
+
   if (source === "camera") {
     if (Platform.OS !== "web") {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) return null;
     }
-    const res = await ImagePicker.launchCameraAsync({
-      base64: true,
-      quality: 0.5,
+    const res = await ImagePicker.launchCameraAsync({ quality: 1, allowsEditing: true });
+    if (res.canceled || !res.assets?.[0]?.uri) return null;
+    uri = res.assets[0].uri;
+  } else {
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return null;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 1,
       allowsEditing: true,
     });
-    if (res.canceled || !res.assets?.[0]?.base64) return null;
-    const a = res.assets[0];
-    return { base64: a.base64!, mimeType: a.mimeType ?? "image/jpeg" };
+    if (res.canceled || !res.assets?.[0]?.uri) return null;
+    uri = res.assets[0].uri;
   }
 
-  if (Platform.OS !== "web") {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return null;
-  }
-  const res = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ["images"],
-    base64: true,
-    quality: 0.5,
-    allowsEditing: true,
-  });
-  if (res.canceled || !res.assets?.[0]?.base64) return null;
-  const a = res.assets[0];
-  return { base64: a.base64!, mimeType: a.mimeType ?? "image/jpeg" };
+  const base64 = await toCompactBase64(uri);
+  if (!base64) return null;
+  return { base64, mimeType: "image/jpeg" };
 }
 
 // Drives the vision call + a simulated progress value (a single completion

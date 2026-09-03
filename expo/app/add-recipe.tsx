@@ -226,10 +226,13 @@ export default function AddRecipeScreen() {
         setEntryMode("manual");
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        showToast(msg === "UNREADABLE" ? t("visionUnreadable") : t("visionFailed"), {
-          icon: "info",
-          variant: "info",
-        });
+        const key = msg.includes("UNREADABLE")
+          ? "visionUnreadable"
+          : msg.includes("IMAGE_TOO_LARGE")
+            ? "visionImageTooLarge"
+            : "visionFailed";
+        console.error("parseRecipeFromPhoto failed:", msg);
+        showToast(t(key), { icon: "info", variant: "info" });
       }
     },
     [parse, fillFromParsed, showToast, t],
