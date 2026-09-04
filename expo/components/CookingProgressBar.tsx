@@ -84,7 +84,7 @@ export default function CookingProgressBar() {
       pointerEvents="box-none"
       style={[
         styles.wrap,
-        { top: insets.top + 10, left: (isDesktop ? theme.layout.sidebarWidth : 0) + 12 },
+        { top: insets.top + 10, paddingLeft: (isDesktop ? theme.layout.sidebarWidth : 0) + 12 },
       ]}
     >
       <View style={styles.card}>
@@ -139,10 +139,15 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     wrap: {
       position: "absolute",
-      right: 12,
+      left: 0,
+      right: 0,
+      paddingRight: 12,
+      alignItems: "center",
       zIndex: 50,
     },
     card: {
+      width: "100%",
+      maxWidth: 340,
       backgroundColor: t.surfaceRaised,
       borderRadius: t.radius.lg,
       borderWidth: t.borderWidth.hairline,
