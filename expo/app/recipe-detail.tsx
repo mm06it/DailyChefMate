@@ -1,6 +1,6 @@
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "convex/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View, Pressable } from "react-native";
 import { Minus, Plus, ChefHat, Star } from "lucide-react-native";
 
@@ -37,7 +37,7 @@ const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 20;
 
 export default function RecipeDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, step: stepParam } = useLocalSearchParams<{ id: string; step?: string }>();
   const { recipes, customRecipes, favorites, cookedRecipes, markRecipeAsCooked, recordRecipeView } =
     useDailyChefMateStore();
   const { currentLanguage, t } = useLanguage();
@@ -106,6 +106,31 @@ export default function RecipeDetailScreen() {
   const [rateModalVisible, setRateModalVisible] = useState<boolean>(false);
   const [navigateAfterRate, setNavigateAfterRate] = useState<boolean>(false);
   const [justPlanned, setJustPlanned] = useState<boolean>(false);
+
+  // Deep link from the top cooking bar: `?step=N` scrolls that step into view.
+  const scrollRef = useRef<ScrollView>(null);
+  const stepRefs = useRef<Record<number, View | null>>({});
+  useEffect(() => {
+    const target = Number(stepParam);
+    if (!isCooking || !Number.isFinite(target)) return;
+    const id = setTimeout(() => {
+      try {
+        const node = stepRefs.current[target];
+        const scroller = (scrollRef.current as any)?.getScrollableNode?.() ?? scrollRef.current;
+        if (node && scroller) {
+          (node as any).measureLayout(
+            scroller,
+            (_x: number, y: number) =>
+              scrollRef.current?.scrollTo({ y: Math.max(0, y - 96), animated: true }),
+            () => {},
+          );
+        }
+      } catch {
+        /* best effort — no scroll on failure */
+      }
+    }, 350);
+    return () => clearTimeout(id);
+  }, [stepParam, isCooking, steps.length]);
 
   const friendRatings = useQuery(api.ratings.friendRatings, id ? { recipeId: id } : "skip");
 
@@ -189,7 +214,8 @@ export default function RecipeDetailScreen() {
   const friendItems = (friendRatings?.items ?? []).filter((r) => !r.isMe);
 
   return (
-    <ScrollView 
+    <ScrollView
+      ref={scrollRef}
       style={styles.container}
       showsVerticalScrollIndicator={false}
     >
@@ -331,14 +357,15 @@ export default function RecipeDetailScreen() {
                 const isActive = index === nextActiveStep || isCompleted;
 
                 return (
-                  <RecipeStepItem
-                    key={index}
-                    step={step}
-                    index={index}
-                    isCompleted={isCompleted}
-                    isActive={isActive}
-                    onToggle={() => handleStepToggle(index)}
-                  />
+                  <View key={index} ref={(r) => { stepRefs.current[index] = r; }}>
+                    <RecipeStepItem
+                      step={step}
+                      index={index}
+                      isCompleted={isCompleted}
+                      isActive={isActive}
+                      onToggle={() => handleStepToggle(index)}
+                    />
+                  </View>
                 );
               })}
             </View>

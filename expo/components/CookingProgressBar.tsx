@@ -52,7 +52,8 @@ export default function CookingProgressBar() {
   const remaining = session.completed.filter((c) => !c).length;
   const onLast = remaining <= 1;
 
-  const openRecipe = () => router.push(`/recipe-detail?id=${session.recipeId}`);
+  const openRecipe = () =>
+    router.push(`/recipe-detail?id=${session.recipeId}&step=${idx}`);
 
   const finish = () => {
     const rid = session.recipeId;
@@ -84,7 +85,10 @@ export default function CookingProgressBar() {
       pointerEvents="box-none"
       style={[
         styles.wrap,
-        { top: insets.top + 10, paddingLeft: (isDesktop ? theme.layout.sidebarWidth : 0) + 12 },
+        {
+          left: (isDesktop ? theme.layout.sidebarWidth : 0) + 12,
+          bottom: insets.bottom + (isDesktop ? 12 : theme.layout.tabBarHeight + 8),
+        },
       ]}
     >
       <View style={styles.card}>
@@ -139,15 +143,13 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     wrap: {
       position: "absolute",
-      left: 0,
-      right: 0,
-      paddingRight: 12,
-      alignItems: "center",
+      right: 12,
+      alignItems: "flex-start",
       zIndex: 50,
     },
     card: {
       width: "100%",
-      maxWidth: 340,
+      maxWidth: 320,
       backgroundColor: t.surfaceRaised,
       borderRadius: t.radius.lg,
       borderWidth: t.borderWidth.hairline,
