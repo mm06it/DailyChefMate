@@ -28,6 +28,12 @@ export default function IngredientItem({ ingredient, showRemove = false, onSelec
 
   const handleToggle = () => {
     if (ingredient.isSelected) {
+      // Only confirm when there's an amount to lose; a bare selection just toggles off.
+      const hasAmount = !!ingredient.amount && ingredient.amount.trim().length > 0;
+      if (!hasAmount) {
+        toggleIngredientSelection(ingredient.id);
+        return;
+      }
       setConfirmConfig({
         title: t('unselectIngredient') || 'Auswahl aufheben',
         message: translateText(currentLanguage, ingredient.name) || ingredient.name,
