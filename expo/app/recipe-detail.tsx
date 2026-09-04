@@ -11,6 +11,7 @@ import RatingStars from "@/components/RatingStars";
 import Avatar from "@/components/Avatar";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
+import MengeWheel from "@/components/MengeWheel";
 import type { Theme } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
@@ -22,6 +23,7 @@ import { useMealPlan } from "@/hooks/use-meal-plan";
 import { useRatings } from "@/hooks/use-ratings";
 import { useRecipeImageUpload } from "@/hooks/use-recipe-image";
 import { useRequireAuth } from "@/hooks/use-auth-gate";
+import { useCookingSession } from "@/hooks/use-cooking-session";
 import { useLocalizedRecipes } from "@/hooks/use-localized-recipes";
 import ResponsiveContainer from "@/components/ResponsiveContainer";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +32,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { scaleAmount } from "@/lib/scale-amount";
 import { normalizeSteps } from "@/lib/normalize-steps";
+import { bakingBaseMenge } from "@/lib/menge";
 
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 20;
@@ -59,6 +62,9 @@ export default function RecipeDetailScreen() {
   // Localize browse/favorite recipes (not the user's own — those keep the
   // language they were written in).
   const isCustom = !!recipe && customRecipes.some((c) => c.id === recipe.id);
+  // Baking recipes scale by a fractional "Menge" (0.25 steps) instead of
+  // integer portions.
+  const isBaking = recipe?.mode === "baking";
   const localized = useLocalizedRecipes(recipe && !isCustom ? [recipe] : []);
   const localizedRecipe = isCustom ? recipe : localized[0] ?? recipe;
 
@@ -76,12 +82,26 @@ export default function RecipeDetailScreen() {
     // Only re-fire when the viewed recipe actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipe?.id]);
-  const [completedSteps, setCompletedSteps] = useState<boolean[]>([]);
+  const cooking = useCookingSession();
+  const [localCompleted, setLocalCompleted] = useState<boolean[]>([]);
   useEffect(() => {
-    setCompletedSteps(new Array(steps.length).fill(false));
+    setLocalCompleted(new Array(steps.length).fill(false));
   }, [steps.length]);
-  const [servings, setServings] = useState<number>(recipe?.servings && recipe.servings > 0 ? recipe.servings : 1);
-  const [isCooking, setIsCooking] = useState<boolean>(false);
+  const [servings, setServings] = useState<number>(
+    isBaking ? bakingBaseMenge(recipe ?? {}) : (recipe?.servings && recipe.servings > 0 ? recipe.servings : 1),
+  );
+  // Cooking state lives in the persistent session so leaving and coming back
+  // (or the top progress bar's "Weiter") stays in sync.
+  const sessionMatches =
+    !!recipe &&
+    cooking.session?.recipeId === recipe.id &&
+    cooking.session.steps.length === steps.length;
+  const isCooking = sessionMatches;
+  const completedSteps = sessionMatches ? cooking.session!.completed : localCompleted;
+  const applyCompleted = (next: boolean[]) => {
+    if (sessionMatches) cooking.setCompleted(next);
+    else setLocalCompleted(next);
+  };
   const [planModalVisible, setPlanModalVisible] = useState<boolean>(false);
   const [shareSheetVisible, setShareSheetVisible] = useState<boolean>(false);
   const [rateModalVisible, setRateModalVisible] = useState<boolean>(false);
@@ -91,9 +111,11 @@ export default function RecipeDetailScreen() {
   const friendRatings = useQuery(api.ratings.friendRatings, id ? { recipeId: id } : "skip");
 
   const servingsRatio = useMemo(() => {
-    const base = recipe?.servings && recipe.servings > 0 ? recipe.servings : 1;
+    const base = isBaking
+      ? bakingBaseMenge(recipe ?? {})
+      : (recipe?.servings && recipe.servings > 0 ? recipe.servings : 1);
     return servings / base;
-  }, [servings, recipe?.servings]);
+  }, [servings, recipe?.servings, isBaking]);
 
   if (!recipe) {
     return (
@@ -119,7 +141,7 @@ export default function RecipeDetailScreen() {
     if (stepIndex === nextActiveStep || completedSteps[stepIndex]) {
       const newCompletedSteps = [...completedSteps];
       newCompletedSteps[stepIndex] = !newCompletedSteps[stepIndex];
-      setCompletedSteps(newCompletedSteps);
+      applyCompleted(newCompletedSteps);
     }
   };
 
@@ -135,6 +157,7 @@ export default function RecipeDetailScreen() {
     requireAuth(() => {
       markRecipeAsCooked(recipe.id);
       markPlannedCooked(recipe.id);
+      cooking.stop();
       setNavigateAfterRate(true);
       setRateModalVisible(true);
     });
@@ -227,29 +250,38 @@ export default function RecipeDetailScreen() {
       <View style={styles.section}>
         <View style={styles.ingredientsHeaderRow}>
           <Text variant="h2">{getTranslation(currentLanguage, 'ingredients')}</Text>
-          <View style={styles.servingsStepper}>
-            <Pressable
-              style={[styles.servingsButton, (isCooking || servings <= MIN_SERVINGS) && styles.servingsButtonDisabled]}
-              onPress={handleDecreaseServings}
-              disabled={isCooking || servings <= MIN_SERVINGS}
-              testID="servings-decrease"
-            >
-              <Minus size={16} color={isCooking || servings <= MIN_SERVINGS ? theme.textMuted : theme.accent} />
-            </Pressable>
-            <Text variant="title" style={styles.servingsValue} testID="servings-value">{servings}</Text>
-            <Pressable
-              style={[styles.servingsButton, (isCooking || servings >= MAX_SERVINGS) && styles.servingsButtonDisabled]}
-              onPress={handleIncreaseServings}
-              disabled={isCooking || servings >= MAX_SERVINGS}
-              testID="servings-increase"
-            >
-              <Plus size={16} color={isCooking || servings >= MAX_SERVINGS ? theme.textMuted : theme.accent} />
-            </Pressable>
-          </View>
+          {isBaking ? (
+            <View style={styles.mengeControl}>
+              <Text variant="label" color="secondary">{getTranslation(currentLanguage, 'amountLabel')}</Text>
+              <View pointerEvents={isCooking ? 'none' : 'auto'} style={isCooking && styles.servingsButtonDisabled}>
+                <MengeWheel value={servings} onChange={setServings} testID="menge-wheel" />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.servingsStepper}>
+              <Pressable
+                style={[styles.servingsButton, (isCooking || servings <= MIN_SERVINGS) && styles.servingsButtonDisabled]}
+                onPress={handleDecreaseServings}
+                disabled={isCooking || servings <= MIN_SERVINGS}
+                testID="servings-decrease"
+              >
+                <Minus size={16} color={isCooking || servings <= MIN_SERVINGS ? theme.textMuted : theme.accent} />
+              </Pressable>
+              <Text variant="title" style={styles.servingsValue} testID="servings-value">{servings}</Text>
+              <Pressable
+                style={[styles.servingsButton, (isCooking || servings >= MAX_SERVINGS) && styles.servingsButtonDisabled]}
+                onPress={handleIncreaseServings}
+                disabled={isCooking || servings >= MAX_SERVINGS}
+                testID="servings-increase"
+              >
+                <Plus size={16} color={isCooking || servings >= MAX_SERVINGS ? theme.textMuted : theme.accent} />
+              </Pressable>
+            </View>
+          )}
         </View>
         {!isCooking && (
           <Text variant="bodySm" color="muted" style={styles.sectionHint}>
-            {getTranslation(currentLanguage, 'servingsAdjustHint')}
+            {getTranslation(currentLanguage, isBaking ? 'amountAdjustHint' : 'servingsAdjustHint')}
           </Text>
         )}
         <Card style={styles.ingredientsList}>
@@ -275,7 +307,11 @@ export default function RecipeDetailScreen() {
             size="lg"
             fullWidth
             leftIcon={<ChefHat size={20} color={theme.textOnAccent} />}
-            onPress={() => requireAuth(() => setIsCooking(true))}
+            onPress={() =>
+              requireAuth(() =>
+                cooking.start({ id: recipe.id, name: displayRecipe.name, steps }),
+              )
+            }
             testID="start-cooking-button"
           />
         </View>
@@ -284,8 +320,11 @@ export default function RecipeDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionTitleContainer}>
               <Text variant="h2">{getTranslation(currentLanguage, 'instructions')}</Text>
-              <Text variant="bodySm" color="muted" style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
+              <Pressable onPress={() => cooking.stop()} hitSlop={8} testID="cancel-cooking">
+                <Text variant="bodySm" color="danger">{getTranslation(currentLanguage, 'cancelCooking')}</Text>
+              </Pressable>
             </View>
+            <Text variant="bodySm" color="muted" style={styles.sectionHint}>{getTranslation(currentLanguage, 'tapToComplete')}</Text>
             <View style={styles.stepsList}>
               {steps.map((step, index) => {
                 const nextActiveStep = getNextActiveStep();
@@ -364,6 +403,9 @@ const makeStyles = (t: Theme) =>
     },
     sectionTitleContainer: {
       marginBottom: t.space[4],
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
     },
     sectionHint: {
       marginTop: 2,
@@ -421,6 +463,7 @@ const makeStyles = (t: Theme) =>
     },
     servingsButtonDisabled: { opacity: 0.5 },
     servingsValue: { minWidth: 20, textAlign: "center" },
+    mengeControl: { alignItems: "center", gap: t.space[1] },
     startCookingContainer: {
       padding: t.space[5],
       marginTop: t.space[3],

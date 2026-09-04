@@ -36,7 +36,9 @@ import { convex } from "@/lib/convex";
 import { secureStorage, PENDING_USERNAME_KEY } from "@/lib/auth-storage";
 import DesktopSidebar from "@/components/DesktopSidebar";
 import AuthGateModal from "@/components/AuthGateModal";
+import CookingProgressBar from "@/components/CookingProgressBar";
 import { AuthGateProvider } from "@/hooks/use-auth-gate";
+import { CookingSessionProvider } from "@/hooks/use-cooking-session";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -167,6 +169,7 @@ function RootLayoutNav() {
   // users can browse everything, `requireAuth` pops it on a gated action.
   return (
     <>
+      <CookingProgressBar />
       {content}
       <AuthGateModal />
     </>
@@ -212,9 +215,11 @@ export default function RootLayout() {
                     <MealPlanContext>
                       <SocialContext>
                         <RatingsContext>
-                          <GestureHandlerRootView style={{ flex: 1 }}>
-                            <RootLayoutNav />
-                          </GestureHandlerRootView>
+                          <CookingSessionProvider>
+                            <GestureHandlerRootView style={{ flex: 1 }}>
+                              <RootLayoutNav />
+                            </GestureHandlerRootView>
+                          </CookingSessionProvider>
                         </RatingsContext>
                       </SocialContext>
                     </MealPlanContext>

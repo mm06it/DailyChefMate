@@ -21,6 +21,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { useRecipeFromPhoto, pickRecipePhoto, type ParsedRecipe } from "@/hooks/use-recipe-from-photo";
 import { errorCode } from "@/lib/error-code";
+import { MENGE_MIN, MENGE_STEP, clampMenge, formatMenge, parseMenge } from "@/lib/menge";
 import RecipeVisionLoader from "@/components/RecipeVisionLoader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
@@ -200,6 +201,8 @@ export default function AddRecipeScreen() {
       if (prev.mode === next) return prev;
       if (prev.mode) savedByMode.current[prev.mode] = pickModeSlice(prev);
       const restored = savedByMode.current[next] ?? freshModeSlice();
+      // Baking's "Menge" defaults to 1 so the field starts valid.
+      if (next === 'baking' && !restored.servings) restored.servings = '1';
       return { name: prev.name, visibility: prev.visibility, mode: next, ...restored };
     });
   };
@@ -281,6 +284,8 @@ export default function AddRecipeScreen() {
       base.ovenTime = num(formData.ovenTime) <= 0;
       base.ovenHeat = isEmpty(formData.ovenHeat) || num(formData.ovenHeat) <= 0;
       base.ovenMode = isEmpty(formData.ovenMode);
+      const m = parseMenge(formData.servings);
+      base.servings = !Number.isFinite(m) || m < MENGE_MIN;
     }
     return base;
   }, [formData, isEmpty]);
@@ -347,7 +352,14 @@ export default function AddRecipeScreen() {
       ovenHeat: mode === 'baking' ? `${num(formData.ovenHeat)} °C` : undefined,
       ovenTime: mode === 'baking' ? `${num(formData.ovenTime)} min` : undefined,
       ovenMode: mode === 'baking' ? formData.ovenMode : undefined,
-      servings: mode === 'cooking' ? num(formData.servings) : 1,
+      // Cooking: integer portions. Baking: the "Menge" multiplier (0.25 steps),
+      // clamped, falling back to 1 if somehow unset.
+      servings:
+        mode === 'cooking'
+          ? num(formData.servings)
+          : (Number.isFinite(parseMenge(formData.servings))
+              ? clampMenge(parseMenge(formData.servings))
+              : 1),
       category: formData.category,
       visibility: formData.visibility ?? 'public',
       ingredients: formData.ingredients.map((ing, index) => ({
@@ -431,6 +443,13 @@ export default function AddRecipeScreen() {
 
   const stepTime = (key: 'prepTime' | 'cookTime' | 'ovenTime', delta: number) => {
     setFormData((prev) => ({ ...prev, [key]: String(Math.max(0, num(prev[key]) + delta)) }));
+  };
+
+  const stepMenge = (delta: number) => {
+    setFormData((prev) => {
+      const current = Number.isFinite(parseMenge(prev.servings)) ? parseMenge(prev.servings) : 1;
+      return { ...prev, servings: formatMenge(clampMenge(current + delta)).replace(',', '.') };
+    });
   };
 
   const renderTimeField = (
@@ -831,6 +850,36 @@ export default function AddRecipeScreen() {
                       ))}
                     </View>
                   )}
+                </View>
+              )}
+
+              {/* Baking: Menge (0.25 steps) instead of integer servings */}
+              {formData.mode === 'baking' && (
+                <View style={styles.section}>
+                  <Text style={styles.label}>
+                    {t('amountLabel')} {invalid.servings && (<Text style={styles.required}>*</Text>)}
+                  </Text>
+                  <View style={styles.mengeRow}>
+                    <Pressable
+                      testID="menge-decrement"
+                      onPress={() => stepMenge(-MENGE_STEP)}
+                      style={styles.mengeButton}
+                      accessibilityLabel="−"
+                    >
+                      <Minus size={18} color={theme.textPrimary} />
+                    </Pressable>
+                    <Text style={styles.mengeValue} testID="menge-value">
+                      {formatMenge(Number.isFinite(parseMenge(formData.servings)) ? parseMenge(formData.servings) : 1)}
+                    </Text>
+                    <Pressable
+                      testID="menge-increment"
+                      onPress={() => stepMenge(MENGE_STEP)}
+                      style={styles.mengeButton}
+                      accessibilityLabel="+"
+                    >
+                      <Plus size={18} color={theme.textPrimary} />
+                    </Pressable>
+                  </View>
                 </View>
               )}
 
@@ -1367,6 +1416,27 @@ const makeStyles = (t: Theme) => StyleSheet.create({
   timeButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
+  },
+  mengeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: t.surface,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mengeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  mengeValue: {
+    minWidth: 56,
+    textAlign: 'center',
+    fontFamily: t.font.bodyBold,
+    fontSize: 16,
+    color: t.textPrimary,
   },
   timeValueBox: {
     paddingHorizontal: 12,

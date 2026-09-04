@@ -15,6 +15,7 @@ import { useToast } from "@/components/Toast";
 import { Badge } from "@/components/ui/Badge";
 import { Text } from "@/components/ui/Text";
 import { Recipe } from "@/types/recipe";
+import { bakingBaseMenge, formatMenge } from "@/lib/menge";
 
 interface RecipeDetailHeaderProps {
   recipe: Recipe;
@@ -196,7 +197,9 @@ export default function RecipeDetailHeader({
           <View style={styles.infoItem}>
             <Users size={16} color={theme.textMuted} />
             <Text variant="bodySm" color="secondary">
-              {recipe.servings} {getTranslation(currentLanguage, "servings")}
+              {showOven
+                ? `${getTranslation(currentLanguage, "amountLabel")} ${formatMenge(bakingBaseMenge(recipe))}`
+                : `${recipe.servings} ${getTranslation(currentLanguage, "servings")}`}
             </Text>
           </View>
         </View>

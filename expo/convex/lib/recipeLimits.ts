@@ -57,7 +57,8 @@ export function clampRecipeSnapshot<T extends Record<string, any>>(r: T): T {
     name: str(r.name, NAME_MAX).trim() || "Recipe",
     image: safeImage(r.image),
     rating: clampNum(r.rating, 0, 5, 0),
-    servings: clampNum(r.servings, 1, 100, 1),
+    // Floor is 0.25, not 1: baking recipes store a fractional "Menge" here.
+    servings: clampNum(r.servings, 0.25, 100, 1),
     cookTime: str(r.cookTime, SHORT_FIELD_MAX),
     category: str(r.category, CATEGORY_MAX),
     steps: steps.slice(0, STEPS_MAX).map((s) => str(s, STEP_MAX)),
