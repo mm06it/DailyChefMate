@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { rateLimiter } from "./rateLimits";
@@ -10,7 +10,7 @@ const RATING_NOTIFY_CAP = 300;
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   return userId;
 }
 
@@ -68,7 +68,7 @@ export const rate = mutation({
       .query("cookedRecipes")
       .withIndex("by_user_and_recipe", (q) => q.eq("userId", me).eq("recipeId", recipeId))
       .unique();
-    if (!cooked) throw new Error("NOT_COOKED");
+    if (!cooked) throw new ConvexError("NOT_COOKED");
 
     // Owner (custom recipes only).
     const customId = ctx.db.normalizeId("customRecipes", recipeId);

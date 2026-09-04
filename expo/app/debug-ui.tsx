@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import { Calendar, Plus, Search, Star, Trash2 } from "lucide-react-native";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -20,14 +21,14 @@ import {
 } from "@/components/ui";
 
 // Dev-only visual catalogue of every UI primitive, for QA in light + dark.
-// Not linked anywhere; open /debug-ui directly.
+// Not linked anywhere; open /debug-ui directly during development.
 export default function DebugUI() {
   const { theme, mode, setMode } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [seg, setSeg] = useState("feed");
 
-  // Dev-only catalogue — inert in production builds.
-  if (!__DEV__) return null;
+  // Production builds have no debug surface — bounce any direct hit to the app.
+  if (!__DEV__) return <Redirect href="/(tabs)/(recipes)/all" />;
 
   return (
     <Screen scroll maxWidth="content" padded={6}>

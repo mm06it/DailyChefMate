@@ -218,10 +218,11 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
         const { error, pendingVerification } = await signUp(trimmedEmail, password);
         if (error) {
           const msg = String((error as any)?.message ?? '');
+          const pwMatch = msg.match(/PASSWORD_TOO_(SHORT|LONG|COMMON|SIMPLE)/);
           if (/already (exists|registered)/i.test(msg)) {
             setEmailError(tr('emailAlreadyRegistered') ?? 'Für diese E-Mail-Adresse gibt es bereits ein Konto');
-          } else if (/^PASSWORD_TOO_(SHORT|LONG|COMMON|SIMPLE)$/.test(msg)) {
-            setPasswordError(passwordIssueMessage(msg as PasswordIssue));
+          } else if (pwMatch) {
+            setPasswordError(passwordIssueMessage(`PASSWORD_TOO_${pwMatch[1]}` as PasswordIssue));
           } else if (/password/i.test(msg)) {
             setPasswordError(passwordIssueMessage('PASSWORD_TOO_SIMPLE'));
           } else {

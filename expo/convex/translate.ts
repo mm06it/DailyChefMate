@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { action, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
@@ -201,7 +201,7 @@ export const translateRecipes = action({
     const isAnon = !userId;
     await rateLimiter.limit(ctx, "aiTranslate", { key: userId ?? ANON_RATE_KEY, throws: true });
 
-    if (rawRecipes.length > MAX_RECIPES_PER_CALL) throw new Error("TOO_MANY_RECIPES");
+    if (rawRecipes.length > MAX_RECIPES_PER_CALL) throw new ConvexError("TOO_MANY_RECIPES");
     const recipes = rawRecipes.map(clampInput);
 
     const out: Record<string, Translated> = {};

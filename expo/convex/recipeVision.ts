@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { action, type ActionCtx } from "./_generated/server";
 import { rateLimiter } from "./rateLimits";
@@ -12,7 +12,7 @@ import { normalizeSteps } from "../lib/normalize-steps";
 
 async function requireUserId(ctx: ActionCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   return userId;
 }
 
@@ -102,9 +102,9 @@ export const parseRecipeFromPhoto = action({
     await rateLimiter.limit(ctx, "aiRecipePhoto", { key: userId, throws: true });
 
     if (!imageBase64 || imageBase64.length > MAX_BASE64_LEN) {
-      throw new Error("IMAGE_TOO_LARGE");
+      throw new ConvexError("IMAGE_TOO_LARGE");
     }
-    if (!AI_API_KEY) throw new Error("AI_UNAVAILABLE");
+    if (!AI_API_KEY) throw new ConvexError("AI_UNAVAILABLE");
 
     const mime = /^image\/(jpeg|png|webp|heic|heif)$/.test(mimeType) ? mimeType : "image/jpeg";
 
@@ -131,7 +131,7 @@ export const parseRecipeFromPhoto = action({
     });
     if (!res.ok) {
       console.error("parseRecipeFromPhoto AI HTTP", res.status, (await res.text()).slice(0, 300));
-      throw new Error("AI_FAILED");
+      throw new ConvexError("AI_FAILED");
     }
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const text = data?.choices?.[0]?.message?.content ?? "";
@@ -141,7 +141,7 @@ export const parseRecipeFromPhoto = action({
       parsed = JSON.parse(text);
     } catch (e) {
       console.error("parseRecipeFromPhoto parse failed", text.slice(0, 200), e);
-      throw new Error("UNREADABLE");
+      throw new ConvexError("UNREADABLE");
     }
     if (
       !parsed ||
@@ -150,7 +150,7 @@ export const parseRecipeFromPhoto = action({
       (!Array.isArray((parsed as Record<string, unknown>).steps) &&
         !Array.isArray((parsed as Record<string, unknown>).ingredients))
     ) {
-      throw new Error("UNREADABLE");
+      throw new ConvexError("UNREADABLE");
     }
     return coerce(parsed);
   },

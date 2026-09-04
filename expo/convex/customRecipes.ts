@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { clampRecipeSnapshot } from "./lib/recipeLimits";
@@ -32,10 +32,10 @@ const recipeArgs = {
 
 async function requireOwnRecipe(ctx: MutationCtx, id: Id<"customRecipes">) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   const recipe = await ctx.db.get(id);
   if (!recipe || recipe.userId !== userId) {
-    throw new Error("Recipe not found");
+    throw new ConvexError("Recipe not found");
   }
   return recipe;
 }
@@ -66,7 +66,7 @@ export const generateImageUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) throw new ConvexError("Not authenticated");
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -112,7 +112,7 @@ export const add = mutation({
   args: recipeArgs,
   handler: async (ctx, rawArgs) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) throw new ConvexError("Not authenticated");
 
     const args = clampRecipeSnapshot(rawArgs);
 

@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
 import { rateLimiter } from "./rateLimits";
@@ -62,12 +62,12 @@ export const updateUsername = mutation({
   args: { username: v.string() },
   handler: async (ctx, { username }) => {
     const userId = await getAuthUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    if (!userId) throw new ConvexError("Not authenticated");
     await rateLimiter.limit(ctx, "usernameCheck", { throws: true });
 
     const normalized = username.trim().toLowerCase();
     if (!USERNAME_PATTERN.test(normalized)) {
-      throw new Error("INVALID_USERNAME");
+      throw new ConvexError("INVALID_USERNAME");
     }
 
     const existing = await ctx.db
@@ -75,7 +75,7 @@ export const updateUsername = mutation({
       .withIndex("username", (q) => q.eq("username", normalized))
       .first();
     if (existing && existing._id !== userId) {
-      throw new Error("USERNAME_TAKEN");
+      throw new ConvexError("USERNAME_TAKEN");
     }
 
     await ctx.db.patch(userId, { username: normalized });

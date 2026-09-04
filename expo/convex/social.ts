@@ -1,5 +1,5 @@
 import { createAccount, getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "./_generated/api";
 import {
   internalAction,
@@ -17,7 +17,7 @@ import { ratingSummaryFor } from "./ratings";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   return userId;
 }
 
@@ -329,7 +329,7 @@ export const findUser = query({
 // friend-of-friend (by id) path.
 async function doSendRequest(ctx: MutationCtx, me: Id<"users">, other: Id<"users">) {
   const { iBlocked, blockedByThem } = await blockState(ctx, me, other);
-  if (iBlocked || blockedByThem) throw new Error("BLOCKED");
+  if (iBlocked || blockedByThem) throw new ConvexError("BLOCKED");
 
   const admin = await getAdminUser(ctx);
   if (admin && other === admin._id) return { status: "accepted" as const };
@@ -338,7 +338,7 @@ async function doSendRequest(ctx: MutationCtx, me: Id<"users">, other: Id<"users
   const mineRow = await pairRow(ctx, me, other);
   const theirsRow = await pairRow(ctx, other, me);
 
-  if (mineRow?.status === "accepted") throw new Error("ALREADY_FRIENDS");
+  if (mineRow?.status === "accepted") throw new ConvexError("ALREADY_FRIENDS");
   if (mineRow?.status === "pending_out") return { status: "pending_out" as const };
 
   if (mineRow?.status === "pending_in") {
@@ -380,9 +380,9 @@ export const sendFriendRequest = mutation({
     const me = await requireUserId(ctx);
     await rateLimiter.limit(ctx, "friendRequest", { key: me, throws: true });
     const found = await resolveUser(ctx, q);
-    if (!found) throw new Error("USER_NOT_FOUND");
-    if (found._id === me) throw new Error("CANNOT_ADD_SELF");
-    if (found.discoverable === false) throw new Error("USER_NOT_FOUND");
+    if (!found) throw new ConvexError("USER_NOT_FOUND");
+    if (found._id === me) throw new ConvexError("CANNOT_ADD_SELF");
+    if (found.discoverable === false) throw new ConvexError("USER_NOT_FOUND");
     return doSendRequest(ctx, me, found._id);
   },
 });
@@ -394,13 +394,13 @@ export const sendFriendRequestTo = mutation({
   handler: async (ctx, { userId: other }) => {
     const me = await requireUserId(ctx);
     await rateLimiter.limit(ctx, "friendRequest", { key: me, throws: true });
-    if (other === me) throw new Error("CANNOT_ADD_SELF");
+    if (other === me) throw new ConvexError("CANNOT_ADD_SELF");
     const target = await ctx.db.get(other);
-    if (!target) throw new Error("USER_NOT_FOUND");
+    if (!target) throw new ConvexError("USER_NOT_FOUND");
     // This path is only reachable from a friend's visible friend list, so the
     // target must have opted in — unless they're generally discoverable anyway.
     if (target.friendListVisible !== true && target.discoverable === false) {
-      throw new Error("USER_NOT_FOUND");
+      throw new ConvexError("USER_NOT_FOUND");
     }
     return doSendRequest(ctx, me, other);
   },
@@ -424,7 +424,7 @@ export const respondFriendRequest = mutation({
   handler: async (ctx, { userId: other, accept }) => {
     const me = await requireUserId(ctx);
     const mineRow = await pairRow(ctx, me, other);
-    if (!mineRow || mineRow.status !== "pending_in") throw new Error("NO_PENDING_REQUEST");
+    if (!mineRow || mineRow.status !== "pending_in") throw new ConvexError("NO_PENDING_REQUEST");
     const theirsRow = await pairRow(ctx, other, me);
     const now = Date.now();
 
@@ -457,9 +457,9 @@ export const block = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId: other }) => {
     const me = await requireUserId(ctx);
-    if (other === me) throw new Error("CANNOT_BLOCK_SELF");
+    if (other === me) throw new ConvexError("CANNOT_BLOCK_SELF");
     const admin = await getAdminUser(ctx);
-    if (admin && other === admin._id) throw new Error("CANNOT_BLOCK_ADMIN");
+    if (admin && other === admin._id) throw new ConvexError("CANNOT_BLOCK_ADMIN");
 
     const existing = await ctx.db
       .query("blocks")
@@ -467,6 +467,7 @@ export const block = mutation({
       .unique();
     if (!existing) {
       await ctx.db.insert("blocks", { blocker: me, blocked: other, createdAt: Date.now() });
+      console.warn(`[security] block: ${me} blocked ${other}`);
     }
     const mineRow = await pairRow(ctx, me, other);
     const theirsRow = await pairRow(ctx, other, me);
@@ -505,11 +506,14 @@ export const sendAdminMessage = mutation({
     const me = await requireUserId(ctx);
     await rateLimiter.limit(ctx, "adminMessage", { key: me, throws: true });
     const admin = await getAdminUser(ctx);
-    if (!admin) throw new Error("ADMIN_NOT_CONFIGURED");
+    if (!admin) throw new ConvexError("ADMIN_NOT_CONFIGURED");
 
     const trimmed = message.trim();
-    if (category === "report_user" && trimmed.length < 10) throw new Error("REASON_TOO_SHORT");
-    if (trimmed.length === 0) throw new Error("MESSAGE_EMPTY");
+    if (category === "report_user" && trimmed.length < 10) throw new ConvexError("REASON_TOO_SHORT");
+    if (trimmed.length === 0) throw new ConvexError("MESSAGE_EMPTY");
+    if (category === "report_user") {
+      console.warn(`[security] user report filed by ${me}`);
+    }
 
     const meDoc = await ctx.db.get(me);
 
@@ -600,7 +604,10 @@ export const setAdminMessageStatus = mutation({
   handler: async (ctx, { id, status }) => {
     const me = await requireUserId(ctx);
     const admin = await getAdminUser(ctx);
-    if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
+    if (!admin || admin._id !== me) {
+      console.warn(`[security] non-admin ${me} called setAdminMessageStatus`);
+      throw new ConvexError("NOT_ADMIN");
+    }
     await ctx.db.patch(id, {
       status,
       resolvedAt: status === "done" || status === "read" ? Date.now() : undefined,
@@ -613,9 +620,13 @@ export const broadcastInfo = mutation({
   handler: async (ctx, { message }) => {
     const me = await requireUserId(ctx);
     const admin = await getAdminUser(ctx);
-    if (!admin || admin._id !== me) throw new Error("NOT_ADMIN");
+    if (!admin || admin._id !== me) {
+      console.warn(`[security] non-admin ${me} called broadcastInfo`);
+      throw new ConvexError("NOT_ADMIN");
+    }
     const users = await ctx.db.query("users").collect();
     const now = Date.now();
+    console.warn(`[security] admin broadcast by ${me} to ${users.length} users`);
     for (const u of users) {
       if (u._id === me) continue;
       await ctx.db.insert("notifications", {
@@ -634,8 +645,8 @@ export const shareRecipe = mutation({
   args: { toUserId: v.id("users"), recipe: shareRecipeValidator, note: v.optional(v.string()) },
   handler: async (ctx, { toUserId, recipe: rawRecipe, note }) => {
     const me = await requireUserId(ctx);
-    if (toUserId === me) throw new Error("CANNOT_SHARE_WITH_SELF");
-    if ((await friendState(ctx, me, toUserId)) !== "accepted") throw new Error("NOT_FRIENDS");
+    if (toUserId === me) throw new ConvexError("CANNOT_SHARE_WITH_SELF");
+    if ((await friendState(ctx, me, toUserId)) !== "accepted") throw new ConvexError("NOT_FRIENDS");
 
     const recipe = clampRecipeSnapshot(rawRecipe);
     const now = Date.now();
@@ -664,7 +675,7 @@ export const saveSharedRecipe = mutation({
   handler: async (ctx, { id }) => {
     const me = await requireUserId(ctx);
     const share = await ctx.db.get(id);
-    if (!share || share.toUser !== me) throw new Error("SHARE_NOT_FOUND");
+    if (!share || share.toUser !== me) throw new ConvexError("SHARE_NOT_FOUND");
 
     const existing = await ctx.db
       .query("favoriteRecipes")

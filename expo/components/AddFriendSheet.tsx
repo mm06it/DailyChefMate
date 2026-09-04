@@ -6,6 +6,7 @@ import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, TextInput, V
 import Avatar from "@/components/Avatar";
 import type { Theme } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
+import { errorCode } from "@/lib/error-code";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
 import { useTheme } from "@/hooks/use-theme";
 import { useLanguage } from "@/hooks/use-language";
@@ -63,7 +64,7 @@ export default function AddFriendSheet({ visible, onClose }: AddFriendSheetProps
       setSentTo(userId);
       if (res?.status === "accepted") setSentTo(userId);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = errorCode(e);
       if (msg.includes("ALREADY_FRIENDS")) setError(t("alreadyFriends"));
       else if (msg.includes("USER_NOT_FOUND")) setError(t("userSearchNotFound"));
       else if (msg.includes("CANNOT_ADD_SELF")) setError(t("cannotAddSelf"));

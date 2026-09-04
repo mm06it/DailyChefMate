@@ -20,6 +20,7 @@ import { useDailyChefMateStore } from "@/hooks/use-dailychefmate-store";
 import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { useRecipeFromPhoto, pickRecipePhoto, type ParsedRecipe } from "@/hooks/use-recipe-from-photo";
+import { errorCode } from "@/lib/error-code";
 import RecipeVisionLoader from "@/components/RecipeVisionLoader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
@@ -240,7 +241,7 @@ export default function AddRecipeScreen() {
         showToast(t("visionReview"), { icon: "check" });
         setEntryMode("manual");
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = errorCode(e);
         const key = msg.includes("UNREADABLE")
           ? "visionUnreadable"
           : msg.includes("IMAGE_TOO_LARGE")

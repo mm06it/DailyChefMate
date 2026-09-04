@@ -4,6 +4,7 @@ import { useConvexAuth, useQuery } from 'convex/react';
 import { useCallback, useMemo } from 'react';
 
 import { api } from '@/convex/_generated/api';
+import { errorCode } from '@/lib/error-code';
 
 // TEMP: skips the login screen for local development. Set back to false to re-enable auth.
 const DEV_SKIP_AUTH = false;
@@ -61,7 +62,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       });
       return { data: {}, error: null, pendingVerification: !signingIn };
     } catch (e) {
-      return { data: null, error: { message: e instanceof Error ? e.message : 'Registrierung fehlgeschlagen' } };
+      return { data: null, error: { message: errorCode(e) || 'Registrierung fehlgeschlagen' } };
     }
   }, [convexSignIn]);
 
@@ -70,7 +71,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const { signingIn } = await convexSignIn('password', { email, password, flow: 'signIn' });
       return { data: {}, error: null, pendingVerification: !signingIn };
     } catch (e) {
-      return { data: null, error: { message: e instanceof Error ? e.message : 'Anmeldung fehlgeschlagen' } };
+      return { data: null, error: { message: errorCode(e) || 'Anmeldung fehlgeschlagen' } };
     }
   }, [convexSignIn]);
 
@@ -81,7 +82,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       await convexSignIn('password', { email, code, flow: 'email-verification' });
       return { data: {}, error: null };
     } catch (e) {
-      return { data: null, error: { message: e instanceof Error ? e.message : 'Der Code ist ungültig oder abgelaufen.' } };
+      return { data: null, error: { message: errorCode(e) || 'Der Code ist ungültig oder abgelaufen.' } };
     }
   }, [convexSignIn]);
 
@@ -92,7 +93,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       await convexSignIn('password', { email, password, flow: 'signIn' });
       return { data: {}, error: null };
     } catch (e) {
-      return { data: null, error: { message: e instanceof Error ? e.message : 'Der Code konnte nicht erneut gesendet werden.' } };
+      return { data: null, error: { message: errorCode(e) || 'Der Code konnte nicht erneut gesendet werden.' } };
     }
   }, [convexSignIn]);
 

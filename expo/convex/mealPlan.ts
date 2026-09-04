@@ -1,11 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
 import { clampRecipeSnapshot } from "./lib/recipeLimits";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   return userId;
 }
 
@@ -69,7 +69,7 @@ export const removeEntry = mutation({
   handler: async (ctx, { id }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     await ctx.db.delete(id);
   },
 });
@@ -79,7 +79,7 @@ export const moveEntry = mutation({
   handler: async (ctx, { id, day }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     await ctx.db.patch(id, { day });
   },
 });
@@ -89,7 +89,7 @@ export const setServings = mutation({
   handler: async (ctx, { id, servings }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     await ctx.db.patch(id, { servings: Math.max(1, Math.min(20, Math.round(servings))) });
   },
 });
@@ -99,7 +99,7 @@ export const setCooked = mutation({
   handler: async (ctx, { id, cooked }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     await ctx.db.patch(id, { cookedAt: cooked ? Date.now() : undefined });
   },
 });
@@ -110,7 +110,7 @@ export const toggleIngredient = mutation({
   handler: async (ctx, { id, ingredientId }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     const current = entry.checkedIngredients ?? [];
     const next = current.includes(ingredientId)
       ? current.filter((x) => x !== ingredientId)
@@ -125,7 +125,7 @@ export const setAllIngredientsChecked = mutation({
   handler: async (ctx, { id, checked }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     const all = (entry.recipe.ingredients ?? []).map((i) => i.id);
     await ctx.db.patch(id, { checkedIngredients: checked ? all : [] });
   },
@@ -138,7 +138,7 @@ export const setBought = mutation({
   handler: async (ctx, { id, bought }) => {
     const userId = await requireUserId(ctx);
     const entry = await ctx.db.get(id);
-    if (!entry || entry.userId !== userId) throw new Error("Entry not found");
+    if (!entry || entry.userId !== userId) throw new ConvexError("Entry not found");
     await ctx.db.patch(id, { boughtAt: bought ? Date.now() : undefined });
   },
 });

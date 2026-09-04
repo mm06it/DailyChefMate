@@ -1,11 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 
 async function requireUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);
-  if (!userId) throw new Error("Not authenticated");
+  if (!userId) throw new ConvexError("Not authenticated");
   return userId;
 }
 
@@ -13,7 +13,7 @@ async function requireOwnItem(ctx: MutationCtx, id: Id<"refrigeratorItems">) {
   const userId = await requireUserId(ctx);
   const item = await ctx.db.get(id);
   if (!item || item.userId !== userId) {
-    throw new Error("Ingredient not found");
+    throw new ConvexError("Ingredient not found");
   }
   return item;
 }

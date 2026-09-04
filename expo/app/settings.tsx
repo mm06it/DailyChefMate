@@ -14,6 +14,7 @@ import { useConvex, useMutation } from 'convex/react';
 
 import { useAuth } from '@/hooks/use-auth';
 import { useRequireAuth } from '@/hooks/use-auth-gate';
+import { errorCode } from '@/lib/error-code';
 import { useLanguage } from '@/hooks/use-language';
 import { useTheme, type ThemeMode } from '@/hooks/use-theme';
 import { useThemedStyles } from '@/hooks/use-themed-styles';
@@ -123,7 +124,7 @@ export default function SettingsScreen() {
       if (successTimer.current) clearTimeout(successTimer.current);
       successTimer.current = setTimeout(() => setFeedback(null), 3000);
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
+      const message = errorCode(e);
       if (message.includes('INVALID_USERNAME')) {
         setFeedback({ type: 'error', text: t('usernameInvalid') });
       } else if (message.includes('USERNAME_TAKEN')) {

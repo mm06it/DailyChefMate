@@ -1,5 +1,6 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
+import { ConvexError } from "convex/values";
 
 import { ResendOTP } from "./otp/ResendOTP";
 import { checkPassword } from "../lib/password-policy";
@@ -34,7 +35,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       // so the sign-up form enforces exactly the same thing client-side.
       validatePasswordRequirements(password: string) {
         const issue = checkPassword(password);
-        if (issue) throw new Error(issue);
+        if (issue) throw new ConvexError(issue);
       },
       verify: ResendOTP,
     }),
