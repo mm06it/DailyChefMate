@@ -26,6 +26,11 @@ export function formatMenge(n: number): string {
     .replace(".", ",");
 }
 
+// Same, with the "x" multiplier suffix for display: "1x" · "0,25x" · "2,5x".
+export function formatMengeX(n: number): string {
+  return `${formatMenge(n)}x`;
+}
+
 // Parse a user-typed value ("1,5", "0.75", "2") back to a number.
 export function parseMenge(s: string): number {
   const n = parseFloat(String(s).replace(",", "."));

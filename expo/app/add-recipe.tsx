@@ -21,7 +21,7 @@ import { useLanguage } from "@/hooks/use-language";
 import { useRecipeImageUpload, pickRecipeImage, type PickedImage } from "@/hooks/use-recipe-image";
 import { useRecipeFromPhoto, pickRecipePhoto, type ParsedRecipe } from "@/hooks/use-recipe-from-photo";
 import { errorCode } from "@/lib/error-code";
-import { MENGE_MIN, MENGE_STEP, clampMenge, formatMenge, parseMenge } from "@/lib/menge";
+import { MENGE_MIN, MENGE_STEP, clampMenge, formatMenge, formatMengeX, parseMenge } from "@/lib/menge";
 import RecipeVisionLoader from "@/components/RecipeVisionLoader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
@@ -869,7 +869,7 @@ export default function AddRecipeScreen() {
                       <Minus size={18} color={theme.textPrimary} />
                     </Pressable>
                     <Text style={styles.mengeValue} testID="menge-value">
-                      {formatMenge(Number.isFinite(parseMenge(formData.servings)) ? parseMenge(formData.servings) : 1)}
+                      {formatMengeX(Number.isFinite(parseMenge(formData.servings)) ? parseMenge(formData.servings) : 1)}
                     </Text>
                     <Pressable
                       testID="menge-increment"

@@ -10,9 +10,9 @@ import {
 import type { Theme } from "@/constants/theme";
 import { useThemedStyles } from "@/hooks/use-themed-styles";
 import { Text } from "@/components/ui/Text";
-import { clampMenge, formatMenge, mengeSteps } from "@/lib/menge";
+import { clampMenge, formatMengeX, mengeSteps } from "@/lib/menge";
 
-const ITEM_H = 38;
+const ITEM_H = 32;
 const VISIBLE = 3; // odd: centre value + one above + one below
 
 // Vertical wheel picker for the baking "Menge" (0.25 steps). Plain ScrollView
@@ -79,11 +79,11 @@ export default function MengeWheel({
         {steps.map((s, i) => (
           <View key={s} style={styles.item}>
             <Text
-              variant={i === idx ? "title" : "body"}
+              variant={i === idx ? "body" : "bodySm"}
               color={i === idx ? "primary" : "muted"}
               style={i === idx ? styles.active : styles.dim}
             >
-              {formatMenge(s)}
+              {formatMengeX(s)}
             </Text>
           </View>
         ))}
@@ -96,7 +96,7 @@ const makeStyles = (t: Theme) =>
   StyleSheet.create({
     wrap: {
       height: ITEM_H * VISIBLE,
-      width: 96,
+      width: 72,
       overflow: "hidden",
       borderRadius: t.radius.md,
       backgroundColor: t.surfaceSunken,
