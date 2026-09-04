@@ -11,7 +11,6 @@ import RatingStars from "@/components/RatingStars";
 import Avatar from "@/components/Avatar";
 import RecipeDetailHeader from "@/components/RecipeDetailHeader";
 import RecipeStepItem from "@/components/RecipeStepItem";
-import MengeWheel from "@/components/MengeWheel";
 import type { Theme } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { getTranslation, translateText, translateAmount } from "@/constants/translations";
@@ -32,7 +31,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Text } from "@/components/ui/Text";
 import { scaleAmount } from "@/lib/scale-amount";
 import { normalizeSteps } from "@/lib/normalize-steps";
-import { bakingBaseMenge } from "@/lib/menge";
+import { MENGE_MAX, MENGE_MIN, MENGE_STEP, bakingBaseMenge, clampMenge, formatMengeX } from "@/lib/menge";
 
 const MIN_SERVINGS = 1;
 const MAX_SERVINGS = 20;
@@ -171,12 +170,19 @@ export default function RecipeDetailScreen() {
   };
 
   const handleDecreaseServings = () => {
-    setServings(prev => Math.max(MIN_SERVINGS, prev - 1));
+    setServings(prev =>
+      isBaking ? clampMenge(prev - MENGE_STEP) : Math.max(MIN_SERVINGS, prev - 1),
+    );
   };
 
   const handleIncreaseServings = () => {
-    setServings(prev => Math.min(MAX_SERVINGS, prev + 1));
+    setServings(prev =>
+      isBaking ? clampMenge(prev + MENGE_STEP) : Math.min(MAX_SERVINGS, prev + 1),
+    );
   };
+
+  const atMin = isBaking ? servings <= MENGE_MIN : servings <= MIN_SERVINGS;
+  const atMax = isBaking ? servings >= MENGE_MAX : servings >= MAX_SERVINGS;
 
   const hasCooked = (cookedRecipes[recipe.id] ?? 0) > 0;
   const myRatingValue = myRating(recipe.id);
@@ -250,34 +256,27 @@ export default function RecipeDetailScreen() {
       <View style={styles.section}>
         <View style={styles.ingredientsHeaderRow}>
           <Text variant="h2">{getTranslation(currentLanguage, 'ingredients')}</Text>
-          {isBaking ? (
-            <View style={styles.mengeControl}>
-              <Text variant="label" color="secondary">{getTranslation(currentLanguage, 'amountLabel')}</Text>
-              <View pointerEvents={isCooking ? 'none' : 'auto'} style={isCooking && styles.servingsButtonDisabled}>
-                <MengeWheel value={servings} onChange={setServings} testID="menge-wheel" />
-              </View>
-            </View>
-          ) : (
-            <View style={styles.servingsStepper}>
-              <Pressable
-                style={[styles.servingsButton, (isCooking || servings <= MIN_SERVINGS) && styles.servingsButtonDisabled]}
-                onPress={handleDecreaseServings}
-                disabled={isCooking || servings <= MIN_SERVINGS}
-                testID="servings-decrease"
-              >
-                <Minus size={16} color={isCooking || servings <= MIN_SERVINGS ? theme.textMuted : theme.accent} />
-              </Pressable>
-              <Text variant="title" style={styles.servingsValue} testID="servings-value">{servings}</Text>
-              <Pressable
-                style={[styles.servingsButton, (isCooking || servings >= MAX_SERVINGS) && styles.servingsButtonDisabled]}
-                onPress={handleIncreaseServings}
-                disabled={isCooking || servings >= MAX_SERVINGS}
-                testID="servings-increase"
-              >
-                <Plus size={16} color={isCooking || servings >= MAX_SERVINGS ? theme.textMuted : theme.accent} />
-              </Pressable>
-            </View>
-          )}
+          <View style={styles.servingsStepper}>
+            <Pressable
+              style={[styles.servingsButton, (isCooking || atMin) && styles.servingsButtonDisabled]}
+              onPress={handleDecreaseServings}
+              disabled={isCooking || atMin}
+              testID="servings-decrease"
+            >
+              <Minus size={16} color={isCooking || atMin ? theme.textMuted : theme.accent} />
+            </Pressable>
+            <Text variant="title" style={styles.servingsValue} testID="servings-value">
+              {isBaking ? formatMengeX(servings) : servings}
+            </Text>
+            <Pressable
+              style={[styles.servingsButton, (isCooking || atMax) && styles.servingsButtonDisabled]}
+              onPress={handleIncreaseServings}
+              disabled={isCooking || atMax}
+              testID="servings-increase"
+            >
+              <Plus size={16} color={isCooking || atMax ? theme.textMuted : theme.accent} />
+            </Pressable>
+          </View>
         </View>
         {!isCooking && (
           <Text variant="bodySm" color="muted" style={styles.sectionHint}>
@@ -462,8 +461,7 @@ const makeStyles = (t: Theme) =>
       justifyContent: "center",
     },
     servingsButtonDisabled: { opacity: 0.5 },
-    servingsValue: { minWidth: 20, textAlign: "center" },
-    mengeControl: { alignItems: "center", gap: t.space[1] },
+    servingsValue: { minWidth: 34, textAlign: "center" },
     startCookingContainer: {
       padding: t.space[5],
       marginTop: t.space[3],
