@@ -4,8 +4,23 @@
   "installCommand": "bun install",
   "buildCommand": "npx expo export -p web",
   "outputDirectory": "dist",
+  "trailingSlash": false,
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/all", "destination": "/index.html" },
+    { "source": "/homemade", "destination": "/index.html" },
+    { "source": "/favorites", "destination": "/index.html" },
+    { "source": "/refrigerator", "destination": "/index.html" },
+    { "source": "/planner", "destination": "/index.html" },
+    { "source": "/social", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" },
+    { "source": "/recipe-detail", "destination": "/index.html" },
+    { "source": "/generated-recipes", "destination": "/index.html" },
+    { "source": "/add-recipe", "destination": "/index.html" },
+    { "source": "/auth", "destination": "/index.html" },
+    { "source": "/user/:id", "destination": "/index.html" }
   ],
   "headers": [
     {

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex" />
-  <title>DailyChefMate</title>
+  <title>404 – DailyChefMate</title>
   <link rel="icon" href="/favicon.ico" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -57,8 +57,16 @@
       box-shadow: var(--shadow);
     }
     .emoji { font-size: 48px; line-height: 1; }
+    .code {
+      margin-top: 14px;
+      font-family: "Space Grotesk", "Inter", sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--muted);
+    }
     .brand {
-      margin-top: 16px;
+      margin-top: 4px;
       font-family: "Inter", sans-serif;
       font-size: 13px;
       font-weight: 500;
@@ -92,26 +100,26 @@
       text-decoration: none;
     }
     .btn:active { opacity: 0.85; }
-    [data-lang] + [data-lang] { margin-top: 6px; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main class="card">
     <div class="emoji" aria-hidden="true">🍳</div>
+    <div class="code">404</div>
     <div class="brand">DailyChefMate</div>
 
     <div data-lang="de">
-      <h1>Website in Bearbeitung</h1>
-      <p>Wir sind gleich wieder für dich da. Bitte versuche es in ein paar Minuten erneut.</p>
+      <h1>Seite nicht gefunden</h1>
+      <p>Diese Seite gibt es nicht (mehr). Vielleicht wurde sie verschoben oder der Link ist veraltet.</p>
     </div>
     <div data-lang="en">
-      <h1>We&rsquo;ll be right back</h1>
-      <p>We&rsquo;re doing a bit of maintenance. Please try again in a few minutes.</p>
+      <h1>Page not found</h1>
+      <p>This page doesn&rsquo;t exist (anymore). It may have moved, or the link is out of date.</p>
     </div>
 
-    <a class="btn" href="/" data-lang="de">Neu laden</a>
-    <a class="btn" href="/" data-lang="en">Reload</a>
+    <a class="btn" href="/" data-lang="de">Zur Startseite</a>
+    <a class="btn" href="/" data-lang="en">Go to homepage</a>
   </main>
 
   <script>
