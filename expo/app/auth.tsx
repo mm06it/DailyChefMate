@@ -15,6 +15,7 @@ import { useConvex } from 'convex/react';
 
 import { useAuth } from '@/hooks/use-auth';
 import { PENDING_USERNAME_KEY } from '@/lib/auth-storage';
+import { checkPassword, passwordStrength, type PasswordIssue } from '@/lib/password-policy';
 import { useLanguage } from '@/hooks/use-language';
 import { useIsDesktop } from '@/hooks/use-responsive';
 import { getTranslation } from '@/constants/translations';
@@ -140,6 +141,15 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
 
   const tr = (key: string) => getTranslation(language, key);
 
+  const passwordIssueMessage = (issue: PasswordIssue): string => {
+    switch (issue) {
+      case 'PASSWORD_TOO_SHORT': return tr('passwordTooShort') ?? 'Passwort muss mindestens 10 Zeichen lang sein';
+      case 'PASSWORD_TOO_LONG': return tr('passwordTooLong') ?? 'Passwort ist zu lang';
+      case 'PASSWORD_TOO_COMMON': return tr('passwordTooCommon') ?? 'Dieses Passwort ist zu leicht zu erraten';
+      case 'PASSWORD_TOO_SIMPLE': return tr('passwordTooSimple') ?? 'Passwort muss Buchstaben und Zahlen oder Sonderzeichen mischen';
+    }
+  };
+
   const clearErrors = () => {
     setEmailError(null);
     setPasswordError(null);
@@ -178,9 +188,14 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
       return;
     }
 
-    if (password.length < 8) {
-      setPasswordError(tr('passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
-      return;
+    // Full policy only on sign-up (a new password). Sign-in just needs a
+    // non-empty value — the server checks the hash and rate-limits attempts.
+    if (isSignUp) {
+      const issue = checkPassword(password);
+      if (issue) {
+        setPasswordError(passwordIssueMessage(issue));
+        return;
+      }
     }
 
     if (isSignUp && password !== confirmPassword) {
@@ -205,8 +220,10 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
           const msg = String((error as any)?.message ?? '');
           if (/already (exists|registered)/i.test(msg)) {
             setEmailError(tr('emailAlreadyRegistered') ?? 'Für diese E-Mail-Adresse gibt es bereits ein Konto');
+          } else if (/^PASSWORD_TOO_(SHORT|LONG|COMMON|SIMPLE)$/.test(msg)) {
+            setPasswordError(passwordIssueMessage(msg as PasswordIssue));
           } else if (/password/i.test(msg)) {
-            setPasswordError(tr('passwordTooShort') ?? 'Passwort muss mindestens 8 Zeichen lang sein');
+            setPasswordError(passwordIssueMessage('PASSWORD_TOO_SIMPLE'));
           } else {
             console.error('Sign up error:', msg);
             setGeneralError(tr('authFailedRetry') ?? 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.');
@@ -406,12 +423,40 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
                     setGeneralError(null);
                   }}
                   secureTextEntry
-                  autoComplete="password"
+                  autoComplete={isSignUp ? 'new-password' : 'password'}
                   returnKeyType="go"
                   onSubmitEditing={handleEmailAuth}
                   error={passwordError ?? undefined}
                   testID="auth-password-input"
                 />
+
+                {isSignUp && password.length > 0 && (() => {
+                  const s = passwordStrength(password);
+                  const barColor = s === 0 ? theme.danger : s === 1 ? theme.warning : theme.success;
+                  const label = s === 0
+                    ? getTranslation(language, 'passwordStrengthWeak')
+                    : s === 1
+                      ? getTranslation(language, 'passwordStrengthOk')
+                      : getTranslation(language, 'passwordStrengthStrong');
+                  return (
+                    <View style={styles.strengthWrap} testID="auth-password-strength">
+                      <View style={styles.strengthBars}>
+                        {[0, 1, 2].map((i) => (
+                          <View
+                            key={i}
+                            style={[
+                              styles.strengthBar,
+                              { backgroundColor: i <= s ? barColor : theme.border },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                      <Text variant="caption" color="muted">
+                        {getTranslation(language, 'passwordStrength')}: {label}
+                      </Text>
+                    </View>
+                  );
+                })()}
 
                 {isSignUp && (
                   <Input
@@ -422,7 +467,7 @@ export default function AuthScreen({ embedded = false, onClose, initialMode = 's
                       setConfirmPasswordError(null);
                     }}
                     secureTextEntry
-                    autoComplete="password"
+                    autoComplete="new-password"
                     returnKeyType="go"
                     onSubmitEditing={handleEmailAuth}
                     error={confirmPasswordError ?? undefined}
@@ -490,4 +535,7 @@ const makeStyles = (t: Theme) =>
     form: { width: '100%', gap: t.space[4] },
     verifyEmail: { marginBottom: t.space[3] },
     codeInput: { textAlign: 'center', letterSpacing: 4, fontSize: 18 },
+    strengthWrap: { gap: t.space[2], marginTop: -t.space[1] },
+    strengthBars: { flexDirection: 'row', gap: t.space[2] },
+    strengthBar: { flex: 1, height: 4, borderRadius: 2 },
   });

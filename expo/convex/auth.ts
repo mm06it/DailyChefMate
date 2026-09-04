@@ -2,6 +2,7 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 
 import { ResendOTP } from "./otp/ResendOTP";
+import { checkPassword } from "../lib/password-policy";
 
 // Email + password auth via Convex Auth. Google/Apple sign-in aren't wired
 // up here — hooks/use-auth.ts surfaces a clear error if they're invoked,
@@ -14,6 +15,10 @@ import { ResendOTP } from "./otp/ResendOTP";
 // file is deployed, sign-up/sign-in will fail for everyone if the key is
 // missing, so deploy to dev and test there before prod.
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
+  // Brute-force protection: Convex Auth throttles failed password sign-ins AND
+  // failed OTP checks per account. Tightened from the default 10/hour to 5/hour
+  // (then one more roughly every 12 minutes).
+  signIn: { maxFailedAttempsPerHour: 5 },
   providers: [
     Password({
       // Username is deliberately NOT taken from sign-up params: it can't be
@@ -24,10 +29,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       profile(params) {
         return { email: params.email as string };
       },
+      // Runs on sign-up (and password reset) only — never on sign-in — so
+      // existing accounts are never locked out. Rules live in lib/password-policy
+      // so the sign-up form enforces exactly the same thing client-side.
       validatePasswordRequirements(password: string) {
-        if (typeof password !== "string" || password.length < 8) {
-          throw new Error("PASSWORD_TOO_SHORT");
-        }
+        const issue = checkPassword(password);
+        if (issue) throw new Error(issue);
       },
       verify: ResendOTP,
     }),
