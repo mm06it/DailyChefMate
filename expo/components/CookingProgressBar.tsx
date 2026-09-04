@@ -93,12 +93,12 @@ export default function CookingProgressBar() {
     >
       <View style={styles.card}>
         <View style={styles.headRow}>
-          <ChefHat size={15} color={theme.accent} />
+          <ChefHat size={14} color={theme.accent} />
           <Text variant="caption" color="secondary" numberOfLines={1} style={styles.headName}>
             {session.recipeName}
           </Text>
           <Text variant="caption" color="muted">
-            {t("cookingStep")} {idx + 1}/{total}
+            {idx + 1}/{total}
           </Text>
           <Pressable onPress={handleClose} hitSlop={8} testID="cooking-bar-close" style={styles.closeBtn}>
             {confirmClose ? (
@@ -149,7 +149,7 @@ const makeStyles = (t: Theme) =>
     },
     card: {
       width: "100%",
-      maxWidth: 320,
+      maxWidth: 240,
       backgroundColor: t.surfaceRaised,
       borderRadius: t.radius.lg,
       borderWidth: t.borderWidth.hairline,
