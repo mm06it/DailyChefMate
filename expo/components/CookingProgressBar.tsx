@@ -124,7 +124,7 @@ export default function CookingProgressBar() {
 
         <Pressable
           onPress={handleNext}
-          style={[styles.nextBtn, onLast && styles.finishBtn]}
+          style={styles.nextBtn}
           testID="cooking-bar-next"
         >
           {onLast ? (
@@ -178,10 +178,9 @@ const makeStyles = (t: Theme) =>
       alignItems: "center",
       justifyContent: "center",
       gap: t.space[2],
-      backgroundColor: t.accent,
+      backgroundColor: t.success,
       borderRadius: t.radius.md,
       paddingVertical: t.space[3],
     },
-    finishBtn: { backgroundColor: t.success },
     nextText: { color: t.textOnAccent, fontFamily: t.font.bodySemibold },
   });
